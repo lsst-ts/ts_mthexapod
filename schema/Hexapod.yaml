@@ -29,28 +29,3 @@ properties:
     description: The max limit along the w-axis (rot about z-axis)
     type: number
     default: 1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
