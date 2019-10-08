@@ -20,75 +20,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import ctypes
-import enum
 
 
 ELEVATION_ELEMENTS = 19
 AZIMUTH_ELEMENTS = 37
 TEMPERATURE_ELEMENTS = 9
 
+# What are these for?
 CAM_ERROR_CODE = 6201
 M2_ERROR_CODE = 6151
 
-# what is this?
+# What is this?
 HEXAPOD_DDS_TLM_CNT = 392
 
 
-class CommandType(enum.IntEnum):
-    # why trigger and cmd (same value)?
-    STATE_TRIGGER = 0x8000
-    STATE_CMD = 0x8000
-    ENABLED_SUBSTATE_CMD = 0x8001
-    OFFLINE_TRIGGER = 0x8002
-    POS_CMD = 0x8004
-    SET_PIVOTPOINT = 0x8007
-    CONFIG_ACCEL = 0x800B
-    CONFIG_VEL = 0x800C
-    CONFIG_LIMITS = 0x800D
-    OFFSET = 0x8010
-    # is this relevant to a hexapod?
-    TRACK_VEL_CMD = 0x9031
-
-
-class FrameId(enum.IntEnum):
-    CAM_TELEMETRY = 7
-    M2_TELEMETRY = 8
-    CAM_CONFIG = 27
-    M2_CONFIG = 28
-
-
-class Command(ctypes.Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("sync_pattern", ctypes.c_ushort),
-        ("counter", ctypes.c_ushort),
-        ("cmd", ctypes.c_uint),
-        ("param1", ctypes.double),
-        ("param2", ctypes.double),
-        ("param3", ctypes.double),
-        ("param4", ctypes.double),
-        ("param5", ctypes.double),
-        ("param6", ctypes.double),
-    ]
-
-
-class Header(ctypes.Structure):
-    """Header for output from MT Hexapod or Rotator.
-    """
-    _pack_ = 1
-    _fields_ = [
-        ("sync_pattern", ctypes.c_ushort),
-        ("frame_id", ctypes.c_ushort),
-        ("counter", ctypes.c_ushort),
-        ("mjd", ctypes.c_int),
-        ("mjd_frac", ctypes.c_double),
-        # tv_sec is time_t in C
-        ("tv_sec", ctypes.c_int64),
-        ("tv_nsec", ctypes.c_long),
-    ]
-
-
 class Config(ctypes.Structure):
+    """Hexapod configuration.
+    """
     _pack_ = 1
     _fields_ = [
         ("strut_acceleration", ctypes.c_double),
@@ -122,7 +70,7 @@ class Config(ctypes.Structure):
     ]
 
 
-class MainTelemetry(ctypes.Structure):
+class Telemetry(ctypes.Structure):
     """Hexapod telemetry.
     """
     _pack_ = 1
@@ -132,12 +80,7 @@ class MainTelemetry(ctypes.Structure):
         ("copley_fault_status_register", ctypes.c_uint32 * 6),
         ("application_status", ctypes.c_uint16 * 6),
         ("input_pin_states", ctypes.c_uint32 * 3),
-    ]
-
-
-class SimulinkTelemetry(ctypes.Structure):
-    _pack_ = 1
-    _fields_ = [
+        # simulink telemetry
         ("state", ctypes.c_double),
         ("enabled_substate", ctypes.c_double),
         ("offline_substate", ctypes.c_double),
@@ -150,12 +93,4 @@ class SimulinkTelemetry(ctypes.Structure):
         ("meas_pos", ctypes.c_double * 6),
         # commanded strut lengths (microns)
         ("cmd_length", ctypes.c_double * 6),
-    ]
-
-
-class Telemetry(ctypes.Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("main", MainTelemetry),
-        ("simulink", SimulinkTelemetry),
     ]

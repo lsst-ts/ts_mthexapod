@@ -1,7 +1,8 @@
 setupRequired(sconsUtils)
 setupRequired(ts_idl)  # IDL files and the quality of service file
 setupOptional(ts_sal)  # SALPY_Test library for unit tests
-setupOptional(ts_config_ocs)  # Test configuration files for unit tests
+setupRequired(ts_pymoog)
+setupRequired(ts_config_mttcs)  # Configuration files
 
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
 
