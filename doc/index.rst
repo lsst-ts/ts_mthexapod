@@ -24,43 +24,12 @@ Contributing
 ============
 
 ``lsst.ts.hexapod`` is developed at https://github.com/lsst-ts/ts_hexapod.
-You can find Jira issues for this module under the `ts_hexapod <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20component%20%3D%20ts_hexapod>`_ component.
+You can find Jira issues for this module using `labels=ts_hexapod <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%20%3D%20ts_hexapod>`_..
 
 .. If there are topics related to developing this module (rather than using it), link to this from a toctree placed here.
 
 .. .. toctree::
 ..    :maxdepth: 1
-
-.. _lsst.ts.hexapod-command-line-taskref:
-
-Task reference
-==============
-
-.. _lsst.ts.hexapod-command-line-tasks:
-
-Command-line tasks
-------------------
-
-.. lsst-cmdlinetasks::
-   :root: lsst.ts.hexapod
-
-.. _lsst.ts.hexapod-tasks:
-
-Tasks
------
-
-.. lsst-tasks::
-   :root: lsst.ts.hexapod
-   :toctree: tasks
-
-.. _lsst.ts.hexapod-configs:
-
-Configurations
---------------
-
-.. lsst-configs::
-   :root: lsst.ts.hexapod
-   :toctree: configs
 
 .. .. _lsst.ts.hexapod-scripts:
 
