@@ -23,6 +23,7 @@ from .constants import *
 from .enums import *
 from .structs import *
 from .utils import *
+from .simple_hexapod import *
 
 try:
     from .version import *
