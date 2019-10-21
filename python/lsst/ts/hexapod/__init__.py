@@ -24,6 +24,7 @@ from .enums import *
 from .structs import *
 from .utils import *
 from .simple_hexapod import *
+from .mock_controller import *
 
 try:
     from .version import *
