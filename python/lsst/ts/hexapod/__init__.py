@@ -22,6 +22,7 @@
 from .constants import *
 from .enums import *
 from .structs import *
+from .utils import *
 
 try:
     from .version import *
