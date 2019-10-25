@@ -365,7 +365,7 @@ class HexapodCsc(salobj.Controller):
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         if self.synchronized_move is None:
-            raise salobj.ExpectedError("Must specify a position with move or offset.")
+            raise salobj.ExpectedError("Must specify a position with positionSet or offset.")
         sync_move = self.synchronized_move
         self.synchronized_move = None
         await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
@@ -378,7 +378,7 @@ class HexapodCsc(salobj.Controller):
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         if self.synchronized_move is None:
-            raise salobj.ExpectedError("Must specify a position with move or offset.")
+            raise salobj.ExpectedError("Must specify a position with positionSet or offset.")
         sync_move = self.synchronized_move
         self.synchronized_move = None
         await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
