@@ -20,7 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
-import asyncio
 import copy
 
 from lsst.ts import salobj
@@ -31,22 +30,6 @@ from . import enums
 from . import structs
 from . import utils
 from . import mock_controller
-
-
-# Dict of controller state: CSC state.
-# The names match but the numeric values do not.
-StateCscState = {
-    Hexapod.ControllerState.OFFLINE: salobj.State.OFFLINE,
-    Hexapod.ControllerState.STANDBY: salobj.State.STANDBY,
-    Hexapod.ControllerState.DISABLED: salobj.State.DISABLED,
-    Hexapod.ControllerState.ENABLED: salobj.State.ENABLED,
-    Hexapod.ControllerState.FAULT: salobj.State.FAULT,
-}
-
-# Dict of CSC summary state: state reported by the low level controller.
-# The low level controller's states match CSC summary states in name
-# and meaning, but the numeric values differ.
-CscStateState = dict((value, key) for key, value in StateCscState.items())
 
 
 class ControllerConstants:
@@ -69,8 +52,8 @@ IndexControllerConstants = {
 }
 
 
-class HexapodCsc(salobj.Controller):
-    """MT rotator CSC.
+class HexapodCsc(hexrotcomm.BaseCsc):
+    """MT hexapod CSC.
 
     Parameters
     ----------
@@ -114,12 +97,7 @@ class HexapodCsc(salobj.Controller):
         self.uv_max_limit = constants.UV_MAX_LIMIT[index-1]
         self.w_min_limit = constants.W_MIN_LIMIT[index-1]
         self.w_max_limit = constants.W_MAX_LIMIT[index-1]
-        self.i = 0
 
-        self._initial_state = salobj.State(initial_state)
-        if simulation_mode not in (0, 1):
-            raise ValueError(f"simulation_mode = {simulation_mode}; must be 0 or 1")
-        self.simulation_mode = simulation_mode
         # Set this True or False for an offset or positionSet command.
         # Reset this to None when offset or positionSet are run
         # or when no longer enabled and stationary.
@@ -127,178 +105,19 @@ class HexapodCsc(salobj.Controller):
         # * Record a value needed by the move and offset commands.
         # * Record the fact that a position has been specified
         self.synchronized_move = None
-        self.server = None
-        self.mock_ctrl = None
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
-        super().__init__(name="Hexapod", index=index, do_callbacks=True)
 
-        # Dict of enum.CommandCode: Command
-        # with constants set to suitable values.
-        self.commands = dict()
-        for cmd in enums.CommandCode:
-            command = hexrotcomm.Command()
-            command.cmd = cmd
-            command.sync_pattern = controller_constants.sync_pattern
-            self.commands[cmd] = command
-
-    @property
-    def summary_state(self):
-        """Return the current summary state as a salobj.State,
-        or OFFLINE if unknown.
-        """
-        if self.server is None or not self.server.connected:
-            return salobj.State.OFFLINE
-        return StateCscState.get(int(self.server.telemetry.state), salobj.State.OFFLINE)
-
-    async def start(self):
-        await super().start()
-        simulating = self.simulation_mode != 0
-        host = hexrotcomm.LOCAL_HOST if simulating else None
-        self.server = hexrotcomm.CommandTelemetryServer(
-            host=host,
-            log=self.log,
-            ConfigClass=structs.Config,
-            TelemetryClass=structs.Telemetry,
-            connect_callback=self.connect_callback,
-            config_callback=self.config_callback,
-            telemetry_callback=self.telemetry_callback,
-            use_random_ports=simulating)
-        await self.server.start_task
-        if simulating:
-            initial_ctrl_state = CscStateState[self._initial_state]
-            self.mock_ctrl = mock_controller.MockMTHexapodController(
-                index=self.salinfo.index,
-                log=self.log,
-                initial_state=initial_ctrl_state,
-                command_port=self.server.command_port,
-                telemetry_port=self.server.telemetry_port)
-            await self.mock_ctrl.connect_task
-        else:
-            self.evt_summaryState.set_put(summaryState=salobj.State.OFFLINE)
-        # TODO uncomment when inPosition as a boolean field
-        # self.evt_inPosition.set_put(inPosition=False, force_output=True)
-
-    async def close_tasks(self):
-        if self.mock_ctrl is not None:
-            await self.mock_ctrl.close()
-        if self.server is not None:
-            await self.server.close()
-
-    def assert_summary_state(self, *allowed_states):
-        """Assert that the current summary state is as specified.
-
-        Used in do_xxx methods to check that a command is allowed.
-        """
-        if self.summary_state not in allowed_states:
-            raise salobj.ExpectedError(f"Must be in state(s) {allowed_states}, not {self.summary_state}")
-
-    async def run_command(self, cmd, **kwargs):
-        command = self.commands[cmd]
-        for name, value in kwargs.items():
-            if hasattr(command, name):
-                setattr(command, name, value)
-            else:
-                raise ValueError(f"Unknown command argument {name}")
-        # Note: increment correctly wraps around
-        command.counter += 1
-        await self.server.put_command(command)
-
-    # Unsupported standard CSC commnands.
-    async def do_abort(self, data):
-        raise salobj.ExpectedError("Unsupported command")
-
-    async def do_setSimulationMode(self, data):
-        raise salobj.ExpectedError("Unsupported command: "
-                                   "simulation mode can only be set when starting the CSC.")
-
-    async def do_setValue(self, data):
-        raise salobj.ExpectedError("Unsupported command")
-
-    # Standard CSC commnands.
-    async def do_enable(self, data):
-        """Execute the enable command."""
-        self.assert_summary_state(salobj.State.DISABLED)
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.ENABLE)
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.ENABLED)
-
-    async def do_disable(self, data):
-        """Execute the disable command."""
-        self.assert_summary_state(salobj.State.ENABLED)
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.DISABLE)
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.DISABLED)
-
-    async def do_enterControl(self, data):
-        """Execute the enterControl command.
-        """
-        self.assert_summary_state(salobj.State.OFFLINE)
-        if self.server.telemetry.offline_substate != Hexapod.OfflineSubstate.AVAILABLE:
-            raise salobj.ExpectedError(
-                "Use the engineering interface to put the controller into state OFFLINE/AVAILABLE")
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.ENTER_CONTROL)
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.STANDBY)
-
-    async def do_exitControl(self, data):
-        self.assert_summary_state(salobj.State.STANDBY)
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.EXIT)
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.OFFLINE)
-
-    async def do_standby(self, data):
-        self.assert_summary_state(salobj.State.DISABLED, salobj.State.FAULT)
-        if self.server.telemetry.state == Hexapod.ControllerState.DISABLED:
-            await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                                   param1=enums.SetStateParam.STANDBY)
-        else:
-            raise salobj.ExpectedError(
-                "Use clearError or the engineering interface to set the state to OFFLINE/PUBLISH_ONLY, "
-                "then use the engineering interface to set the state to OFFLINE/AVAILABLE.")
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.STANDBY)
-
-    async def do_start(self, data):
-        """Execute the start command.
-
-        Notes
-        -----
-        This ignores the data, unlike the vendor's CSC code, which writes the
-        supplied file name into a file on an nfs-mounted partition.
-        I hope we won't need to do that, as it seems complicated.
-        """
-        if self.summary_state != salobj.State.STANDBY:
-            raise salobj.ExpectedError(f"CSC is in {self.summary_state}; must be STANDBY state to start")
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.START)
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.DISABLED)
+        super().__init__(name="Hexapod",
+                         index=index,
+                         sync_pattern=controller_constants.sync_pattern,
+                         CommandCode=enums.CommandCode,
+                         ConfigClass=structs.Config,
+                         TelemetryClass=structs.Telemetry,
+                         initial_state=initial_state,
+                         simulation_mode=simulation_mode)
 
     # Hexapod-specific commands.
-    async def do_clearError(self, data):
-        """Reset the FAULT state to OFFLINE/PUBLISH_ONLY.
-
-        Unfortunately, after this call you must use the engineering user
-        interface to transition the controller from OFFLINE_PUBLISH_ONLY
-        to OFFLINE/AVAILABLE before the CSC can control it.
-        """
-        if self.summary_state != salobj.State.FAULT:
-            raise salobj.ExpectedError("Must be in FAULT state.")
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.FAULT)
-        # Two sequential commands are needed to clear error
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.CLEAR_ERROR)
-        await asyncio.sleep(0.9)
-        await self.run_command(cmd=enums.CommandCode.SET_STATE,
-                               param1=enums.SetStateParam.CLEAR_ERROR)
-        await self.server.next_telemetry()
-        self.assert_summary_state(salobj.State.OFFLINE)
-
     async def do_configureAcceleration(self, data):
         """Specify the acceleration limit."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
@@ -477,28 +296,6 @@ class HexapodCsc(salobj.Controller):
         # command.sync_pattern = structs.ROTATOR_SYNC_PATTERN
         # await self.server.run_command(command)
 
-    def assert_enabled_substate(self, substate):
-        """Assert the controller is enabled and in the specified substate.
-        """
-        if self.summary_state != salobj.State.ENABLED:
-            raise salobj.ExpectedError("Not enabled")
-        if self.server.telemetry.enabled_substate != substate:
-            raise salobj.ExpectedError("Low-level controller in substate "
-                                       f"{self.server.telemetry.enabled_substate} "
-                                       f"instead of {substate!r}")
-
-    def connect_callback(self, server):
-        """Called when the server's command or telemetry sockets
-        connect or disconnect.
-
-        Parameters
-        ----------
-        server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
-            TCP/IP server.
-        """
-        self.evt_connected.set_put(command=self.server.command_connected,
-                                   telemetry=self.server.telemetry_connected)
-
     def config_callback(self, server):
         """Called when the TCP/IP controller outputs configuration.
 
@@ -627,6 +424,14 @@ class HexapodCsc(salobj.Controller):
         self.evt_interlock.set_put(
             detail="Engaged" if safety_interlock else "Disengaged",
         )
+
+    def make_mock_controller(self, initial_ctrl_state):
+        return mock_controller.MockMTHexapodController(
+            log=self.log,
+            index=self.salinfo.index,
+            initial_state=initial_ctrl_state,
+            command_port=self.server.command_port,
+            telemetry_port=self.server.telemetry_port)
 
     @classmethod
     async def amain(cls):
