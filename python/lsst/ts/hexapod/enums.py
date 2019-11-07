@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["SalIndex", "CommandCode", "FrameId", "SetStateParam", "SetEnabledSubstateParam"]
+__all__ = ["SalIndex", "CommandCode", "FrameId", "SetEnabledSubstateParam"]
 
 import enum
 
@@ -52,22 +52,6 @@ class FrameId(enum.IntEnum):
     CAM_CONFIG = 0x1B
     M2_TELEMETRY = 0x8
     M2_CONFIG = 0x1C
-
-
-class SetStateParam(enum.IntEnum):
-    """Values for ``command.param1`` when
-    ``command.cmd = CommandCode.SET_STATE``.
-
-    Called ``TriggerCmds`` in Moog code.
-    """
-    INVALID = 0
-    START = enum.auto()
-    ENABLE = enum.auto()
-    STANDBY = enum.auto()
-    DISABLE = enum.auto()
-    EXIT = enum.auto()
-    CLEAR_ERROR = enum.auto()
-    ENTER_CONTROL = enum.auto()
 
 
 class SetEnabledSubstateParam(enum.IntEnum):
