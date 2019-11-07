@@ -36,7 +36,7 @@ TRACK_TIMEOUT = 1
 
 
 class MockMTHexapodController(hexrotcomm.BaseMockController):
-    """Mock MT rotator controller that talks over TCP/IP.
+    """Mock MT hexapod controller that talks over TCP/IP.
 
     Parameters
     ----------
@@ -44,6 +44,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         SAL index; see `SalIndex` for the allowed values.
     log : `logging.Logger`
         Logger.
+    host : `str` (optional)
+        IP address of CSC server.
     command_port : `int` (optional)
         Command socket port.  This argument is intended for unit tests;
         use the default value for normal operation.
@@ -83,7 +85,12 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     # (for unit testing).
     speed = mirror_z/500
 
-    def __init__(self, index, log, command_port, telemetry_port,
+    def __init__(self,
+                 index,
+                 log,
+                 host=hexrotcomm.LOCAL_HOST,
+                 command_port=hexrotcomm.COMMAND_PORT,
+                 telemetry_port=hexrotcomm.TELEMETRY_PORT,
                  initial_state=Hexapod.ControllerState.OFFLINE):
         self.encoder_resolution = 200_000  # counts/deg; arbitrary
         index = enums.SalIndex(index)
@@ -123,14 +130,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.set_position = (math.nan,)*6
 
         # Dict of command key: command
-        self.command_table = {
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.START): self.do_start,
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.ENABLE): self.do_enable,
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.STANDBY): self.do_standby,
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.DISABLE): self.do_disable,
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.EXIT): self.do_exit,
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.CLEAR_ERROR): self.do_clear_error,
-            (enums.CommandCode.SET_STATE, enums.SetStateParam.ENTER_CONTROL): self.do_enter_control,
+        extra_commands = {
             (enums.CommandCode.SET_ENABLED_SUBSTATE,
              enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT): self.do_move_point_to_point,
             # Note: the mock controller ignores the lookup table,
@@ -145,21 +145,15 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             enums.CommandCode.CONFIG_VEL: self.do_config_vel,
         }
 
-        super().__init__(log=log, config=config, telemetry=telemetry,
-                         command_port=command_port, telemetry_port=telemetry_port)
-        self.set_state(initial_state)
-
-    @property
-    def state(self):
-        return self.telemetry.state
-
-    @property
-    def offline_substate(self):
-        return self.telemetry.offline_substate
-
-    @property
-    def enabled_substate(self):
-        return self.telemetry.enabled_substate
+        super().__init__(log=log,
+                         CommandCode=enums.CommandCode,
+                         extra_commands=extra_commands,
+                         config=config,
+                         telemetry=telemetry,
+                         host=host,
+                         command_port=command_port,
+                         telemetry_port=telemetry_port,
+                         initial_state=initial_state)
 
     async def close(self):
         """Kill command and telemetry tasks and close the connections.
@@ -168,61 +162,6 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         """
         self.hexapod.stop()
         await super().close()
-
-    def assert_stationary(self):
-        self.assert_state(Hexapod.ControllerState.ENABLED,
-                          enabled_substate=Hexapod.EnabledSubstate.STATIONARY)
-
-    def assert_state(self, state, offline_substate=None, enabled_substate=None):
-        if self.state != state:
-            raise RuntimeError(f"state={self.state!r}; must be {state!r} for this command.")
-        if offline_substate is not None and self.offline_substate != offline_substate:
-            raise RuntimeError(f"offline_substate={self.offline_substate!r}; "
-                               f"must be {offline_substate!r} for this command.")
-        if enabled_substate is not None and self.enabled_substate != enabled_substate:
-            raise RuntimeError(f"enabled_substate={self.enabled_substate!r}; "
-                               f"must be {enabled_substate!r} for this command.")
-
-    def get_command_key(self, command):
-        """Return the key to command_table."""
-        if command.cmd in (enums.CommandCode.SET_STATE,
-                           enums.CommandCode.SET_ENABLED_SUBSTATE):
-            return (command.cmd, int(command.param1))
-        return command.cmd
-
-    async def do_enter_control(self, command):
-        self.assert_state(Hexapod.ControllerState.OFFLINE,
-                          offline_substate=Hexapod.OfflineSubstate.AVAILABLE)
-        self.set_state(Hexapod.ControllerState.STANDBY)
-
-    async def do_start(self, command):
-        self.assert_state(Hexapod.ControllerState.STANDBY)
-        self.set_state(Hexapod.ControllerState.DISABLED)
-
-    async def do_enable(self, command):
-        self.assert_state(Hexapod.ControllerState.DISABLED)
-        self.set_state(Hexapod.ControllerState.ENABLED)
-
-    async def do_disable(self, command):
-        self.assert_state(Hexapod.ControllerState.ENABLED)
-        self.set_state(Hexapod.ControllerState.DISABLED)
-
-    async def do_standby(self, command):
-        self.assert_state(Hexapod.ControllerState.DISABLED)
-        self.set_state(Hexapod.ControllerState.STANDBY)
-
-    async def do_exit(self, command):
-        self.assert_state(Hexapod.ControllerState.STANDBY)
-        self.set_state(Hexapod.ControllerState.OFFLINE)
-
-    async def do_clear_error(self, command):
-        # Allow initial state FAULT and OFFLINE because the real controller
-        # requires two sequential CLEAR_COMMAND commands. For the mock
-        # controller the first command will (probably) transition from FAULT
-        # to OFFLINE, but the second must be accepted without complaint.
-        if self.state not in (Hexapod.ControllerState.FAULT, Hexapod.ControllerState.OFFLINE):
-            raise RuntimeError(f"state={self.state!r}; must be FAULT or OFFLINE for this command.")
-        self.set_state(Hexapod.ControllerState.OFFLINE)
 
     async def do_config_accel(self, command):
         self.assert_stationary()
@@ -289,59 +228,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.telemetry.commanded_length = tuple(actuator.end_pos for actuator in self.hexapod.actuators)
         self.telemetry.enabled_substate = Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT
 
-    async def run_command(self, command):
-        self.log.debug(f"run_command: command={enums.CommandCode(command.cmd)!r}; "
-                       f"param1={command.param1}; param2={command.param2}; param3={command.param3}")
-        key = self.get_command_key(command)
-        cmd_method = self.command_table.get(key, None)
-        if cmd_method is None:
-            self.log.error(f"Unrecognized command cmd={command.cmd}; param1={command.param1}")
-            return
-        try:
-            await cmd_method(command)
-        except Exception as e:
-            self.log.error(f"Command cmd={command.cmd}; param1={command.param1} failed: {e}")
+    async def end_run_command(self, command, cmd_method):
         if cmd_method != self.do_position_set:
             self.set_position = (math.nan,)*6
-
-    def set_state(self, state):
-        """Set the current state and substates.
-
-        Parameters
-        ----------
-        state : `Hexapod.ControllerState` or `int`
-            New state.
-
-        Notes
-        -----
-        Sets the substates as follows:
-
-        * `Hexapod.OfflineSubstate.AVAILABLE`
-          if state == `Hexapod.ControllerState.OFFLINE`
-        * `Hexapod.EnabledSubstate.STATIONARY`
-          if state == `Hexapod.ControllerState.ENABLED`
-
-        The real controller goes to substate
-        `lsst.ts.idl.enums.Hexapod.OfflineSubstate.PUBLISH_ONLY` when going
-        offline, but requires the engineering user interface (EUI) to get out
-        of that state, and we don't have an EUI for the mock controller!
-        """
-        self.telemetry.state = Hexapod.ControllerState(state)
-        self.telemetry.offline_substate = Hexapod.OfflineSubstate.AVAILABLE \
-            if self.telemetry.state == Hexapod.ControllerState.OFFLINE else 0
-        self.telemetry.enabled_substate = Hexapod.EnabledSubstate.STATIONARY \
-            if self.telemetry.state == Hexapod.ControllerState.ENABLED else 0
-        self.log.debug(f"set_state: state={Hexapod.ControllerState(self.telemetry.state)!r}; "
-                       f"offline_substate={Hexapod.EnabledSubstate(self.telemetry.offline_substate)}; "
-                       f"enabled_substate={Hexapod.EnabledSubstate(self.telemetry.enabled_substate)}")
-
-    def log_rejected_command(self, command, reason=None):
-        """Log an error message describing a rejected command."""
-        if reason is None:
-            reason = f"the current state is {self.telemetry.state}, " \
-                     f"enabled_substate={self.telemetry.enabled_substate}"
-        self.log.error(f"Ignoring command cmd={command.cmd}, "
-                       f"param1={command.param1}, param2={command.param2}: {reason}")
 
     async def update_telemetry(self):
         try:
@@ -350,7 +239,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             self.telemetry.copley_fault_status_register = (0,)*6
             axes_in_position = [not actuator.moving for actuator in self.hexapod.actuators]
             self.telemetry.application_status = \
-                tuple(int(in_position)*Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+                tuple(int(in_position)*Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK |
+                      Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE
                       for in_position in axes_in_position)
             self.telemetry.input_pin_states = (0,)*3
 
