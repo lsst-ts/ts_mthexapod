@@ -19,10 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-import logging
 import unittest
-import shutil
 import time
 
 import asynctest
@@ -30,113 +27,39 @@ import numpy as np
 
 from lsst.ts import salobj
 from lsst.ts import hexapod
+from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums import Hexapod
 
 STD_TIMEOUT = 5  # timeout for command ack
-LONG_TIMEOUT = 30  # timeout for CSCs to start
-NODATA_TIMEOUT = 0.1  # timeout for when we expect no new data
+
+index_gen = salobj.index_generator(imin=1, imax=2)
 
 
-class TestHexapodCsc(asynctest.TestCase):
-    async def setUp(self):
-        salobj.test_utils.set_random_lsst_dds_domain()
-        self.csc = None  # set by make_csc
-        self.remote = None
+class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
 
-    async def tearDown(self):
-        close_tasks = []
-        if self.csc is not None:
-            close_tasks.append(self.csc.close())
-        if self.remote is not None:
-            close_tasks.append(self.remote.close())
-        if close_tasks:
-            await asyncio.wait_for(asyncio.gather(*close_tasks), timeout=STD_TIMEOUT)
-
-    async def make_csc(self, index, initial_state, simulation_mode=1,
-                       wait_connected=True, log_level=logging.INFO):
-        """Create a HexapodCsc and remote and wait for them to start.
-
-        Parameters
-        ----------
-        initial_state : `lsst.ts.salobj.State` or `int` (optional)
-            The initial state of the CSC. Ignored except in simulation mode
-            because in normal operation the initial state is the current state
-            of the controller.
-        simulation_mode : `int` (optional)
-            Simulation mode.
-        wait_connected : `bool`
-            If True then wait for the controller to connect.
-        """
-        self.csc = hexapod.HexapodCsc(index=index,
-                                      initial_state=initial_state,
-                                      simulation_mode=simulation_mode)
-        if len(self.csc.log.handlers) < 2:
-            self.csc.log.addHandler(logging.StreamHandler())
-            self.csc.log.setLevel(log_level)
-        self.remote = salobj.Remote(domain=self.csc.domain, name="Hexapod", index=index)
-
-        await asyncio.wait_for(asyncio.gather(self.csc.start_task, self.remote.start_task),
-                               timeout=LONG_TIMEOUT)
-        self.csc.mock_ctrl.log.setLevel(log_level)
-        if wait_connected:
-            for i in range(3):
-                data = await self.remote.evt_connected.next(flush=False, timeout=STD_TIMEOUT)
-                if data.command and data.telemetry:
-                    print("Connected")
-                    break
-
-    async def assert_next_summary_state(self, state, timeout=STD_TIMEOUT):
-        data = await self.remote.evt_summaryState.next(flush=False, timeout=timeout)
-        self.assertEqual(data.summaryState, state)
-
-    async def assert_next_controller_state(self, controllerState=None,
-                                           offlineSubstate=None,
-                                           enabledSubstate=None,
-                                           timeout=STD_TIMEOUT):
-        """Wait for and check the next controllerState event.
-
-        Parameters
-        ----------
-        controllerState : `lsst.ts.idl.enums.Hexapod.ControllerState`
-            Desired controller state.
-        offlineSubstate : `lsst.ts.idl.enums.Hexapod.OfflineSubstate`
-            Desired offline substate.
-        enabledSubstate : `lsst.ts.idl.enums.Hexapod.EnabledSubstate`
-            Desired enabled substate.
-        timeout : `float`
-            Time limit for getting a controllerState event (sec).
-        """
-        data = await self.remote.evt_controllerState.next(flush=False, timeout=timeout)
-        if controllerState is not None:
-            self.assertEqual(data.controllerState, controllerState)
-        if offlineSubstate is not None:
-            self.assertEqual(data.offlineSubstate, offlineSubstate)
-        if enabledSubstate is not None:
-            self.assertEqual(data.controllerState, controllerState)
+    def basic_make_csc(self, initial_state, simulation_mode=1):
+        return hexapod.HexapodCsc(index=next(index_gen),
+                                  initial_state=initial_state,
+                                  simulation_mode=simulation_mode)
 
     async def test_bin_script(self):
         """Test running from the command line script.
         """
-        exe_name = "run_hexapod.py"
-        exe_path = shutil.which(exe_name)
-        if exe_path is None:
-            self.fail(f"Could not find bin script {exe_name}; did you setup or install this package?")
+        await self.check_bin_script(name="Hexapod",
+                                    index=next(index_gen),
+                                    exe_name="run_hexapod.py")
 
-        index = 2
-        process = await asyncio.create_subprocess_exec(exe_name, str(index), "--simulate")
-        try:
-            async with salobj.Domain() as domain:
-                remote = salobj.Remote(domain=domain, name="Hexapod")
-                summaryState_data = await remote.evt_summaryState.next(flush=False, timeout=60)
-                self.assertEqual(summaryState_data.summaryState, salobj.State.OFFLINE)
-
-        finally:
-            process.terminate()
+    async def test_standard_state_transitions(self):
+        enabled_commands = ("configureVelocity", "configureAcceleration",
+                            "configureLimits", "configureElevationRawLUT",
+                            "configureAzimuthRawLUT", "configureTemperatureRawLUT",
+                            "offset", "pivot", "positionSet", "stop")
+        await self.check_standard_state_transitions(enabled_commands=enabled_commands)
 
     async def test_configure_acceleration(self):
         """Test the configureAcceleration command.
         """
-        await self.make_csc(index=1, initial_state=salobj.State.ENABLED)
+        await self.make_csc(initial_state=salobj.State.ENABLED)
         data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
         initial_limit = data.accelerationAccmax
         print("initial_limit=", initial_limit)
@@ -159,15 +82,7 @@ class TestHexapodCsc(asynctest.TestCase):
             return (data.limitXYMax, data.limitZMin, data.limitZMax,
                     data.limitUVMax, data.limitWMin, data.limitWMax)
 
-        index = 2
-        xy_max_limit = hexapod.XY_MAX_LIMIT[index-1]
-        z_min_limit = hexapod.Z_MIN_LIMIT[index-1]
-        z_max_limit = hexapod.Z_MAX_LIMIT[index-1]
-        uv_max_limit = hexapod.UV_MAX_LIMIT[index-1]
-        w_min_limit = hexapod.W_MIN_LIMIT[index-1]
-        w_max_limit = hexapod.W_MAX_LIMIT[index-1]
-
-        await self.make_csc(index=index, initial_state=salobj.State.ENABLED)
+        await self.make_csc(initial_state=salobj.State.ENABLED)
         data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
         initial_limits = get_limits(data)
         new_limits = tuple(lim*0.9 for lim in initial_limits)
@@ -193,15 +108,16 @@ class TestHexapodCsc(asynctest.TestCase):
 
         for bad_limits in (
             make_modified_limits(0, 0),
-            make_modified_limits(0, xy_max_limit + 0.001),
-            make_modified_limits(1, z_min_limit - 0.001),
-            make_modified_limits(2, z_max_limit + 0.001),
+            make_modified_limits(0, self.csc.xy_max_limit + 0.001),
+            make_modified_limits(1, self.csc.z_min_limit - 0.001),
+            make_modified_limits(2, self.csc.z_max_limit + 0.001),
             make_modified_limits(3, 0),
-            make_modified_limits(3, uv_max_limit + 0.001),
-            make_modified_limits(4, w_min_limit - 0.001),
-            make_modified_limits(5, w_max_limit + 0.001),
+            make_modified_limits(3, self.csc.uv_max_limit + 0.001),
+            make_modified_limits(4, self.csc.w_min_limit - 0.001),
+            make_modified_limits(5, self.csc.w_max_limit + 0.001),
         ):
             with self.subTest(bad_limits=bad_limits):
+                print(f"bad_limits={bad_limits}")
                 with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
                     await self.remote.cmd_configureLimits.set_start(xymax=bad_limits[0],
                                                                     zmin=bad_limits[1],
@@ -218,7 +134,7 @@ class TestHexapodCsc(asynctest.TestCase):
             """Get the velocity limits from a settingsApplied sample."""
             return (data.velocityXYMax, data.velocityRxRyMax, data.velocityZMax, data.velocityRzMax)
 
-        await self.make_csc(index=2, initial_state=salobj.State.ENABLED)
+        await self.make_csc(initial_state=salobj.State.ENABLED)
         data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
         initial_vel_limits = get_velocity_limits(data)
         new_vel_limits = tuple(lim - 0.01 for lim in initial_vel_limits)
@@ -254,108 +170,6 @@ class TestHexapodCsc(asynctest.TestCase):
                                                                       rzmax=bad_vel_limits[3],
                                                                       timeout=STD_TIMEOUT)
 
-    async def test_standard_state_transitions(self):
-        """Test standard CSC state transitions.
-
-        The initial state is STANDBY.
-        The standard commands and associated state transitions are:
-
-        * start: STANDBY to DISABLED
-        * enable: DISABLED to ENABLED
-
-        * disable: ENABLED to DISABLED
-        * standby: DISABLED or FAULT to STANDBY
-        * exitControl: STANDBY to OFFLINE (quit)
-        """
-        await self.make_csc(index=1, initial_state=salobj.State.OFFLINE)
-        print("CSC running")
-
-        await self.assert_next_summary_state(salobj.State.OFFLINE)
-        await self.check_bad_commands(good_commands=("enterControl", "setLogLevel"))
-
-        # send enterControl; new state is STANDBY
-        await self.remote.cmd_enterControl.start(timeout=STD_TIMEOUT)
-        # Check CSC summary state directly to make sure it has changed
-        # before the command is acknowledged as done.
-        self.assertEqual(self.csc.summary_state, salobj.State.STANDBY)
-        await self.assert_next_summary_state(salobj.State.STANDBY)
-        await self.check_bad_commands(good_commands=("start", "exitControl", "setLogLevel"))
-
-        # send start; new state is DISABLED
-        await self.remote.cmd_start.start(timeout=STD_TIMEOUT)
-        self.assertEqual(self.csc.summary_state, salobj.State.DISABLED)
-        await self.assert_next_summary_state(salobj.State.DISABLED)
-        await self.check_bad_commands(good_commands=("enable", "standby", "setLogLevel"))
-
-        # send enable; new state is ENABLED
-        await self.remote.cmd_enable.start(timeout=STD_TIMEOUT)
-        self.assertEqual(self.csc.summary_state, salobj.State.ENABLED)
-        await self.assert_next_summary_state(salobj.State.ENABLED)
-        await self.check_bad_commands(good_commands=("disable", "setLogLevel",
-                                                     "configureVelocity", "configureAcceleration",
-                                                     "configureLimits", "configureElevationRawLUT",
-                                                     "configureAzimuthRawLUT", "configureTemperatureRawLUT",
-                                                     "offset", "pivot", "positionSet", "stop"))
-
-        # send disable; new state is DISABLED
-        await self.remote.cmd_disable.start(timeout=STD_TIMEOUT)
-        self.assertEqual(self.csc.summary_state, salobj.State.DISABLED)
-        await self.assert_next_summary_state(salobj.State.DISABLED)
-
-        # send standby; new state is STANDBY
-        await self.remote.cmd_standby.start(timeout=STD_TIMEOUT)
-        self.assertEqual(self.csc.summary_state, salobj.State.STANDBY)
-        await self.assert_next_summary_state(salobj.State.STANDBY)
-
-        # send exitControl; new state is OFFLINE
-        await self.remote.cmd_exitControl.start(timeout=STD_TIMEOUT)
-        self.assertEqual(self.csc.summary_state, salobj.State.OFFLINE)
-        await self.assert_next_summary_state(salobj.State.OFFLINE)
-
-    async def check_bad_commands(self, bad_commands=None, good_commands=None):
-        """Check that bad commands fail.
-
-        Parameters
-        ----------
-        bad_commands : `List`[`str`] or `None` (optional)
-            Names of bad commands to try, or None for all commands.
-        good_commands : `List`[`str`] or `None` (optional)
-            Names of good commands to skip, or None to skip none.
-
-        Notes
-        -----
-        If a command appears in both lists it is considered a good command.
-        """
-        if bad_commands is None:
-            bad_commands = self.remote.salinfo.command_names
-        if good_commands is None:
-            good_commands = ()
-        commands = self.remote.salinfo.command_names
-        for command in commands:
-            print(f"Try bad_command={command}")
-            if command in good_commands:
-                continue
-            with self.subTest(command=command):
-                cmd_attr = getattr(self.remote, f"cmd_{command}")
-                with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
-                    await cmd_attr.start(timeout=STD_TIMEOUT)
-
-    async def test_initial_state_offline(self):
-        await self.check_initial_state(salobj.State.OFFLINE)
-
-    async def test_initial_state_standby(self):
-        await self.check_initial_state(salobj.State.STANDBY)
-
-    async def test_initial_state_disabled(self):
-        await self.check_initial_state(salobj.State.DISABLED)
-
-    async def test_initial_state_enabled(self):
-        await self.check_initial_state(salobj.State.ENABLED)
-
-    async def check_initial_state(self, initial_state):
-        await self.make_csc(index=2, initial_state=initial_state)
-        await self.assert_next_summary_state(initial_state)
-
     async def test_move(self):
         await self.check_move(destination=(300, 400, -300, 0.01, 0.02, -0.015),
                               est_move_duration=1,
@@ -382,7 +196,7 @@ class TestHexapodCsc(asynctest.TestCase):
             If None then call move instead of moveLUT.
         """
         self.assertEqual(len(destination), 6)
-        await self.make_csc(index=1, initial_state=salobj.State.ENABLED)
+        await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
         data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
@@ -447,7 +261,7 @@ class TestHexapodCsc(asynctest.TestCase):
         """
         # Command a move that moves all actuators equally
         destination = (0, 0, 1000, 0, 0, 0)
-        await self.make_csc(index=1, initial_state=salobj.State.ENABLED)
+        await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
         data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
@@ -480,25 +294,7 @@ class TestHexapodCsc(asynctest.TestCase):
     async def test_pivot(self):
         """Test the pivot command.
         """
-        await self.make_csc(index=1, initial_state=salobj.State.ENABLED)
-
-    def test_bad_simulation_modes(self):
-        """Test simulation_mode argument of TestCsc constructor.
-
-        The only allowed values are 0 and 1
-        """
-        for simulation_mode in (-1, 2, 3):
-            with self.assertRaises(ValueError):
-                hexapod.HexapodCsc(index=2, simulation_mode=simulation_mode)
-
-    async def test_non_simulation_mode(self):
-        ignored_initial_state = salobj.State.FAULT
-        async with hexapod.HexapodCsc(index=1, simulation_mode=0, initial_state=ignored_initial_state) as csc:
-            self.assertIsNone(csc.mock_ctrl)
-            await asyncio.sleep(0.2)
-            self.assertFalse(csc.server.command_connected)
-            self.assertFalse(csc.server.telemetry_connected)
-            self.assertFalse(csc.server.connected)
+        await self.make_csc(initial_state=salobj.State.ENABLED)
 
 
 if __name__ == "__main__":
