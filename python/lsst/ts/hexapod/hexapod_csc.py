@@ -385,8 +385,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             CopleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
         )
 
-        # TODO: the inPosition event has no inPosition field
-        # so it cannot be used correctly
+        # TODO DM-21699: the inPosition event has no inPosition field
+        # so it cannot be used correctly. Once that is fixed uncomment
+        # the following or adapt as needed (I hope the new XML will have
+        # in-position data for each actuator, as well as all at once)
+        # and add a `start` method that outputs the initial values
+        # for the in position events.
         # in_position = all(
         #     status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
         #     for status in server.telemetry.application_status)
