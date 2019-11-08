@@ -23,6 +23,7 @@ from .constants import *
 from .enums import *
 from .structs import *
 from .utils import *
+from .hexapod_commander import *
 from .simple_hexapod import *
 from .mock_controller import *
 from .hexapod_csc import *
