@@ -21,6 +21,8 @@
 
 __all__ = ["HexapodCommander"]
 
+import numpy as np
+
 from lsst.ts import hexrotcomm
 
 from . import enums
@@ -121,3 +123,35 @@ For example:
     async def do_test(self, args):
         kwargs = self.check_arguments(args, ("ivalue1", int), ("ivalue2", int))
         await self.remote.cmd_test.set_start(**kwargs, timeout=STD_TIMEOUT)
+
+    def round_position(self, position):
+        """Round a position of the form (x, y, z, rotx, roty, rotz).
+
+        x, y, and z are in microns and are rounded to 0 decimal places.
+        rotx, roty, rotz are in degrees and are rounded to 5 decimal places
+        (thus roughly 1e-5 of full range).
+        """
+        rounded = np.zeros(6)
+        rounded[:3] = np.around(position[:3], decimals=0)
+        rounded[3:] + np.around(position[3:], decimals=5)
+        return rounded
+
+    async def tel_Actuators_callback(self, data):
+        rounded_calibrated = np.around(data.Calibrated, decimals=0)
+        if np.array_equal(self.previous_tel_Actuators, rounded_calibrated):
+            return
+        self.previous_tel_Actuators = rounded_calibrated
+        print(f"Actuators: {self.format_data(data)}")
+
+    async def tel_Application_callback(self, data):
+        rounded_position = self.round_position(data.Position)
+        if self.previous_tel_Application is not None \
+                and np.array_equal(self.previous_tel_Application.Position, rounded_position) \
+                and np.array_equal(data.Demand, self.previous_tel_Application.Demand):
+            return
+        # Store all data, so we have Demand and Position,
+        # but store Position rounded to make it more efficient
+        # to filter out jitter.
+        self.previous_tel_Application = data
+        self.previous_tel_Application.Position[:] = rounded_position
+        print(f"Application: {self.format_data(data)}")
