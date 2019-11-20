@@ -48,6 +48,19 @@ def as_bool(value):
 
 
 class HexapodCommander(hexrotcomm.CscCommander):
+    """Command the Hexapod CSC from the command line.
+
+    Parameters
+    ----------
+    index : `int`
+        SAL index of Hexapod CSC.
+
+    Read commands from stdin and write updated events and telemetry to stdout.
+    The telemetry is filtered so that tiny changes due to encoder jitter
+    are ignored.
+
+    See bin/command_hexapod.py for an example of how to use this class.
+    """
     def __init__(self, index):
         index = enums.SalIndex(index)
         super().__init__(
@@ -85,51 +98,132 @@ For example:
   exit""")
 
     async def do_configureAcceleration(self, args):
+        """Implement the configureAcceleration command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            One value: accmax (deg/sec2).
+        """
         kwargs = self.check_arguments(args, "accmax")
         await self.remote.cmd_configureAcceleration.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_configureLimits(self, args):
+        """Implement the configureLimits command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Six values: xymax, zmin, zmax (µm), uvmax, wmin, wmax (deg).
+        """
         kwargs = self.check_arguments(args, "xymax", "zmin", "zmax", "uvmax", "wmin", "wmax")
         await self.remote.cmd_configureLimits.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_configureVelocity(self, args):
+        """Implement the configureVelocity command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Four values: xymax (µm/sec), rxrymax (deg/sec),
+            zmax (µm/sec), rzmax (deg/sec)
+        """
         kwargs = self.check_arguments(args, "xymax", "rxrymax", "zmax", "rzmax")
         await self.remote.cmd_configureVelocity.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_move(self, args):
+        """Implement the move command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            No values.
+        """
         self.check_arguments(args)
         await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
 
     async def do_moveLUT(self, args):
+        """Implement the moveLUT command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Three values: az (deg), elev (deg), temp (C).
+        """
         kwargs = self.check_arguments(args, "az", "elev", "temp")
         await self.remote.cmd_moveLUT.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_offset(self, args):
+        """Implement the offset command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Seven values: x, y, z (µm), u, v, w (deg), sync (bool).
+        """
         kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_pivot(self, args):
+        """Implement the pivot command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Three values: x, y, z (µm).
+        """
         kwargs = self.check_arguments(args, "x", "y", "z")
         await self.remote.cmd_pivot.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_positionSet(self, args):
+        """Implement the positionSet command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Seven values: x, y, z (µm), u, v, w (deg), sync (bool).
+        """
         kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_positionSet.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_stop(self, args):
+        """Implement the stop command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Ignored.
+        """
         # Don't check arguments, just STOP.
         await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
 
     async def do_test(self, args):
+        """Implement the test command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Two values: ivalue1, ivalue2.
+        """
         kwargs = self.check_arguments(args, ("ivalue1", int), ("ivalue2", int))
         await self.remote.cmd_test.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     def round_position(self, position):
         """Round a position of the form (x, y, z, rotx, roty, rotz).
 
-        x, y, and z are in microns and are rounded to 0 decimal places.
-        rotx, roty, rotz are in degrees and are rounded to 5 decimal places
-        (thus roughly 1e-5 of full range).
+        Parameters
+        ----------
+        position : `List` [`float`]
+            Position as a sequence of 6 floats:
+            x, y, z (in microns) and rotx, roty, rotz (in degrees)
+
+        Returns
+        -------
+        rounded_position : `numpy.ndarray`
+            Rounded position:
+            x, y, and z, in microns, are rounded to 0 decimal places, and
+            rotx, roty, rotz, in degrees, are rounded to 5 decimal places.
+            Thus each is rounded to roughly 1e-5 of full range.
         """
         rounded = np.zeros(6)
         rounded[:3] = np.around(position[:3], decimals=0)
@@ -137,6 +231,16 @@ For example:
         return rounded
 
     async def tel_Actuators_callback(self, data):
+        """Callback for Actuators telemetry.
+
+        Output Actuators telemetry data if the values have changed enough
+        to be interesting.
+
+        Parameters
+        ----------
+        data : self.controller.tel_Actuators.DataType.
+            Actuators data.
+        """
         rounded_calibrated = np.around(data.Calibrated, decimals=0)
         if np.array_equal(self.previous_tel_Actuators, rounded_calibrated):
             return
@@ -144,6 +248,16 @@ For example:
         print(f"Actuators: {self.format_data(data)}")
 
     async def tel_Application_callback(self, data):
+        """Callback for the Application telemetry.
+
+        Output Application telemetry if the values have changed enough
+        to be interesting.
+
+        Parameters
+        ----------
+        data : self.controller.tel_Application.DataType.
+            Actuators data.
+        """
         rounded_position = self.round_position(data.Position)
         if self.previous_tel_Application is not None \
                 and np.array_equal(self.previous_tel_Application.Position, rounded_position) \
