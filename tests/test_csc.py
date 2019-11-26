@@ -180,6 +180,20 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                               est_move_duration=1,
                               elaztemp=(32, 44, 15))
 
+    async def check_next_position(self, desired_position):
+        """Wait for Application telemetry and check the position.
+
+        Parameters
+        ----------
+        desired_position : `List` [`float`]
+            Desired position: x, y, z (µm), rotx, roty, rotz (deg)
+        """
+        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
+        np.testing.assert_allclose(data.Demand, desired_position)
+        # Add slop to accommodate jitter added by the mock controller.
+        np.testing.assert_allclose(data.Position[:3], desired_position[:3], atol=1)
+        np.testing.assert_allclose(data.Position[3:], desired_position[3:], atol=1e-5)
+
     async def check_move(self, destination, est_move_duration,
                          elaztemp):
         """Test point to point motion using the positionSet and move
@@ -188,20 +202,19 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         Parameters
         ----------
         destination : `List` [`float`]
-            Destination x, y, z, u, v, w
+            Destination x, y, z (µm), rotx, roty, rotz (deg)
         est_move_duration : `float`
             Estimated move duration (sec)
         elaztemp : `List` [`float`] or `None`
-            Elevation, azimuth and temperature (C) for the moveLUT command.
+            Elevation, azimuth (deg) and temperature (C)
+            for the moveLUT command.
             If None then call move instead of moveLUT.
         """
         self.assertEqual(len(destination), 6)
         await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
-        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
-        np.testing.assert_allclose(data.Demand, (0,)*6)
-        np.testing.assert_allclose(data.Position, (0,)*6)
+        await self.check_next_position(desired_position=(0,)*6)
         await self.remote.cmd_positionSet.set_start(x=destination[0],
                                                     y=destination[1],
                                                     z=destination[2],
@@ -226,9 +239,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
             timeout=STD_TIMEOUT+est_move_duration)
         print(f"Move duration: {time.time() - t0:0.2f} seconds")
-        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
-        np.testing.assert_allclose(data.Demand, destination)
-        np.testing.assert_allclose(data.Position, destination)
+        await self.check_next_position(desired_position=destination)
 
     async def test_offset(self):
         first_destination = (100, 200, -300, 0.01, 0.02, -0.015)
@@ -252,9 +263,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.assert_next_controller_state(
             controllerState=Hexapod.ControllerState.ENABLED,
             enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
-        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
-        np.testing.assert_allclose(data.Demand, desired_destination)
-        np.testing.assert_allclose(data.Position, desired_destination)
+        await self.check_next_position(desired_position=desired_destination)
 
     async def test_stop_move(self):
         """Test stopping a point to point move.
@@ -264,9 +273,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
-        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
-        np.testing.assert_allclose(data.Demand, (0,)*6)
-        np.testing.assert_allclose(data.Position, (0,)*6)
+        await self.check_next_position(desired_position=(0,)*6)
         await self.remote.cmd_positionSet.set_start(x=destination[0],
                                                     y=destination[1],
                                                     z=destination[2],
@@ -283,7 +290,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
-        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
+        await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
         # The Mock controller does not compute position as a function
         # of actuator lengths, so test that motion halted by examining
         # the actuators.
