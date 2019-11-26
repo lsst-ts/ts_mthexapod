@@ -264,7 +264,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # and to exercise commmand_hexapod filtering of jitter.
             measured_pos = np.copy(self.telemetry.commanded_pos)
             measured_pos[:3] += 0.1*np.random.random(3)
-            measured_pos[3:] += 0.0000001*np.random.random(3)
+            measured_pos[3:] += 1.0e-6*np.random.random(3)
             self.telemetry.measured_pos = tuple(measured_pos)
             if self.telemetry.state == Hexapod.ControllerState.ENABLED and \
                     self.telemetry.enabled_substate == Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT and \
