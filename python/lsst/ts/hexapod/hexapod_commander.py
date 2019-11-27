@@ -208,27 +208,18 @@ For example:
         kwargs = self.check_arguments(args, ("ivalue1", int), ("ivalue2", int))
         await self.remote.cmd_test.set_start(**kwargs, timeout=STD_TIMEOUT)
 
-    def round_position(self, position):
-        """Round a position of the form (x, y, z, rotx, roty, rotz).
+    def positions_close(self, position1, position2):
+        """Return True if two positions are nearly equal.
 
         Parameters
         ----------
-        position : `List` [`float`]
-            Position as a sequence of 6 floats:
-            x, y, z (in microns) and rotx, roty, rotz (in degrees)
-
-        Returns
-        -------
-        rounded_position : `numpy.ndarray`
-            Rounded position:
-            x, y, and z, in microns, are rounded to 0 decimal places, and
-            rotx, roty, rotz, in degrees, are rounded to 5 decimal places.
-            Thus each is rounded to roughly 1e-5 of full range.
+        position1 : `List` [`float`]
+            Position 1: x, y, z (µm) and rotx, roty, rotz (deg)
+        position2 : `List` [`float`]
+            Position 2: x, y, z (µm) and rotx, roty, rotz (deg)
         """
-        rounded = np.zeros(6)
-        rounded[:3] = np.around(position[:3], decimals=0)
-        rounded[3:] + np.around(position[3:], decimals=5)
-        return rounded
+        return np.allclose(position1[:3], position2[:3], atol=1) \
+            and np.allclose(position1[3:], position2[3:], atol=1e-5)
 
     async def tel_Actuators_callback(self, data):
         """Callback for Actuators telemetry.
@@ -241,10 +232,10 @@ For example:
         data : self.controller.tel_Actuators.DataType.
             Actuators data.
         """
-        rounded_calibrated = np.around(data.Calibrated, decimals=0)
-        if np.array_equal(self.previous_tel_Actuators, rounded_calibrated):
+        if self.previous_tel_Actuators is not None and \
+                np.allclose(self.previous_tel_Actuators.Calibrated, data.Calibrated, atol=1):
             return
-        self.previous_tel_Actuators = rounded_calibrated
+        self.previous_tel_Actuators = data
         print(f"Actuators: {self.format_data(data)}")
 
     async def tel_Application_callback(self, data):
@@ -258,14 +249,9 @@ For example:
         data : self.controller.tel_Application.DataType.
             Actuators data.
         """
-        rounded_position = self.round_position(data.Position)
         if self.previous_tel_Application is not None \
-                and np.array_equal(self.previous_tel_Application.Position, rounded_position) \
+                and self.positions_close(self.previous_tel_Application.Position, data.Position) \
                 and np.array_equal(data.Demand, self.previous_tel_Application.Demand):
             return
-        # Store all data, so we have Demand and Position,
-        # but store Position rounded to make it more efficient
-        # to filter out jitter.
         self.previous_tel_Application = data
-        self.previous_tel_Application.Position[:] = rounded_position
         print(f"Application: {self.format_data(data)}")
