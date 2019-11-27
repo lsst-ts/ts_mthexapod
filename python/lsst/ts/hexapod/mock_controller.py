@@ -250,7 +250,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # are all set by set_state
             self.telemetry.test_state = 0
             curr_lengths = [actuator.curr_pos for actuator in self.hexapod.actuators]
-            curr_lengths += 0.1*np.random.random(6)
+            if self.telemetry.state == Hexapod.ControllerState.ENABLED:
+                # Add some fake encoder jitter,
+                curr_lengths += 0.1*np.random.random(6)
             self.telemetry.strut_encoder_raw = tuple(pos*self.encoder_resolution for pos in curr_lengths)
             self.telemetry.strut_encoder_microns = tuple(curr_lengths)
 
@@ -259,12 +261,12 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # self.telemetry.measured_pos should be based on current position,
             # but SimpleHexapod does not yet support determining orientation
             # from actuator length.
-            # Add ~0.1 micron jitter to the current positions
-            # and ~0.003 arcsec jitter to the current rotations for realism
-            # and to exercise commmand_hexapod filtering of jitter.
             measured_pos = np.copy(self.telemetry.commanded_pos)
-            measured_pos[:3] += 0.1*np.random.random(3)
-            measured_pos[3:] += 0.0000001*np.random.random(3)
+            if self.telemetry.state == Hexapod.ControllerState.ENABLED:
+                # Add ~0.1 micron jitter to the current positions and
+                # ~0.003 arcsec jitter to the current rotations for realism.
+                measured_pos[:3] += 0.1*np.random.random(3)
+                measured_pos[3:] += 1.0e-6*np.random.random(3)
             self.telemetry.measured_pos = tuple(measured_pos)
             if self.telemetry.state == Hexapod.ControllerState.ENABLED and \
                     self.telemetry.enabled_substate == Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT and \
