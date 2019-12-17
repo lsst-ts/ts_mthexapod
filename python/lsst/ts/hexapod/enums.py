@@ -32,8 +32,8 @@ class SalIndex(enum.IntEnum):
 class CommandCode(enum.IntEnum):
     """Codes for the cmd field of commands.
 
-    In the Moog code these are defined in enum cmdType.
-    I have reworded them for clarity.
+    In the low-level controller code these are defined in
+    enum ``cmdType``. I have reworded them for clarity.
     """
     SET_STATE = 0x8000
     SET_ENABLED_SUBSTATE = 0x8001

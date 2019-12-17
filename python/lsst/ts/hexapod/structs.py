@@ -36,6 +36,9 @@ HEXAPOD_DDS_TLM_CNT = 392
 
 class Config(ctypes.Structure):
     """Hexapod configuration.
+
+    In the low-level controller code these are defined in
+    ``ddsConfigTelemetryStreamStructure_t``.
     """
     _pack_ = 1
     _fields_ = [
@@ -76,6 +79,9 @@ class Config(ctypes.Structure):
 
 class Telemetry(ctypes.Structure):
     """Hexapod telemetry.
+
+    In the low-level controller code these are defined in
+    ``ddsTelemetryStreamStructure_t``.
     """
     _pack_ = 1
     _fields_ = [
