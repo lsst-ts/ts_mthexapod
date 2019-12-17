@@ -36,6 +36,9 @@ HEXAPOD_DDS_TLM_CNT = 392
 
 class Config(ctypes.Structure):
     """Hexapod configuration.
+
+    In the low-level controller code these are defined in
+    ``ddsConfigTelemetryStreamStructure_t``.
     """
     _pack_ = 1
     _fields_ = [
@@ -76,13 +79,16 @@ class Config(ctypes.Structure):
 
 class Telemetry(ctypes.Structure):
     """Hexapod telemetry.
+
+    In the low-level controller code these are defined in
+    ``ddsTelemetryStreamStructure_t``.
     """
     _pack_ = 1
     _fields_ = [
         ("status_word", ctypes.c_uint16 * 6),
         ("latching_fault_status_register", ctypes.c_uint16 * 6),
         ("copley_fault_status_register", ctypes.c_uint32 * 6),
-        ("application_status", ctypes.c_uint16 * 6),
+        ("application_status", ctypes.c_uint32 * 6),
         ("input_pin_states", ctypes.c_uint32 * 3),
         # simulink telemetry
         ("state", ctypes.c_double),
