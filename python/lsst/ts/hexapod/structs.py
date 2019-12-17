@@ -82,7 +82,7 @@ class Telemetry(ctypes.Structure):
         ("status_word", ctypes.c_uint16 * 6),
         ("latching_fault_status_register", ctypes.c_uint16 * 6),
         ("copley_fault_status_register", ctypes.c_uint32 * 6),
-        ("application_status", ctypes.c_uint16 * 6),
+        ("application_status", ctypes.c_uint32 * 6),
         ("input_pin_states", ctypes.c_uint32 * 3),
         # simulink telemetry
         ("state", ctypes.c_double),
