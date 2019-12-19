@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["CAM_SYNC_PATTERN", "M2_SYNC_PATTERN", "MAX_ACCEL_LIMIT",
+__all__ = ["CAM_SYNC_PATTERN", "M2_SYNC_PATTERN",
            "MAX_LINEAR_VEL_LIMIT", "MAX_ANGULAR_VEL_LIMIT",
            "XY_MAX_LIMIT", "Z_MIN_LIMIT", "Z_MAX_LIMIT",
            "UV_MAX_LIMIT", "W_MIN_LIMIT", "W_MAX_LIMIT"]
@@ -27,9 +27,6 @@ __all__ = ["CAM_SYNC_PATTERN", "M2_SYNC_PATTERN", "MAX_ACCEL_LIMIT",
 # Required value of command.sync_pattern for hexapod commands.
 CAM_SYNC_PATTERN = 0x6666
 M2_SYNC_PATTERN = 0xB4B4
-
-# Limits for the configureAcceleration command (deg/sec^2).
-MAX_ACCEL_LIMIT = 500.0
 
 # Limits for the velocitySet command (deg/sec).
 MAX_LINEAR_VEL_LIMIT = 2000.0
@@ -42,11 +39,3 @@ Z_MAX_LIMIT = (13100, 8900)
 UV_MAX_LIMIT = (0.36, 0.175)
 W_MIN_LIMIT = (-0.10, -0.05)
 W_MAX_LIMIT = (0.10, 0.05)
-
-# define WRAPPER_ALIMIT_MAX     500.0     // microns/sec^2
-# define WRAPPER_ALIMIT_MIN     100.0     // microns/sec^2
-
-# define WRAPPER_RADIAL_DISP_VLIMIT  2000.0    // microns/sec (XY)
-# define WRAPPER_RADIAL_ANGL_VLIMIT  0.1146    // deg/sec (UV)
-# define WRAPPER_AXIAL_DISP_VLIMIT   2000.0    // microns/sec (Z)
-# define WRAPPER_AXIAL_ANGL_VLIMIT   0.1146   // deg/sec (W)

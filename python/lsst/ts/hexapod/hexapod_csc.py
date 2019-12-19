@@ -118,66 +118,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                          simulation_mode=simulation_mode)
 
     # Hexapod-specific commands.
-    async def do_configureAcceleration(self, data):
-        """Specify the acceleration limit."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.accmax, "accmax", constants.MAX_ACCEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(code=enums.CommandCode.CONFIG_ACCEL,
-                               param1=data.accmax)
-
-    async def do_configureElevationRawLUT(self, data):
-        """Specify elevation raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureAzimuthRawLUT(self, data):
-        """Specify azimuth raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureTemperatureRawLUT(self, data):
-        """Specify temperature raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureLimits(self, data):
-        """Specify position and rotation limits."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.xymax, "xymax", self.xy_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_negative_value(data.zmin, "zmin", self.z_min_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.zmax, "zmax", self.z_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.uvmax, "uvmax", self.uv_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_negative_value(data.wmin, "wmin", self.w_min_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.wmax, "wmax", self.w_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(code=enums.CommandCode.CONFIG_LIMITS,
-                               param1=data.xymax,
-                               param2=data.zmin,
-                               param3=data.zmax,
-                               param4=data.uvmax,
-                               param5=data.wmin,
-                               param6=data.wmax)
-
-    async def do_configureVelocity(self, data):
-        """Specify velocity limits."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.xymax, "xymax", constants.MAX_LINEAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.rxrymax, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.zmax, "zmax", constants.MAX_LINEAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.rzmax, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(code=enums.CommandCode.CONFIG_VEL,
-                               param1=data.xymax,
-                               param2=data.rxrymax,
-                               param3=data.zmax,
-                               param4=data.rzmax)
-
     async def do_move(self, data):
         """Go to the position specified by the most recent ``positionSet``
         or ``offset`` command.
@@ -396,28 +336,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         self.evt_commandableByDDS.set_put(
             state=bool(server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE),
-        )
-
-        device_errors = []
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.HEX_FOLLOWING_ERROR_MASK:
-            device_errors.append("Following Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DRIVE_FAULT:
-            device_errors.append("Drive Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.EXTEND_LIMIT_SWITCH:
-            device_errors.append("Forward Limit Switch")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.RETRACT_LIMIT_SWITCH:
-            device_errors.append("Reverse Limit Switch")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.ETHERCAT_PROBLEM:
-            device_errors.append("Ethercat Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.MOTION_TIMEOUT:
-            device_errors.append("Motion timeout")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SIMULINK_FAULT:
-            device_errors.append("Simulink Error")
-        device_error_code = ",".join(device_errors)
-        self.evt_deviceError.set_put(
-            code=device_error_code,
-            device="Hexapod",
-            severity=1 if device_error_code else 0,
         )
 
         safety_interlock = server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SAFTEY_INTERLOCK
