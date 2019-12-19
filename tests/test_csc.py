@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import unittest
 import time
 
@@ -194,10 +195,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         np.testing.assert_allclose(data.Position[:3], desired_position[:3], atol=1)
         np.testing.assert_allclose(data.Position[3:], desired_position[3:], atol=1e-5)
 
-    async def check_move(self, destination, est_move_duration,
-                         elaztemp):
+    async def check_move(self, destination, est_move_duration, elaztemp):
         """Test point to point motion using the positionSet and move
         or moveLUT commands.
+
+        Assumes that the CSC starts with inPosition=False.
 
         Parameters
         ----------
@@ -214,6 +216,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
+        data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
+        self.assertFalse(data.inPosition)
+        data = await self.remote.evt_actuatorInPosition.next(flush=False, timeout=STD_TIMEOUT)
+        self.assertEqual(tuple(data.inPosition), (False,)*6)
         await self.check_next_position(desired_position=(0,)*6)
         await self.remote.cmd_positionSet.set_start(x=destination[0],
                                                     y=destination[1],
@@ -238,6 +244,22 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             controllerState=Hexapod.ControllerState.ENABLED,
             enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
             timeout=STD_TIMEOUT+est_move_duration)
+        data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
+        self.assertTrue(data.inPosition)
+        # Check that actuatorInPosition returns all in position;
+        # this should occur within 6 events (fewer if several actuators
+        # finish their move at the same time).
+        for i in range(6):
+            try:
+                data = await self.remote.evt_actuatorInPosition.next(flush=False, timeout=STD_TIMEOUT)
+                self.assertIn(True, data.inPosition)
+                if False not in data.inPosition:
+                    break
+            except asyncio.TimeoutError:
+                self.fail("actuatorInPosition timed out before all True")
+        else:
+            self.fail("actuatorInPosition output 6 times, but not all True")
+
         print(f"Move duration: {time.time() - t0:0.2f} seconds")
         await self.check_next_position(desired_position=destination)
 
