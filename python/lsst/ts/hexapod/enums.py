@@ -30,7 +30,7 @@ class SalIndex(enum.IntEnum):
 
 
 class CommandCode(enum.IntEnum):
-    """Codes for the cmd field of commands.
+    """Values for the ``Command.code`` field.
 
     In the low-level controller code these are defined in
     enum ``cmdType``. I have reworded them for clarity.

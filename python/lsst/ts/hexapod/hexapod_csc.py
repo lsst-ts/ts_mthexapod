@@ -123,7 +123,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         utils.check_positive_value(data.accmax, "accmax", constants.MAX_ACCEL_LIMIT,
                                    ExceptionClass=salobj.ExpectedError)
-        await self.run_command(cmd=enums.CommandCode.CONFIG_ACCEL,
+        await self.run_command(code=enums.CommandCode.CONFIG_ACCEL,
                                param1=data.accmax)
 
     async def do_configureElevationRawLUT(self, data):
@@ -153,7 +153,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                                    ExceptionClass=salobj.ExpectedError)
         utils.check_positive_value(data.wmax, "wmax", self.w_max_limit,
                                    ExceptionClass=salobj.ExpectedError)
-        await self.run_command(cmd=enums.CommandCode.CONFIG_LIMITS,
+        await self.run_command(code=enums.CommandCode.CONFIG_LIMITS,
                                param1=data.xymax,
                                param2=data.zmin,
                                param3=data.zmax,
@@ -172,7 +172,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                                    ExceptionClass=salobj.ExpectedError)
         utils.check_positive_value(data.rzmax, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT,
                                    ExceptionClass=salobj.ExpectedError)
-        await self.run_command(cmd=enums.CommandCode.CONFIG_VEL,
+        await self.run_command(code=enums.CommandCode.CONFIG_VEL,
                                param1=data.xymax,
                                param2=data.rxrymax,
                                param3=data.zmax,
@@ -187,7 +187,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             raise salobj.ExpectedError("Must specify a position with positionSet or offset.")
         sync_move = self.synchronized_move
         self.synchronized_move = None
-        await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
+        await self.run_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
                                param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
                                param2=sync_move)
 
@@ -200,7 +200,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             raise salobj.ExpectedError("Must specify a position with positionSet or offset.")
         sync_move = self.synchronized_move
         self.synchronized_move = None
-        await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
+        await self.run_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
                                param1=enums.SetEnabledSubstateParam.MOVE_LUT,
                                param2=sync_move,
                                param3=data.az,
@@ -232,7 +232,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         utils.check_range(offset_data.w, "w", self.server.config.pos_limits[4],
                           self.server.config.pos_limits[5], ExceptionClass=salobj.ExpectedError)
         self.synchronized_move = data.sync
-        await self.run_command(cmd=enums.CommandCode.POSITION_SET,
+        await self.run_command(code=enums.CommandCode.POSITION_SET,
                                param1=offset_data.x,
                                param2=offset_data.y,
                                param3=offset_data.z,
@@ -243,7 +243,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_pivot(self, data):
         """Set the coordinates of the pivot point."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        await self.run_command(cmd=enums.CommandCode.SET_PIVOTPOINT,
+        await self.run_command(code=enums.CommandCode.SET_PIVOTPOINT,
                                param1=data.x,
                                param2=data.y,
                                param3=data.z)
@@ -267,7 +267,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                           self.server.config.pos_limits[5],
                           ExceptionClass=salobj.ExpectedError)
         self.synchronized_move = data.sync
-        await self.run_command(cmd=enums.CommandCode.POSITION_SET,
+        await self.run_command(code=enums.CommandCode.POSITION_SET,
                                param1=data.x,
                                param2=data.y,
                                param3=data.z,
@@ -281,7 +281,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         if self.summary_state != salobj.State.ENABLED:
             raise salobj.ExpectedError("Not enabled")
         self.synchronized_move = None
-        await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
+        await self.run_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
                                param1=enums.SetEnabledSubstateParam.STOP)
 
     async def do_test(self, data):
