@@ -304,7 +304,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
             TCP/IP server.
         """
-        self.evt_settingsApplied.set_put(
+        self.evt_configuration.set_put(
             accelerationAccmax=server.config.strut_acceleration,
             limitXYMax=server.config.pos_limits[0],
             limitZMin=server.config.pos_limits[1],

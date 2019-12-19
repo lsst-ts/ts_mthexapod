@@ -60,12 +60,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         """Test the configureAcceleration command.
         """
         await self.make_csc(initial_state=salobj.State.ENABLED)
-        data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         initial_limit = data.accelerationAccmax
         print("initial_limit=", initial_limit)
         new_limit = initial_limit - 0.1
         await self.remote.cmd_configureAcceleration.set_start(accmax=new_limit, timeout=STD_TIMEOUT)
-        data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         self.assertAlmostEqual(data.accelerationAccmax, new_limit)
 
         for bad_accmax in (-1, 0, hexapod.MAX_ACCEL_LIMIT + 0.001):
@@ -78,12 +78,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         """Test the configureLimits command.
         """
         def get_limits(data):
-            """Get position limits from a settingsApplied sample."""
+            """Get position limits from a configuration sample."""
             return (data.limitXYMax, data.limitZMin, data.limitZMax,
                     data.limitUVMax, data.limitWMin, data.limitWMax)
 
         await self.make_csc(initial_state=salobj.State.ENABLED)
-        data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         initial_limits = get_limits(data)
         new_limits = tuple(lim*0.9 for lim in initial_limits)
         await self.remote.cmd_configureLimits.set_start(xymax=new_limits[0],
@@ -93,7 +93,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                                                         wmin=new_limits[4],
                                                         wmax=new_limits[5],
                                                         timeout=STD_TIMEOUT)
-        data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         reported_limits = get_limits(data)
         for i in range(4):
             self.assertAlmostEqual(new_limits[i], reported_limits[i])
@@ -131,11 +131,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         """Test the configureVelocity command.
         """
         def get_velocity_limits(data):
-            """Get the velocity limits from a settingsApplied sample."""
+            """Get the velocity limits from a configuration sample."""
             return (data.velocityXYMax, data.velocityRxRyMax, data.velocityZMax, data.velocityRzMax)
 
         await self.make_csc(initial_state=salobj.State.ENABLED)
-        data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         initial_vel_limits = get_velocity_limits(data)
         new_vel_limits = tuple(lim - 0.01 for lim in initial_vel_limits)
         await self.remote.cmd_configureVelocity.set_start(xymax=new_vel_limits[0],
@@ -143,7 +143,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                                                           zmax=new_vel_limits[2],
                                                           rzmax=new_vel_limits[3],
                                                           timeout=STD_TIMEOUT)
-        data = await self.remote.evt_settingsApplied.next(flush=False, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         reported_limits = get_velocity_limits(data)
         for i in range(4):
             self.assertAlmostEqual(new_vel_limits[i], reported_limits[i])
