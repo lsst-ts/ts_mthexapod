@@ -72,11 +72,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         desired_position : `List` [`float`]
             Desired position: x, y, z (µm), rotx, roty, rotz (deg)
         """
-        data = await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
-        np.testing.assert_allclose(data.Demand, desired_position)
+        data = await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
+        np.testing.assert_allclose(data.demand, desired_position)
         # Add slop to accommodate jitter added by the mock controller.
-        np.testing.assert_allclose(data.Position[:3], desired_position[:3], atol=1)
-        np.testing.assert_allclose(data.Position[3:], desired_position[3:], atol=1e-5)
+        np.testing.assert_allclose(data.position[:3], desired_position[:3], atol=1)
+        np.testing.assert_allclose(data.position[3:], desired_position[3:], atol=1e-5)
 
     async def check_move(self, destination, est_move_duration, elaztemp):
         """Test point to point motion using the positionSet and move
@@ -195,7 +195,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
-        await self.remote.tel_Application.next(flush=True, timeout=STD_TIMEOUT)
+        await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
         # The Mock controller does not compute position as a function
         # of actuator lengths, so test that motion halted by examining
         # the actuators.

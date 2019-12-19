@@ -311,18 +311,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                                          applicationStatus=server.telemetry.application_status)
 
         pos_error = [server.telemetry.measured_pos[i] - server.telemetry.commanded_pos[i] for i in range(6)]
-        self.tel_Actuators.set_put(
-            Calibrated=server.telemetry.strut_encoder_microns,
-            Raw=server.telemetry.strut_encoder_raw,
+        self.tel_actuators.set_put(
+            calibrated=server.telemetry.strut_encoder_microns,
+            raw=server.telemetry.strut_encoder_raw,
         )
-        self.tel_Application.set_put(
-            Demand=server.telemetry.commanded_pos,
-            Position=server.telemetry.measured_pos,
-            Error=pos_error,
+        self.tel_application.set_put(
+            demand=server.telemetry.commanded_pos,
+            position=server.telemetry.measured_pos,
+            error=pos_error,
         )
-        self.tel_Electrical.set_put(
-            CopleyStatusWordDrive=server.telemetry.status_word,
-            CopleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+        self.tel_electrical.set_put(
+            copleyStatusWordDrive=server.telemetry.status_word,
+            copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
         )
 
         actuator_in_position = tuple(status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK

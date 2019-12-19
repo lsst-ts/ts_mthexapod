@@ -184,7 +184,7 @@ For example:
         return np.allclose(position1[:3], position2[:3], atol=1) \
             and np.allclose(position1[3:], position2[3:], atol=1e-5)
 
-    async def tel_Actuators_callback(self, data):
+    async def tel_actuators_callback(self, data):
         """Callback for Actuators telemetry.
 
         Output Actuators telemetry data if the values have changed enough
@@ -192,16 +192,16 @@ For example:
 
         Parameters
         ----------
-        data : self.controller.tel_Actuators.DataType.
+        data : self.controller.tel_actuators.DataType.
             Actuators data.
         """
-        if self.previous_tel_Actuators is not None and \
-                np.allclose(self.previous_tel_Actuators.Calibrated, data.Calibrated, atol=1):
+        if self.previous_tel_actuators is not None and \
+                np.allclose(self.previous_tel_actuators.calibrated, data.calibrated, atol=1):
             return
-        self.previous_tel_Actuators = data
-        print(f"Actuators: {self.format_data(data)}")
+        self.previous_tel_actuators = data
+        print(f"actuators: {self.format_data(data)}")
 
-    async def tel_Application_callback(self, data):
+    async def tel_application_callback(self, data):
         """Callback for the Application telemetry.
 
         Output Application telemetry if the values have changed enough
@@ -209,12 +209,12 @@ For example:
 
         Parameters
         ----------
-        data : self.controller.tel_Application.DataType.
+        data : self.controller.tel_application.DataType.
             Actuators data.
         """
-        if self.previous_tel_Application is not None \
-                and self.positions_close(self.previous_tel_Application.Position, data.Position) \
-                and np.array_equal(data.Demand, self.previous_tel_Application.Demand):
+        if self.previous_tel_application is not None \
+                and self.positions_close(self.previous_tel_application.position, data.position) \
+                and np.array_equal(data.demand, self.previous_tel_application.demand):
             return
-        self.previous_tel_Application = data
-        print(f"Application: {self.format_data(data)}")
+        self.previous_tel_application = data
+        print(f"application: {self.format_data(data)}")
