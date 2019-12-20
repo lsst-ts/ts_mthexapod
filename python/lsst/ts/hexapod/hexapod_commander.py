@@ -83,17 +83,21 @@ Other commands and arguments:
 * configureAcceleration accmax                      # Set acceleration: µm/s2
 * configureLimits xymax zmin zmax uvmax wmin wmax   # Set position limits: µm µm µm deg deg deg
 * configureVelocity xymax rxrymax zmax rzmax        # Set velocity: µm/s deg/s µm/s deg/s
-* move                          # Move to position set by positionSet or offset
-* moveLUT az elev temp          # Same as "move" but with lookup table compensation: deg deg C
-* offset x y z u v w synch      # Specify an offset for move or moveLUT: µm µm µm deg deg deg 0/1
-* pivot x y z                   # Set pivot point: µm µm µm
-* positionSet x y z u v w synch # Specify a position for move or moveLUT: µm µm µm deg deg deg 0/1
+* move x  y  z  u   v   w   synch       # Move to the specified position and orientation
+* moveLUT elevation azimuth temperature x  y  z  u  v  w    synch       # Move with compensation
+* offset x  y  z  u   v   w   synch     # Offset by a specified change in position and orientation
+* offsetLUT elevation azimuth temperature x  y  z  u   v   w   synch    # Offset with compensation
+* pivot x  y  z     # Set the pivot point
 * stop
-* test ivalue1 ivalue2
+
+Position (x y z) is in µm
+Angles (u, v, w, elevation, and azimuth) are in degrees
+sync is 1 to synchronize motion (actuators start and stop together), 0 to not
+Temperature is in Celsius
+"Compensation" means the hexapod position is adjusted for telescope position and ambient temperature.
 
 For example:
-  positionSet 5 5 5 0.001 0 0 0
-  move
+  move 5 5 5 0.001 0 0 0
   stop  # in case you want to stop a move early
   exit""")
 
@@ -137,9 +141,9 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            No values.
+            7 values: x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        self.check_arguments(args)
+        self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
 
     async def do_moveLUT(self, args):
@@ -148,9 +152,12 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            Three values: az (deg), elev (deg), temp (C).
+            10 values:
+                elevation (deg), azimuth (deg), temperature (C),
+                x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        kwargs = self.check_arguments(args, "az", "elev", "temp")
+        kwargs = self.check_arguments(args, "elevation", "azimuth", "temperature",
+                                      "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_moveLUT.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_offset(self, args):
@@ -159,9 +166,23 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            Seven values: x, y, z (µm), u, v, w (deg), sync (bool).
+            7 values: x, y, z (µm), u, v, w (deg), sync (bool).
         """
         kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
+        await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
+
+    async def do_offsetLUT(self, args):
+        """Implement the offsetLUT command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            10 values:
+                elevation (deg), azimuth (deg), temperature (C),
+                x, y, z (µm), u, v, w (deg), sync (bool).
+        """
+        kwargs = self.check_arguments(args, "elevation", "azimuth", "temperature",
+                                      "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_pivot(self, args):
@@ -175,17 +196,6 @@ For example:
         kwargs = self.check_arguments(args, "x", "y", "z")
         await self.remote.cmd_pivot.set_start(**kwargs, timeout=STD_TIMEOUT)
 
-    async def do_positionSet(self, args):
-        """Implement the positionSet command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            Seven values: x, y, z (µm), u, v, w (deg), sync (bool).
-        """
-        kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
-        await self.remote.cmd_positionSet.set_start(**kwargs, timeout=STD_TIMEOUT)
-
     async def do_stop(self, args):
         """Implement the stop command.
 
@@ -196,17 +206,6 @@ For example:
         """
         # Don't check arguments, just STOP.
         await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
-
-    async def do_test(self, args):
-        """Implement the test command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            Two values: ivalue1, ivalue2.
-        """
-        kwargs = self.check_arguments(args, ("ivalue1", int), ("ivalue2", int))
-        await self.remote.cmd_test.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     def positions_close(self, position1, position2):
         """Return True if two positions are nearly equal.
