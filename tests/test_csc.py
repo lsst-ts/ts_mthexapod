@@ -51,7 +51,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                                     exe_name="run_hexapod.py")
 
     async def test_standard_state_transitions(self):
-        enabled_commands = ("offset", "pivot", "positionSet", "stop")
+        enabled_commands = ("move", "moveLUT", "offset", "offsetLUT", "pivot", "stop")
         await self.check_standard_state_transitions(enabled_commands=enabled_commands)
 
     async def test_move(self):
@@ -104,21 +104,16 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         data = await self.remote.evt_actuatorInPosition.next(flush=False, timeout=STD_TIMEOUT)
         self.assertEqual(tuple(data.inPosition), (False,)*6)
         await self.check_next_position(desired_position=(0,)*6)
-        await self.remote.cmd_positionSet.set_start(x=destination[0],
-                                                    y=destination[1],
-                                                    z=destination[2],
-                                                    u=destination[3],
-                                                    v=destination[4],
-                                                    w=destination[5],
-                                                    sync=1,  # doesn't matter
-                                                    timeout=STD_TIMEOUT)
         t0 = time.time()
+        move_kwargs = self.make_xyzuvw_kwargs(destination)
         if elaztemp is None:
-            await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
+            await self.remote.cmd_move.set_start(**move_kwargs,
+                                                 timeout=STD_TIMEOUT)
         else:
-            await self.remote.cmd_moveLUT.set_start(elev=elaztemp[0],
-                                                    az=elaztemp[1],
-                                                    temp=elaztemp[2],
+            await self.remote.cmd_moveLUT.set_start(elevation=elaztemp[0],
+                                                    azimuth=elaztemp[1],
+                                                    temperature=elaztemp[2],
+                                                    **move_kwargs,
                                                     timeout=STD_TIMEOUT)
         await self.assert_next_controller_state(
             controllerState=Hexapod.ControllerState.ENABLED,
@@ -148,20 +143,36 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
 
     async def test_offset(self):
         first_destination = (100, 200, -300, 0.01, 0.02, -0.015)
+        offset = (50, -100, 135, 0.005, -0.005, 0.01)
+        await self.check_offset(first_destination=first_destination,
+                                offset=offset,
+                                est_move_duration=1,
+                                elaztemp=None)
+
+    async def test_offset_lut(self):
+        first_destination = (120, -180, 300, 0.01, 0.02, -0.015)
+        offset = (-150, 100, -135, 0.005, -0.005, 0.01)
+        elaztemp = (43, 56, 20)
+        await self.check_offset(first_destination=first_destination,
+                                offset=offset,
+                                est_move_duration=1,
+                                elaztemp=elaztemp)
+
+    async def check_offset(self, first_destination, offset, est_move_duration, elaztemp):
         await self.check_move(destination=first_destination,
                               est_move_duration=1,
-                              elaztemp=None)
+                              elaztemp=elaztemp)
         offset = (50, -100, 135, 0.005, -0.005, 0.01)
         desired_destination = np.add(first_destination, offset)
-        await self.remote.cmd_offset.set_start(x=offset[0],
-                                               y=offset[1],
-                                               z=offset[2],
-                                               u=offset[3],
-                                               v=offset[4],
-                                               w=offset[5],
-                                               sync=1,  # doesn't matter
-                                               timeout=STD_TIMEOUT)
-        await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
+        offset_kwargs = self.make_xyzuvw_kwargs(offset)
+        if elaztemp is None:
+            await self.remote.cmd_offset.set_start(**offset_kwargs, timeout=STD_TIMEOUT)
+        else:
+            await self.remote.cmd_offsetLUT.set_start(**offset_kwargs,
+                                                      elevation=elaztemp[0],
+                                                      azimuth=elaztemp[1],
+                                                      temperature=elaztemp[2],
+                                                      timeout=STD_TIMEOUT)
         await self.assert_next_controller_state(
             controllerState=Hexapod.ControllerState.ENABLED,
             enabledSubstate=Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT)
@@ -179,15 +190,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
         await self.check_next_position(desired_position=(0,)*6)
-        await self.remote.cmd_positionSet.set_start(x=destination[0],
-                                                    y=destination[1],
-                                                    z=destination[2],
-                                                    u=destination[3],
-                                                    v=destination[4],
-                                                    w=destination[5],
-                                                    sync=1,  # doesn't matter
-                                                    timeout=STD_TIMEOUT)
-        await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
+        move_kwargs = self.make_xyzuvw_kwargs(destination)
+        await self.remote.cmd_move.set_start(**move_kwargs,
+                                             timeout=STD_TIMEOUT)
         cmd_lengths = [actuator.end_pos for actuator in self.csc.mock_ctrl.hexapod.actuators]
         await self.assert_next_controller_state(
             controllerState=Hexapod.ControllerState.ENABLED,
@@ -207,6 +212,26 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         """Test the pivot command.
         """
         await self.make_csc(initial_state=salobj.State.ENABLED)
+
+    def make_xyzuvw_kwargs(self, data, sync=1):
+        """Make a dict of x,y,z,u,v,w,sync based on from a list of positions.
+
+        Parameters
+        ----------
+        data : `List` [`float`]
+            x, y, z (µm), u, v, w (deg) data
+        sync : `int` (optional)
+            Should this be a synchronized move?
+            Usually doesn't matter because the mock controller ignores it.
+        """
+        self.assertEqual(len(data), 6)
+        return dict(x=data[0],
+                    y=data[1],
+                    z=data[2],
+                    u=data[3],
+                    v=data[4],
+                    w=data[5],
+                    sync=sync)
 
 
 if __name__ == "__main__":
