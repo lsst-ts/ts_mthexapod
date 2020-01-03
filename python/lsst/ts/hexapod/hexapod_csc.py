@@ -126,18 +126,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await self.run_command(code=enums.CommandCode.CONFIG_ACCEL,
                                param1=data.accmax)
 
-    async def do_configureElevationRawLUT(self, data):
-        """Specify elevation raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureAzimuthRawLUT(self, data):
-        """Specify azimuth raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureTemperatureRawLUT(self, data):
-        """Specify temperature raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
     async def do_configureLimits(self, data):
         """Specify position and rotation limits."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
