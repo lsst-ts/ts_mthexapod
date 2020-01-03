@@ -386,28 +386,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             state=bool(server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE),
         )
 
-        device_errors = []
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.HEX_FOLLOWING_ERROR_MASK:
-            device_errors.append("Following Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DRIVE_FAULT:
-            device_errors.append("Drive Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.EXTEND_LIMIT_SWITCH:
-            device_errors.append("Forward Limit Switch")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.RETRACT_LIMIT_SWITCH:
-            device_errors.append("Reverse Limit Switch")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.ETHERCAT_PROBLEM:
-            device_errors.append("Ethercat Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.MOTION_TIMEOUT:
-            device_errors.append("Motion timeout")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SIMULINK_FAULT:
-            device_errors.append("Simulink Error")
-        device_error_code = ",".join(device_errors)
-        self.evt_deviceError.set_put(
-            code=device_error_code,
-            device="Hexapod",
-            severity=1 if device_error_code else 0,
-        )
-
         safety_interlock = server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SAFTEY_INTERLOCK
         self.evt_interlock.set_put(
             detail="Engaged" if safety_interlock else "Disengaged",
