@@ -42,11 +42,3 @@ Z_MAX_LIMIT = (13100, 8900)
 UV_MAX_LIMIT = (0.36, 0.175)
 W_MIN_LIMIT = (-0.10, -0.05)
 W_MAX_LIMIT = (0.10, 0.05)
-
-# define WRAPPER_ALIMIT_MAX     500.0     // microns/sec^2
-# define WRAPPER_ALIMIT_MIN     100.0     // microns/sec^2
-
-# define WRAPPER_RADIAL_DISP_VLIMIT  2000.0    // microns/sec (XY)
-# define WRAPPER_RADIAL_ANGL_VLIMIT  0.1146    // deg/sec (UV)
-# define WRAPPER_AXIAL_DISP_VLIMIT   2000.0    // microns/sec (Z)
-# define WRAPPER_AXIAL_ANGL_VLIMIT   0.1146   // deg/sec (W)
