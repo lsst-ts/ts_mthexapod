@@ -143,6 +143,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             (enums.CommandCode.SET_ENABLED_SUBSTATE, enums.SetEnabledSubstateParam.STOP): self.do_stop,
             enums.CommandCode.POSITION_SET: self.do_position_set,
             enums.CommandCode.SET_PIVOTPOINT: self.do_set_pivotpoint,
+            enums.CommandCode.CONFIG_ACCEL: self.do_config_accel,
+            enums.CommandCode.CONFIG_LIMITS: self.do_config_limits,
+            enums.CommandCode.CONFIG_VEL: self.do_config_vel,
         }
 
         super().__init__(log=log,
@@ -162,6 +165,36 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         """
         self.hexapod.stop()
         await super().close()
+
+    async def do_config_accel(self, command):
+        self.assert_stationary()
+        if not 0 < command.param1 <= constants.MAX_ACCEL_LIMIT:
+            raise ValueError(f"Requested accel limit {command.param1} "
+                             f"not in range (0, {constants.MAX_ACCEL_LIMIT}]")
+        self.config.strut_acceleration = command.param1
+        await self.write_config()
+
+    async def do_config_limits(self, command):
+        self.assert_stationary()
+        utils.check_positive_value(command.param1, "xymax", self.xy_max_limit)
+        utils.check_negative_value(command.param2, "zmin", self.z_min_limit)
+        utils.check_positive_value(command.param3, "zmax", self.z_max_limit)
+        utils.check_positive_value(command.param4, "uvmax", self.uv_max_limit)
+        utils.check_negative_value(command.param5, "wmin", self.w_min_limit)
+        utils.check_positive_value(command.param6, "wmax", self.w_max_limit)
+        self.config.pos_limits = (command.param1, command.param2, command.param3,
+                                  command.param4, command.param5, command.param6)
+        await self.write_config()
+
+    async def do_config_vel(self, command):
+        self.assert_stationary()
+        utils.check_positive_value(command.param1, "xymax", constants.MAX_LINEAR_VEL_LIMIT)
+        utils.check_positive_value(command.param2, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT)
+        utils.check_positive_value(command.param3, "zmax", constants.MAX_LINEAR_VEL_LIMIT)
+        utils.check_positive_value(command.param4, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT)
+        self.config.vel_limits = (command.param1, command.param2,
+                                  command.param3, command.param4)
+        await self.write_config()
 
     async def do_offset(self, command):
         self.assert_stationary()
