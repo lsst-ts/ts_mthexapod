@@ -111,6 +111,54 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                          simulation_mode=simulation_mode)
 
     # Hexapod-specific commands.
+    async def do_configureAcceleration(self, data):
+        """Specify the acceleration limit."""
+        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        utils.check_positive_value(data.accmax, "accmax", constants.MAX_ACCEL_LIMIT,
+                                   ExceptionClass=salobj.ExpectedError)
+        await self.run_command(code=enums.CommandCode.CONFIG_ACCEL,
+                               param1=data.accmax)
+
+    async def do_configureLimits(self, data):
+        """Specify position and rotation limits."""
+        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        utils.check_positive_value(data.xymax, "xymax", self.xy_max_limit,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_negative_value(data.zmin, "zmin", self.z_min_limit,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_positive_value(data.zmax, "zmax", self.z_max_limit,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_positive_value(data.uvmax, "uvmax", self.uv_max_limit,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_negative_value(data.wmin, "wmin", self.w_min_limit,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_positive_value(data.wmax, "wmax", self.w_max_limit,
+                                   ExceptionClass=salobj.ExpectedError)
+        await self.run_command(code=enums.CommandCode.CONFIG_LIMITS,
+                               param1=data.xymax,
+                               param2=data.zmin,
+                               param3=data.zmax,
+                               param4=data.uvmax,
+                               param5=data.wmin,
+                               param6=data.wmax)
+
+    async def do_configureVelocity(self, data):
+        """Specify velocity limits."""
+        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        utils.check_positive_value(data.xymax, "xymax", constants.MAX_LINEAR_VEL_LIMIT,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_positive_value(data.rxrymax, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_positive_value(data.zmax, "zmax", constants.MAX_LINEAR_VEL_LIMIT,
+                                   ExceptionClass=salobj.ExpectedError)
+        utils.check_positive_value(data.rzmax, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT,
+                                   ExceptionClass=salobj.ExpectedError)
+        await self.run_command(code=enums.CommandCode.CONFIG_VEL,
+                               param1=data.xymax,
+                               param2=data.rxrymax,
+                               param3=data.zmax,
+                               param4=data.rzmax)
+
     async def do_move(self, data):
         """Move to a specified position and orientation.
         """

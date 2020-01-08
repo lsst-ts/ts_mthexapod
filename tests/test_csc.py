@@ -51,8 +51,123 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                                     exe_name="run_hexapod.py")
 
     async def test_standard_state_transitions(self):
-        enabled_commands = ("move", "moveLUT", "offset", "offsetLUT", "pivot", "stop")
+        enabled_commands = ("configureVelocity", "configureAcceleration", "configureLimits",
+                            "move", "moveLUT", "offset", "offsetLUT", "pivot", "stop")
         await self.check_standard_state_transitions(enabled_commands=enabled_commands)
+
+    async def test_configure_acceleration(self):
+        """Test the configureAcceleration command.
+        """
+        await self.make_csc(initial_state=salobj.State.ENABLED)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
+        initial_limit = data.accelerationAccmax
+        print("initial_limit=", initial_limit)
+        new_limit = initial_limit - 0.1
+        await self.remote.cmd_configureAcceleration.set_start(accmax=new_limit, timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
+        self.assertAlmostEqual(data.accelerationAccmax, new_limit)
+
+        for bad_accmax in (-1, 0, hexapod.MAX_ACCEL_LIMIT + 0.001):
+            with self.subTest(bad_accmax=bad_accmax):
+                with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
+                    await self.remote.cmd_configureAcceleration.set_start(accmax=bad_accmax,
+                                                                          timeout=STD_TIMEOUT)
+
+    async def test_configure_limits(self):
+        """Test the configureLimits command.
+        """
+        def get_limits(data):
+            """Get position limits from a configuration sample."""
+            return (data.limitXYMax, data.limitZMin, data.limitZMax,
+                    data.limitUVMax, data.limitWMin, data.limitWMax)
+
+        await self.make_csc(initial_state=salobj.State.ENABLED)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
+        initial_limits = get_limits(data)
+        new_limits = tuple(lim*0.9 for lim in initial_limits)
+        await self.remote.cmd_configureLimits.set_start(xymax=new_limits[0],
+                                                        zmin=new_limits[1],
+                                                        zmax=new_limits[2],
+                                                        uvmax=new_limits[3],
+                                                        wmin=new_limits[4],
+                                                        wmax=new_limits[5],
+                                                        timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
+        reported_limits = get_limits(data)
+        for i in range(4):
+            self.assertAlmostEqual(new_limits[i], reported_limits[i])
+
+        def make_modified_limits(i, value):
+            """Make modified limits from initial_limits, setting one element
+            to a new value.
+            """
+            bad_limits = list(initial_limits)
+            bad_limits[i] = value
+            return tuple(bad_limits)
+
+        for bad_limits in (
+            make_modified_limits(0, 0),
+            make_modified_limits(0, self.csc.xy_max_limit + 0.001),
+            make_modified_limits(1, self.csc.z_min_limit - 0.001),
+            make_modified_limits(2, self.csc.z_max_limit + 0.001),
+            make_modified_limits(3, 0),
+            make_modified_limits(3, self.csc.uv_max_limit + 0.001),
+            make_modified_limits(4, self.csc.w_min_limit - 0.001),
+            make_modified_limits(5, self.csc.w_max_limit + 0.001),
+        ):
+            with self.subTest(bad_limits=bad_limits):
+                print(f"bad_limits={bad_limits}")
+                with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
+                    await self.remote.cmd_configureLimits.set_start(xymax=bad_limits[0],
+                                                                    zmin=bad_limits[1],
+                                                                    zmax=bad_limits[2],
+                                                                    uvmax=bad_limits[3],
+                                                                    wmin=bad_limits[4],
+                                                                    wmax=bad_limits[5],
+                                                                    timeout=STD_TIMEOUT)
+
+    async def test_configure_velocity(self):
+        """Test the configureVelocity command.
+        """
+        def get_velocity_limits(data):
+            """Get the velocity limits from a configuration sample."""
+            return (data.velocityXYMax, data.velocityRxRyMax, data.velocityZMax, data.velocityRzMax)
+
+        await self.make_csc(initial_state=salobj.State.ENABLED)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
+        initial_vel_limits = get_velocity_limits(data)
+        new_vel_limits = tuple(lim - 0.01 for lim in initial_vel_limits)
+        await self.remote.cmd_configureVelocity.set_start(xymax=new_vel_limits[0],
+                                                          rxrymax=new_vel_limits[1],
+                                                          zmax=new_vel_limits[2],
+                                                          rzmax=new_vel_limits[3],
+                                                          timeout=STD_TIMEOUT)
+        data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
+        reported_limits = get_velocity_limits(data)
+        for i in range(4):
+            self.assertAlmostEqual(new_vel_limits[i], reported_limits[i])
+
+        bad_linear_vel_limit = hexapod.MAX_LINEAR_VEL_LIMIT + 0.001
+        bad_angular_vel_limit = hexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
+        for bad_vel_limits in (
+            (0, initial_vel_limits[1], initial_vel_limits[2], initial_vel_limits[3]),
+            (bad_linear_vel_limit, initial_vel_limits[1], initial_vel_limits[2], initial_vel_limits[3]),
+            (initial_vel_limits[0], 0, initial_vel_limits[2], initial_vel_limits[3]),
+            (initial_vel_limits[0], bad_angular_vel_limit, initial_vel_limits[2], initial_vel_limits[3]),
+            (initial_vel_limits[0], initial_vel_limits[1], 0, initial_vel_limits[3]),
+            (initial_vel_limits[0], initial_vel_limits[1], bad_linear_vel_limit, initial_vel_limits[3]),
+            (initial_vel_limits[0], initial_vel_limits[1], initial_vel_limits[2], 0),
+            (initial_vel_limits[0], initial_vel_limits[1], initial_vel_limits[2], bad_angular_vel_limit),
+            (0, 0, 0, 0),
+            (bad_linear_vel_limit, bad_angular_vel_limit, bad_linear_vel_limit, bad_angular_vel_limit),
+        ):
+            with self.subTest(bad_vel_limits=bad_vel_limits):
+                with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
+                    await self.remote.cmd_configureVelocity.set_start(xymax=bad_vel_limits[0],
+                                                                      rxrymax=bad_vel_limits[1],
+                                                                      zmax=bad_vel_limits[2],
+                                                                      rzmax=bad_vel_limits[3],
+                                                                      timeout=STD_TIMEOUT)
 
     async def test_move(self):
         await self.check_move(destination=(300, 400, -300, 0.01, 0.02, -0.015),

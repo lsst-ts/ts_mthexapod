@@ -79,7 +79,10 @@ State transitions commands (none take arguments):
 * exitControl
 * clearError
 
-Other commands and arguments.
+Other commands and arguments:
+* configureAcceleration accmax                      # Set acceleration: µm/s2
+* configureLimits xymax zmin zmax uvmax wmin wmax   # Set position limits: µm µm µm deg deg deg
+* configureVelocity xymax rxrymax zmax rzmax        # Set velocity: µm/s deg/s µm/s deg/s
 * move x  y  z  u   v   w   synch       # Move to the specified position and orientation
 * moveLUT elevation azimuth temperature x  y  z  u  v  w    synch       # Move with compensation
 * offset x  y  z  u   v   w   synch     # Offset by a specified change in position and orientation
@@ -97,6 +100,40 @@ For example:
   move 5 5 5 0.001 0 0 0
   stop  # in case you want to stop a move early
   exit""")
+
+    async def do_configureAcceleration(self, args):
+        """Implement the configureAcceleration command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            One value: accmax (deg/sec2).
+        """
+        kwargs = self.check_arguments(args, "accmax")
+        await self.remote.cmd_configureAcceleration.set_start(**kwargs, timeout=STD_TIMEOUT)
+
+    async def do_configureLimits(self, args):
+        """Implement the configureLimits command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Six values: xymax, zmin, zmax (µm), uvmax, wmin, wmax (deg).
+        """
+        kwargs = self.check_arguments(args, "xymax", "zmin", "zmax", "uvmax", "wmin", "wmax")
+        await self.remote.cmd_configureLimits.set_start(**kwargs, timeout=STD_TIMEOUT)
+
+    async def do_configureVelocity(self, args):
+        """Implement the configureVelocity command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            Four values: xymax (µm/sec), rxrymax (deg/sec),
+            zmax (µm/sec), rzmax (deg/sec)
+        """
+        kwargs = self.check_arguments(args, "xymax", "rxrymax", "zmax", "rzmax")
+        await self.remote.cmd_configureVelocity.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_move(self, args):
         """Implement the move command.
