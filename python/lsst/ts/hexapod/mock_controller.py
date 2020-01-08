@@ -126,6 +126,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             max_length=self.max_length,
             speed=self.speed,
         )
+        self.move_commanded = False
 
         telemetry = structs.Telemetry()
         telemetry.commanded_pos = (0,)*6
@@ -142,9 +143,6 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             (enums.CommandCode.SET_ENABLED_SUBSTATE, enums.SetEnabledSubstateParam.STOP): self.do_stop,
             enums.CommandCode.POSITION_SET: self.do_position_set,
             enums.CommandCode.SET_PIVOTPOINT: self.do_set_pivotpoint,
-            enums.CommandCode.CONFIG_ACCEL: self.do_config_accel,
-            enums.CommandCode.CONFIG_LIMITS: self.do_config_limits,
-            enums.CommandCode.CONFIG_VEL: self.do_config_vel,
         }
 
         super().__init__(log=log,
@@ -164,36 +162,6 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         """
         self.hexapod.stop()
         await super().close()
-
-    async def do_config_accel(self, command):
-        self.assert_stationary()
-        if not 0 < command.param1 <= constants.MAX_ACCEL_LIMIT:
-            raise ValueError(f"Requested accel limit {command.param1} "
-                             f"not in range (0, {constants.MAX_ACCEL_LIMIT}]")
-        self.config.strut_acceleration = command.param1
-        await self.write_config()
-
-    async def do_config_limits(self, command):
-        self.assert_stationary()
-        utils.check_positive_value(command.param1, "xymax", self.xy_max_limit)
-        utils.check_negative_value(command.param2, "zmin", self.z_min_limit)
-        utils.check_positive_value(command.param3, "zmax", self.z_max_limit)
-        utils.check_positive_value(command.param4, "uvmax", self.uv_max_limit)
-        utils.check_negative_value(command.param5, "wmin", self.w_min_limit)
-        utils.check_positive_value(command.param6, "wmax", self.w_max_limit)
-        self.config.pos_limits = (command.param1, command.param2, command.param3,
-                                  command.param4, command.param5, command.param6)
-        await self.write_config()
-
-    async def do_config_vel(self, command):
-        self.assert_stationary()
-        utils.check_positive_value(command.param1, "xymax", constants.MAX_LINEAR_VEL_LIMIT)
-        utils.check_positive_value(command.param2, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT)
-        utils.check_positive_value(command.param3, "zmax", constants.MAX_LINEAR_VEL_LIMIT)
-        utils.check_positive_value(command.param4, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT)
-        self.config.vel_limits = (command.param1, command.param2,
-                                  command.param3, command.param4)
-        await self.write_config()
 
     async def do_offset(self, command):
         self.assert_stationary()
@@ -220,6 +188,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.assert_state(Hexapod.ControllerState.ENABLED)
         self.hexapod.stop()
         self.telemetry.enabled_substate = Hexapod.EnabledSubstate.STATIONARY
+        self.move_commanded = False
 
     async def do_move_point_to_point(self, command):
         if not math.isfinite(self.set_position[0]):
@@ -229,6 +198,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
                           xyzrot=self.telemetry.commanded_pos[3:6])
         self.telemetry.commanded_length = tuple(actuator.end_pos for actuator in self.hexapod.actuators)
         self.telemetry.enabled_substate = Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT
+        self.move_commanded = True
 
     async def end_run_command(self, command, cmd_method):
         if cmd_method != self.do_position_set:
@@ -239,7 +209,10 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             self.telemetry.status_word = (0,)*6
             self.telemetry.latching_fault_status_register = (0,)*6
             self.telemetry.copley_fault_status_register = (0,)*6
-            axes_in_position = [not actuator.moving for actuator in self.hexapod.actuators]
+            if self.telemetry.state != Hexapod.ControllerState.ENABLED:
+                self.move_commanded = False
+            axes_in_position = [self.move_commanded and not actuator.moving
+                                for actuator in self.hexapod.actuators]
             self.telemetry.application_status = \
                 tuple(int(in_position)*Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK |
                       Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE

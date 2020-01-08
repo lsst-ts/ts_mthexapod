@@ -79,57 +79,24 @@ State transitions commands (none take arguments):
 * exitControl
 * clearError
 
-Other commands and arguments:
-* configureAcceleration accmax                      # Set acceleration: µm/s2
-* configureLimits xymax zmin zmax uvmax wmin wmax   # Set position limits: µm µm µm deg deg deg
-* configureVelocity xymax rxrymax zmax rzmax        # Set velocity: µm/s deg/s µm/s deg/s
-* move                          # Move to position set by positionSet or offset
-* moveLUT az elev temp          # Same as "move" but with lookup table compensation: deg deg C
-* offset x y z u v w synch      # Specify an offset for move or moveLUT: µm µm µm deg deg deg 0/1
-* pivot x y z                   # Set pivot point: µm µm µm
-* positionSet x y z u v w synch # Specify a position for move or moveLUT: µm µm µm deg deg deg 0/1
+Other commands and arguments.
+* move x  y  z  u   v   w   synch       # Move to the specified position and orientation
+* moveLUT elevation azimuth temperature x  y  z  u  v  w    synch       # Move with compensation
+* offset x  y  z  u   v   w   synch     # Offset by a specified change in position and orientation
+* offsetLUT elevation azimuth temperature x  y  z  u   v   w   synch    # Offset with compensation
+* pivot x  y  z     # Set the pivot point
 * stop
-* test ivalue1 ivalue2
+
+Position (x y z) is in µm
+Angles (u, v, w, elevation, and azimuth) are in degrees
+sync is 1 to synchronize motion (actuators start and stop together), 0 to not
+Temperature is in Celsius
+"Compensation" means the hexapod position is adjusted for telescope position and ambient temperature.
 
 For example:
-  positionSet 5 5 5 0.001 0 0 0
-  move
+  move 5 5 5 0.001 0 0 0
   stop  # in case you want to stop a move early
   exit""")
-
-    async def do_configureAcceleration(self, args):
-        """Implement the configureAcceleration command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            One value: accmax (deg/sec2).
-        """
-        kwargs = self.check_arguments(args, "accmax")
-        await self.remote.cmd_configureAcceleration.set_start(**kwargs, timeout=STD_TIMEOUT)
-
-    async def do_configureLimits(self, args):
-        """Implement the configureLimits command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            Six values: xymax, zmin, zmax (µm), uvmax, wmin, wmax (deg).
-        """
-        kwargs = self.check_arguments(args, "xymax", "zmin", "zmax", "uvmax", "wmin", "wmax")
-        await self.remote.cmd_configureLimits.set_start(**kwargs, timeout=STD_TIMEOUT)
-
-    async def do_configureVelocity(self, args):
-        """Implement the configureVelocity command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            Four values: xymax (µm/sec), rxrymax (deg/sec),
-            zmax (µm/sec), rzmax (deg/sec)
-        """
-        kwargs = self.check_arguments(args, "xymax", "rxrymax", "zmax", "rzmax")
-        await self.remote.cmd_configureVelocity.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_move(self, args):
         """Implement the move command.
@@ -137,9 +104,9 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            No values.
+            7 values: x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        self.check_arguments(args)
+        self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
 
     async def do_moveLUT(self, args):
@@ -148,9 +115,12 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            Three values: az (deg), elev (deg), temp (C).
+            10 values:
+                elevation (deg), azimuth (deg), temperature (C),
+                x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        kwargs = self.check_arguments(args, "az", "elev", "temp")
+        kwargs = self.check_arguments(args, "elevation", "azimuth", "temperature",
+                                      "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_moveLUT.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_offset(self, args):
@@ -159,9 +129,23 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            Seven values: x, y, z (µm), u, v, w (deg), sync (bool).
+            7 values: x, y, z (µm), u, v, w (deg), sync (bool).
         """
         kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
+        await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
+
+    async def do_offsetLUT(self, args):
+        """Implement the offsetLUT command.
+
+        Parameters
+        ----------
+        args : `List` [`float`]
+            10 values:
+                elevation (deg), azimuth (deg), temperature (C),
+                x, y, z (µm), u, v, w (deg), sync (bool).
+        """
+        kwargs = self.check_arguments(args, "elevation", "azimuth", "temperature",
+                                      "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_pivot(self, args):
@@ -175,17 +159,6 @@ For example:
         kwargs = self.check_arguments(args, "x", "y", "z")
         await self.remote.cmd_pivot.set_start(**kwargs, timeout=STD_TIMEOUT)
 
-    async def do_positionSet(self, args):
-        """Implement the positionSet command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            Seven values: x, y, z (µm), u, v, w (deg), sync (bool).
-        """
-        kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
-        await self.remote.cmd_positionSet.set_start(**kwargs, timeout=STD_TIMEOUT)
-
     async def do_stop(self, args):
         """Implement the stop command.
 
@@ -196,17 +169,6 @@ For example:
         """
         # Don't check arguments, just STOP.
         await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
-
-    async def do_test(self, args):
-        """Implement the test command.
-
-        Parameters
-        ----------
-        args : `List` [`float`]
-            Two values: ivalue1, ivalue2.
-        """
-        kwargs = self.check_arguments(args, ("ivalue1", int), ("ivalue2", int))
-        await self.remote.cmd_test.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     def positions_close(self, position1, position2):
         """Return True if two positions are nearly equal.
@@ -221,7 +183,7 @@ For example:
         return np.allclose(position1[:3], position2[:3], atol=1) \
             and np.allclose(position1[3:], position2[3:], atol=1e-5)
 
-    async def tel_Actuators_callback(self, data):
+    async def tel_actuators_callback(self, data):
         """Callback for Actuators telemetry.
 
         Output Actuators telemetry data if the values have changed enough
@@ -229,16 +191,16 @@ For example:
 
         Parameters
         ----------
-        data : self.controller.tel_Actuators.DataType.
+        data : self.controller.tel_actuators.DataType.
             Actuators data.
         """
-        if self.previous_tel_Actuators is not None and \
-                np.allclose(self.previous_tel_Actuators.Calibrated, data.Calibrated, atol=1):
+        if self.previous_tel_actuators is not None and \
+                np.allclose(self.previous_tel_actuators.calibrated, data.calibrated, atol=1):
             return
-        self.previous_tel_Actuators = data
-        print(f"Actuators: {self.format_data(data)}")
+        self.previous_tel_actuators = data
+        print(f"actuators: {self.format_data(data)}")
 
-    async def tel_Application_callback(self, data):
+    async def tel_application_callback(self, data):
         """Callback for the Application telemetry.
 
         Output Application telemetry if the values have changed enough
@@ -246,12 +208,12 @@ For example:
 
         Parameters
         ----------
-        data : self.controller.tel_Application.DataType.
+        data : self.controller.tel_application.DataType.
             Actuators data.
         """
-        if self.previous_tel_Application is not None \
-                and self.positions_close(self.previous_tel_Application.Position, data.Position) \
-                and np.array_equal(data.Demand, self.previous_tel_Application.Demand):
+        if self.previous_tel_application is not None \
+                and self.positions_close(self.previous_tel_application.position, data.position) \
+                and np.array_equal(data.demand, self.previous_tel_application.demand):
             return
-        self.previous_tel_Application = data
-        print(f"Application: {self.format_data(data)}")
+        self.previous_tel_application = data
+        print(f"application: {self.format_data(data)}")

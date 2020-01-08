@@ -98,13 +98,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.w_min_limit = constants.W_MIN_LIMIT[index-1]
         self.w_max_limit = constants.W_MAX_LIMIT[index-1]
 
-        # Set this True or False for an offset or positionSet command.
-        # Reset this to None when offset or positionSet are run
-        # or when no longer enabled and stationary.
-        # Thus it serves two purposes:
-        # * Record a value needed by the move and offset commands.
-        # * Record the fact that a position has been specified
-        self.synchronized_move = None
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
 
@@ -118,183 +111,70 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                          simulation_mode=simulation_mode)
 
     # Hexapod-specific commands.
-    async def do_configureAcceleration(self, data):
-        """Specify the acceleration limit."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.accmax, "accmax", constants.MAX_ACCEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(cmd=enums.CommandCode.CONFIG_ACCEL,
-                               param1=data.accmax)
-
-    async def do_configureElevationRawLUT(self, data):
-        """Specify elevation raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureAzimuthRawLUT(self, data):
-        """Specify azimuth raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureTemperatureRawLUT(self, data):
-        """Specify temperature raw lookup table."""
-        raise salobj.ExpectedError("Not implemented.")
-
-    async def do_configureLimits(self, data):
-        """Specify position and rotation limits."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.xymax, "xymax", self.xy_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_negative_value(data.zmin, "zmin", self.z_min_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.zmax, "zmax", self.z_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.uvmax, "uvmax", self.uv_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_negative_value(data.wmin, "wmin", self.w_min_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.wmax, "wmax", self.w_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(cmd=enums.CommandCode.CONFIG_LIMITS,
-                               param1=data.xymax,
-                               param2=data.zmin,
-                               param3=data.zmax,
-                               param4=data.uvmax,
-                               param5=data.wmin,
-                               param6=data.wmax)
-
-    async def do_configureVelocity(self, data):
-        """Specify velocity limits."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.xymax, "xymax", constants.MAX_LINEAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.rxrymax, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.zmax, "zmax", constants.MAX_LINEAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.rzmax, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(cmd=enums.CommandCode.CONFIG_VEL,
-                               param1=data.xymax,
-                               param2=data.rxrymax,
-                               param3=data.zmax,
-                               param4=data.rzmax)
-
     async def do_move(self, data):
-        """Go to the position specified by the most recent ``positionSet``
-        or ``offset`` command.
+        """Move to a specified position and orientation.
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        if self.synchronized_move is None:
-            raise salobj.ExpectedError("Must specify a position with positionSet or offset.")
-        sync_move = self.synchronized_move
-        self.synchronized_move = None
-        await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                               param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-                               param2=sync_move)
+        cmd1 = self._make_position_set_command(data)
+        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+                                 param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
+                                 param2=data.sync)
+        await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_moveLUT(self, data):
-        """Go to the position specified by the most recent ``positionSet``
-        or `offset`` command, with LUT corrections.
+        """Move to a specified position and orientation,
+        with compensation for telescope elevation, azimuth and temperature.
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        if self.synchronized_move is None:
-            raise salobj.ExpectedError("Must specify a position with positionSet or offset.")
-        sync_move = self.synchronized_move
-        self.synchronized_move = None
-        await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                               param1=enums.SetEnabledSubstateParam.MOVE_LUT,
-                               param2=sync_move,
-                               param3=data.az,
-                               param4=data.elev,
-                               param5=data.temp)
+        cmd1 = self._make_position_set_command(data)
+        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+                                 param1=enums.SetEnabledSubstateParam.MOVE_LUT,
+                                 param2=data.sync,
+                                 param3=data.azimuth,
+                                 param4=data.elevation,
+                                 param5=data.temperature)
+        await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_offset(self, data):
-        """Specify an offset for the ``move`` or ``moveLUT`` command.
+        """Move by a specified offset in position and orientation.
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        offset_data = copy.copy(data)
-        offset_data.x += self.server.telemetry.commanded_pos[0]
-        offset_data.y += self.server.telemetry.commanded_pos[1]
-        offset_data.z += self.server.telemetry.commanded_pos[2]
-        offset_data.u += self.server.telemetry.commanded_pos[3]
-        offset_data.v += self.server.telemetry.commanded_pos[4]
-        offset_data.w += self.server.telemetry.commanded_pos[5]
+        cmd1 = self._make_offset_set_command(data)
+        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+                                 param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
+                                 param2=data.sync)
+        await self.run_multiple_commands(cmd1, cmd2)
 
-        utils.check_symmetrical_range(offset_data.x, "x", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(offset_data.y, "y", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(offset_data.z, "z", self.server.config.pos_limits[1],
-                          self.server.config.pos_limits[2], ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(offset_data.u, "u", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(offset_data.v, "v", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(offset_data.w, "w", self.server.config.pos_limits[4],
-                          self.server.config.pos_limits[5], ExceptionClass=salobj.ExpectedError)
-        self.synchronized_move = data.sync
-        await self.run_command(cmd=enums.CommandCode.POSITION_SET,
-                               param1=offset_data.x,
-                               param2=offset_data.y,
-                               param3=offset_data.z,
-                               param4=offset_data.u,
-                               param5=offset_data.v,
-                               param6=offset_data.w)
+    async def do_offsetLUT(self, data):
+        """Specify an offset for the ``move`` or ``moveLUT`` command,
+        with compensation for telescope elevation, azimuth and temperature.
+        """
+        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        cmd1 = self._make_offset_set_command(data)
+        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+                                 param1=enums.SetEnabledSubstateParam.MOVE_LUT,
+                                 param2=data.sync,
+                                 param3=data.azimuth,
+                                 param4=data.elevation,
+                                 param5=data.temperature)
+        await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_pivot(self, data):
-        """Set the coordinates of the pivot point."""
+        """Set the coordinates of the pivot point.
+        """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        await self.run_command(cmd=enums.CommandCode.SET_PIVOTPOINT,
+        await self.run_command(code=enums.CommandCode.SET_PIVOTPOINT,
                                param1=data.x,
                                param2=data.y,
                                param3=data.z)
-
-    async def do_positionSet(self, data):
-        """Specify a position for the ``move`` or ``moveLUT`` command.
-        """
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_symmetrical_range(data.x, "x", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(data.y, "y", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(data.z, "z", self.server.config.pos_limits[1],
-                          self.server.config.pos_limits[2],
-                          ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(data.u, "u", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(data.v, "v", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(data.w, "w", self.server.config.pos_limits[4],
-                          self.server.config.pos_limits[5],
-                          ExceptionClass=salobj.ExpectedError)
-        self.synchronized_move = data.sync
-        await self.run_command(cmd=enums.CommandCode.POSITION_SET,
-                               param1=data.x,
-                               param2=data.y,
-                               param3=data.z,
-                               param4=data.u,
-                               param5=data.v,
-                               param6=data.w)
 
     async def do_stop(self, data):
         """Halt tracking or any other motion.
         """
         if self.summary_state != salobj.State.ENABLED:
             raise salobj.ExpectedError("Not enabled")
-        self.synchronized_move = None
-        await self.run_command(cmd=enums.CommandCode.SET_ENABLED_SUBSTATE,
+        await self.run_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
                                param1=enums.SetEnabledSubstateParam.STOP)
-
-    async def do_test(self, data):
-        """Execute the test command. NOT SUPPORTED.
-        """
-        raise salobj.ExpectedError("Not implemented")
-        # self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        # # The test command is unique in that all fields must be left
-        # # at their initialized value except sync_pattern
-        # # (at least that is what the Vendor's code does).
-        # command = structs.Command()
-        # command.sync_pattern = structs.ROTATOR_SYNC_PATTERN
-        # await self.server.run_command(command)
 
     def config_callback(self, server):
         """Called when the TCP/IP controller outputs configuration.
@@ -304,7 +184,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
             TCP/IP server.
         """
-        self.evt_settingsApplied.set_put(
+        self.evt_configuration.set_put(
             accelerationAccmax=server.config.strut_acceleration,
             limitXYMax=server.config.pos_limits[0],
             limitZMin=server.config.pos_limits[1],
@@ -358,9 +238,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
             TCP/IP server.
         """
-        if server.telemetry.state != Hexapod.ControllerState.ENABLED or \
-                server.telemetry.enabled_substate != Hexapod.EnabledSubstate.STATIONARY:
-            self.synchronized_move = None
         self.evt_summaryState.set_put(summaryState=self.summary_state)
         # Strangely telemetry.state, offline_substate and enabled_substate
         # are all floats from the controller. But they should only have
@@ -371,57 +248,31 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                                          applicationStatus=server.telemetry.application_status)
 
         pos_error = [server.telemetry.measured_pos[i] - server.telemetry.commanded_pos[i] for i in range(6)]
-        self.tel_Actuators.set_put(
-            Calibrated=server.telemetry.strut_encoder_microns,
-            Raw=server.telemetry.strut_encoder_raw,
+        self.tel_actuators.set_put(
+            calibrated=server.telemetry.strut_encoder_microns,
+            raw=server.telemetry.strut_encoder_raw,
         )
-        self.tel_Application.set_put(
-            Demand=server.telemetry.commanded_pos,
-            Position=server.telemetry.measured_pos,
-            Error=pos_error,
+        self.tel_application.set_put(
+            demand=server.telemetry.commanded_pos,
+            position=server.telemetry.measured_pos,
+            error=pos_error,
         )
-        self.tel_Electrical.set_put(
-            CopleyStatusWordDrive=server.telemetry.status_word,
-            CopleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+        self.tel_electrical.set_put(
+            copleyStatusWordDrive=server.telemetry.status_word,
+            copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
         )
 
-        # TODO DM-21699: the inPosition event has no inPosition field
-        # so it cannot be used correctly. Once that is fixed uncomment
-        # the following or adapt as needed (I hope the new XML will have
-        # in-position data for each actuator, as well as all at once)
-        # and add a `start` method that outputs the initial values
-        # for the in position events.
-        # in_position = all(
-        #     status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
-        #     for status in server.telemetry.application_status)
-        # self.evt_inPosition.set_put(
-        #     inPosition=in_position,
-        # )
+        actuator_in_position = tuple(status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+                                     for status in server.telemetry.application_status)
+        self.evt_actuatorInPosition.set_put(
+            inPosition=actuator_in_position,
+        )
+        self.evt_inPosition.set_put(
+            inPosition=all(actuator_in_position),
+        )
 
         self.evt_commandableByDDS.set_put(
             state=bool(server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE),
-        )
-
-        device_errors = []
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.HEX_FOLLOWING_ERROR_MASK:
-            device_errors.append("Following Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DRIVE_FAULT:
-            device_errors.append("Drive Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.EXTEND_LIMIT_SWITCH:
-            device_errors.append("Forward Limit Switch")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.RETRACT_LIMIT_SWITCH:
-            device_errors.append("Reverse Limit Switch")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.ETHERCAT_PROBLEM:
-            device_errors.append("Ethercat Error")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.MOTION_TIMEOUT:
-            device_errors.append("Motion timeout")
-        if server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SIMULINK_FAULT:
-            device_errors.append("Simulink Error")
-        device_error_code = ",".join(device_errors)
-        self.evt_deviceError.set_put(
-            code=device_error_code,
-            device="Hexapod",
-            severity=1 if device_error_code else 0,
         )
 
         safety_interlock = server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SAFTEY_INTERLOCK
@@ -436,6 +287,64 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             initial_state=initial_ctrl_state,
             command_port=self.server.command_port,
             telemetry_port=self.server.telemetry_port)
+
+    def _make_position_set_command(self, data):
+        """Make a POSITION_SET command for the low-level controller
+        using data from the move or moveLUT CSC command.
+        """
+        utils.check_symmetrical_range(data.x, "x", self.server.config.pos_limits[0],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_symmetrical_range(data.y, "y", self.server.config.pos_limits[0],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_range(data.z, "z", self.server.config.pos_limits[1],
+                          self.server.config.pos_limits[2],
+                          ExceptionClass=salobj.ExpectedError)
+        utils.check_symmetrical_range(data.u, "u", self.server.config.pos_limits[3],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_symmetrical_range(data.v, "v", self.server.config.pos_limits[3],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_range(data.w, "w", self.server.config.pos_limits[4],
+                          self.server.config.pos_limits[5],
+                          ExceptionClass=salobj.ExpectedError)
+        return self.make_command(code=enums.CommandCode.POSITION_SET,
+                                 param1=data.x,
+                                 param2=data.y,
+                                 param3=data.z,
+                                 param4=data.u,
+                                 param5=data.v,
+                                 param6=data.w)
+
+    def _make_offset_set_command(self, data):
+        """Make a POSITION_SET offset command for the low-level controller
+        using data from the offset or offsetLUT CSC command.
+        """
+        offset_data = copy.copy(data)
+        offset_data.x += self.server.telemetry.commanded_pos[0]
+        offset_data.y += self.server.telemetry.commanded_pos[1]
+        offset_data.z += self.server.telemetry.commanded_pos[2]
+        offset_data.u += self.server.telemetry.commanded_pos[3]
+        offset_data.v += self.server.telemetry.commanded_pos[4]
+        offset_data.w += self.server.telemetry.commanded_pos[5]
+
+        utils.check_symmetrical_range(offset_data.x, "x", self.server.config.pos_limits[0],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_symmetrical_range(offset_data.y, "y", self.server.config.pos_limits[0],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_range(offset_data.z, "z", self.server.config.pos_limits[1],
+                          self.server.config.pos_limits[2], ExceptionClass=salobj.ExpectedError)
+        utils.check_symmetrical_range(offset_data.u, "u", self.server.config.pos_limits[3],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_symmetrical_range(offset_data.v, "v", self.server.config.pos_limits[3],
+                                      ExceptionClass=salobj.ExpectedError)
+        utils.check_range(offset_data.w, "w", self.server.config.pos_limits[4],
+                          self.server.config.pos_limits[5], ExceptionClass=salobj.ExpectedError)
+        return self.make_command(code=enums.CommandCode.POSITION_SET,
+                                 param1=offset_data.x,
+                                 param2=offset_data.y,
+                                 param3=offset_data.z,
+                                 param4=offset_data.u,
+                                 param5=offset_data.v,
+                                 param6=offset_data.w)
 
     @classmethod
     async def amain(cls):
