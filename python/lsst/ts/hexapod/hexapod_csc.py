@@ -337,8 +337,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             telemetry_port=self.server.telemetry_port)
 
     def _make_position_set_command(self, data):
-        """Make a POSITION_SET command for the low-level controller
-        using data from the move or moveLUT CSC command.
+        """Make a POSITION_SET command for the low-level controller.
+
+        Parameters
+        ----------
+        data : ``struct with x, y, z, u, v, w`` fields.
+            Data from the ``move`` or ``moveLUT`` command.
+            May also be data from the ``offset`` or ``offsetLUT`` commands,
+            but the fields must be changed to absolute positions.
         """
         utils.check_symmetrical_range(data.x, "x", self.server.config.pos_limits[0],
                                       ExceptionClass=salobj.ExpectedError)
@@ -366,33 +372,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """Make a POSITION_SET offset command for the low-level controller
         using data from the offset or offsetLUT CSC command.
         """
-        offset_data = copy.copy(data)
-        offset_data.x += self.server.telemetry.commanded_pos[0]
-        offset_data.y += self.server.telemetry.commanded_pos[1]
-        offset_data.z += self.server.telemetry.commanded_pos[2]
-        offset_data.u += self.server.telemetry.commanded_pos[3]
-        offset_data.v += self.server.telemetry.commanded_pos[4]
-        offset_data.w += self.server.telemetry.commanded_pos[5]
+        position_data = copy.copy(data)
+        position_data.x += self.server.telemetry.commanded_pos[0]
+        position_data.y += self.server.telemetry.commanded_pos[1]
+        position_data.z += self.server.telemetry.commanded_pos[2]
+        position_data.u += self.server.telemetry.commanded_pos[3]
+        position_data.v += self.server.telemetry.commanded_pos[4]
+        position_data.w += self.server.telemetry.commanded_pos[5]
 
-        utils.check_symmetrical_range(offset_data.x, "x", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(offset_data.y, "y", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(offset_data.z, "z", self.server.config.pos_limits[1],
-                          self.server.config.pos_limits[2], ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(offset_data.u, "u", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(offset_data.v, "v", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(offset_data.w, "w", self.server.config.pos_limits[4],
-                          self.server.config.pos_limits[5], ExceptionClass=salobj.ExpectedError)
-        return self.make_command(code=enums.CommandCode.POSITION_SET,
-                                 param1=offset_data.x,
-                                 param2=offset_data.y,
-                                 param3=offset_data.z,
-                                 param4=offset_data.u,
-                                 param5=offset_data.v,
-                                 param6=offset_data.w)
+        return self._make_position_set_command(position_data)
 
     @classmethod
     async def amain(cls):
