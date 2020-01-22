@@ -61,7 +61,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.make_csc(initial_state=salobj.State.ENABLED)
         data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         initial_limit = data.accelerationAccmax
-        print("initial_limit=", initial_limit)
         new_limit = initial_limit - 0.1
         await self.remote.cmd_configureAcceleration.set_start(accmax=new_limit, timeout=STD_TIMEOUT)
         data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
@@ -82,9 +81,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                     data.limitUVMax, data.limitWMin, data.limitWMax)
 
         await self.make_csc(initial_state=salobj.State.ENABLED)
+        await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
+                                                enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
+
         data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         initial_limits = get_limits(data)
-        new_limits = tuple(lim*0.9 for lim in initial_limits)
+
+        new_limits = tuple(lim*0.1 for lim in initial_limits)
         await self.remote.cmd_configureLimits.set_start(xymax=new_limits[0],
                                                         zmin=new_limits[1],
                                                         zmax=new_limits[2],
@@ -96,6 +99,28 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         reported_limits = get_limits(data)
         for i in range(4):
             self.assertAlmostEqual(new_limits[i], reported_limits[i])
+
+        # Make sure we cannot move to a position outside the new limits
+        good_max_position = self.limits_to_max_position(new_limits)
+        good_min_position = self.limits_to_min_position(new_limits)
+
+        bad_max_position = tuple(val*1.01 for val in good_max_position)
+        bad_min_position = tuple(val*1.01 for val in good_min_position)
+        move_kwargs = self.make_xyzuvw_kwargs(bad_max_position)
+        with salobj.assertRaisesAckError():
+            await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
+        move_kwargs = self.make_xyzuvw_kwargs(bad_min_position)
+        with salobj.assertRaisesAckError():
+            await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
+
+        # Make sure we can move to the new limits
+        await self.basic_check_move(destination=good_max_position,
+                                    est_move_duration=2,
+                                    elaztemp=None)
+
+        await self.basic_check_move(destination=good_min_position,
+                                    est_move_duration=2,
+                                    elaztemp=None)
 
         def make_modified_limits(i, value):
             """Make modified limits from initial_limits, setting one element
@@ -116,7 +141,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             make_modified_limits(5, self.csc.w_max_limit + 0.001),
         ):
             with self.subTest(bad_limits=bad_limits):
-                print(f"bad_limits={bad_limits}")
                 with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
                     await self.remote.cmd_configureLimits.set_start(xymax=bad_limits[0],
                                                                     zmin=bad_limits[1],
@@ -197,7 +221,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         """Test point to point motion using the positionSet and move
         or moveLUT commands.
 
-        Assumes that the CSC starts with inPosition=False.
+        Create the CSC and assume it starts with inPosition=False.
 
         Parameters
         ----------
@@ -214,11 +238,32 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
-        data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
-        self.assertFalse(data.inPosition)
-        data = await self.remote.evt_actuatorInPosition.next(flush=False, timeout=STD_TIMEOUT)
-        self.assertEqual(tuple(data.inPosition), (False,)*6)
         await self.check_next_position(desired_position=(0,)*6)
+
+        await self.basic_check_move(destination=destination,
+                                    est_move_duration=est_move_duration,
+                                    elaztemp=elaztemp)
+
+    async def basic_check_move(self, destination, est_move_duration, elaztemp):
+        """Test point to point motion using the positionSet and move
+        or moveLUT commands.
+
+        Unlike `check_move` this assumes the CSC has been created.
+        If you have just created the CSC then be sure not to
+        read the ``inPosition`` and ``actuatorInPosition`` events,
+        so this code can check that they go false when the move starts.
+
+        Parameters
+        ----------
+        destination : `List` [`float`]
+            Destination x, y, z (µm), rotx, roty, rotz (deg)
+        est_move_duration : `float`
+            Estimated move duration (sec)
+        elaztemp : `List` [`float`] or `None`
+            Elevation, azimuth (deg) and temperature (C)
+            for the moveLUT command.
+            If None then call move instead of moveLUT.
+        """
         t0 = time.time()
         move_kwargs = self.make_xyzuvw_kwargs(destination)
         if elaztemp is None:
@@ -238,7 +283,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
             timeout=STD_TIMEOUT+est_move_duration)
         data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
+        self.assertFalse(data.inPosition)
+        data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
         self.assertTrue(data.inPosition)
+        data = await self.remote.evt_actuatorInPosition.next(flush=False, timeout=STD_TIMEOUT)
+        self.assertEqual(tuple(data.inPosition), (False,)*6)
         # Check that actuatorInPosition returns all in position;
         # this should occur within 6 events (fewer if several actuators
         # finish their move at the same time).
@@ -347,6 +396,26 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                     v=data[4],
                     w=data[5],
                     sync=sync)
+
+    def limits_to_max_position(self, limits):
+        """Return the position corresponding to the maximum position limit.
+        """
+        return (limits[0],
+                limits[0],
+                limits[2],
+                limits[3],
+                limits[3],
+                limits[5])
+
+    def limits_to_min_position(self, limits):
+        """Return the position corresponding to the minimum position limit.
+        """
+        return (-limits[0],
+                -limits[0],
+                limits[1],
+                -limits[3],
+                -limits[3],
+                limits[4])
 
 
 if __name__ == "__main__":
