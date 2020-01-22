@@ -6,7 +6,7 @@
 lsst.ts.hexapod
 ###############
 
-Python Commandable SAL Component (CSC) for the LSST main telescope camera and M2 hexapods.
+Python Commandable SAL Component (CSC) for the camera and M2 hexapods on the Simonyi Survey Telescope.
 This code is a front end for a low level controller written by Moog.
 
 How to start the system:
