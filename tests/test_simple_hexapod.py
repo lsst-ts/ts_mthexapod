@@ -36,8 +36,8 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         np.random.seed(47)
 
     def test_constructor(self):
-        min_length = 0
         max_length = 10e6  # big enough to not be a problem
+        min_length = -max_length
         speed = 5e6
 
         base_positions = [np.random.normal(size=3) for i in range(6)]
@@ -55,16 +55,24 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         np.testing.assert_equal(model.cmd_pos, np.zeros(3))
         np.testing.assert_equal(model.cmd_xyzrot, np.zeros(3))
         np.testing.assert_equal(model.cmd_mirror_positions, mirror_positions)
-        actuator_lengths = model.compute_actuator_lengths(mirror_positions)
-        for actuator, desired_length in zip(model.actuators, actuator_lengths):
+        for actuator in model.actuators:
             self.assertAlmostEqual(actuator.min_pos, min_length)
             self.assertAlmostEqual(actuator.max_pos, max_length)
             self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.curr_pos, desired_length)
+            self.assertAlmostEqual(actuator.curr_pos, 0)
+        relative_actuator_lengths = model.compute_actuator_lengths(
+            mirror_positions, absolute=False
+        )
+        np.testing.assert_allclose(relative_actuator_lengths, np.zeros(6), atol=1e-7)
+        absolute_actuator_lengths = model.compute_actuator_lengths(
+            mirror_positions, absolute=True
+        )
+        np.testing.assert_allclose(absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7)
 
     def test_constructor_errors(self):
-        min_length = 0
-        max_length = 10e6  # big enough to not be a problem
+        # Use default position limits large enough to not be a problem
+        max_length = 10e6
+        min_length = -max_length
         speed = 5e6
         base_positions = [np.random.normal(size=3) for i in range(6)]
         # Use a large mean for the mirror positions normal distribution
@@ -108,8 +116,8 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         for bad_min_length, bad_max_length in (
             (5, 5),  # illegal range
-            (0, 0.1),  # max too small
-            (1e99, 2e99)  # min too big
+            (-1e99, -0.001),  # max too small
+            (0.001, 2e99),  # min too big
         ):
             with self.assertRaises(ValueError):
                 hexapod.SimpleHexapod(base_positions=base_positions,
@@ -135,8 +143,8 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         mirror_z = 0.81e6
         pivot = (0, 0, 0.3e6)
         base_angle0 = 10
-        min_length = 0
         max_length = 10e6  # big enough to not be a problem
+        min_length = -max_length
         speed = 5e6
 
         model = hexapod.SimpleHexapod.make_zigzag_model(base_radius=base_radius,
@@ -183,12 +191,20 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         np.testing.assert_equal(model.neutral_pivot, pivot)
 
-        desired_actuator_lengths = model.compute_actuator_lengths(model.neutral_mirror_positions)
-        for actuator, desired_length in zip(model.actuators, desired_actuator_lengths):
+        for actuator in model.actuators:
             self.assertAlmostEqual(actuator.min_pos, min_length)
             self.assertAlmostEqual(actuator.max_pos, max_length)
             self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.curr_pos, desired_length)
+            self.assertAlmostEqual(actuator.curr_pos, 0)
+
+        relative_actuator_lengths = model.compute_actuator_lengths(
+            model.neutral_mirror_positions, absolute=False
+        )
+        np.testing.assert_allclose(relative_actuator_lengths, np.zeros(6), atol=1e-7)
+        absolute_actuator_lengths = model.compute_actuator_lengths(
+            model.neutral_mirror_positions, absolute=True
+        )
+        np.testing.assert_allclose(absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7)
 
     async def test_move_translate(self):
         # Arbitrary but reasonable values. Lengths are in microns
@@ -200,8 +216,8 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         # that assumes a centered pivot.
         pivot = (0.23e6, -4e6, 0.3e6)
         base_angle0 = 10
-        min_length = 0
         max_length = 10e6  # big enough to not be a problem
+        min_length = -max_length
         speed = 1e6  # make the moves go quickly
 
         model = hexapod.SimpleHexapod.make_zigzag_model(base_radius=base_radius,
@@ -216,24 +232,26 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         # A null move should not move anything.
         model.move((0, 0, 0), (0, 0, 0))
-        np.testing.assert_allclose(model.cmd_pos, (0, 0, 0))
-        np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0))
+        np.testing.assert_allclose(model.cmd_pos, (0, 0, 0), atol=1e-7)
+        np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0), atol=1e-7)
         lengths = [actuator.curr_pos for actuator in model.actuators]
-        np.testing.assert_allclose(neutral_lengths, lengths)
-        for cmd_mirror_position, neutral_mirror_position in zip(model.cmd_mirror_positions,
-                                                                model.neutral_mirror_positions):
-            np.testing.assert_allclose(cmd_mirror_position, neutral_mirror_position)
+        np.testing.assert_allclose(neutral_lengths, lengths, atol=1e-7)
+        for cmd_mirror_position, neutral_mirror_position in zip(
+            model.cmd_mirror_positions, model.neutral_mirror_positions
+        ):
+            np.testing.assert_allclose(cmd_mirror_position, neutral_mirror_position, atol=1e-7)
 
         # A translation should move the mirror end of all actuators
         # by the amount of the translation.
         translation = (500, -3020, 2500)
         model.move(translation, (0, 0, 0))
-        np.testing.assert_allclose(model.cmd_pos, translation)
-        np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0))
-        for cmd_mirror_position, neutral_mirror_position in zip(model.cmd_mirror_positions,
-                                                                model.neutral_mirror_positions):
+        np.testing.assert_allclose(model.cmd_pos, translation, atol=1e-7)
+        np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0), atol=1e-7)
+        for cmd_mirror_position, neutral_mirror_position in zip(
+            model.cmd_mirror_positions, model.neutral_mirror_positions
+        ):
             desired_mirror_position = neutral_mirror_position + translation
-            np.testing.assert_allclose(cmd_mirror_position, desired_mirror_position)
+            np.testing.assert_allclose(cmd_mirror_position, desired_mirror_position, atol=1e-7)
 
         await self.check_move(model)
 
@@ -264,8 +282,8 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         # that assumes a centered pivot.
         pivot = (-0.12e6, 0.2e6, -0.3e6)
         base_angle0 = -5
-        min_length = 0
         max_length = 10e6  # big enough to not be a problem
+        min_length = -max_length
         speed = 1e6  # make the moves go quickly
 
         model = hexapod.SimpleHexapod.make_zigzag_model(base_radius=base_radius,
@@ -280,10 +298,11 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         rot_angle = 5.1  # degrees
         rotation = np.roll((rot_angle, 0, 0), axis)
         model.move(translation, rotation)
-        np.testing.assert_allclose(model.cmd_pos, translation)
-        np.testing.assert_allclose(model.cmd_xyzrot, rotation)
-        for cmd_mirror_position, neutral_mirror_position in zip(model.cmd_mirror_positions,
-                                                                model.neutral_mirror_positions):
+        np.testing.assert_allclose(model.cmd_pos, translation, atol=1e-7)
+        np.testing.assert_allclose(model.cmd_xyzrot, rotation, atol=1e-7)
+        for cmd_mirror_position, neutral_mirror_position in zip(
+            model.cmd_mirror_positions, model.neutral_mirror_positions
+        ):
             # Compute position of mirror end relative to the pivot.
             # (This is not affected by translation).
             relative_unrotated_mirror_position = neutral_mirror_position - pivot
@@ -291,7 +310,9 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             # relative to the pivot.
             relative_mirror_position = cmd_mirror_position - np.add(translation, pivot)
             # Rotation does not affect the position along the specified axis
-            self.assertAlmostEqual(relative_unrotated_mirror_position[axis], relative_mirror_position[axis])
+            self.assertAlmostEqual(
+                relative_unrotated_mirror_position[axis], relative_mirror_position[axis]
+            )
             # Rotation is about the translated pivot point.
             # Check that the vector from the pivot to each mirror point:
             # * Is not shifted along the axis of rotation by the rotation.

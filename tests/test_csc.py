@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import logging
 import unittest
 import time
 
@@ -33,6 +34,8 @@ from lsst.ts.idl.enums import Hexapod
 
 STD_TIMEOUT = 5  # timeout for command ack
 
+logging.basicConfig()
+
 index_gen = salobj.index_generator(imin=1, imax=2)
 
 
@@ -42,6 +45,17 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         return hexapod.HexapodCsc(index=next(index_gen),
                                   initial_state=initial_state,
                                   simulation_mode=simulation_mode)
+
+    def set_speed_factor(self, speed_factor):
+        """Multiply the speed of each actuator by a specified factor.
+
+        Useful for speeding up motions and thus test execution times.
+        Be careful not to overdo it; moves should last longer than the
+        telemetry interval so you reliably get events indicating
+        that motion has begun.
+        """
+        for actuator in self.csc.mock_ctrl.hexapod.actuators:
+            actuator.speed *= speed_factor
 
     async def test_bin_script(self):
         """Test running from the command line script.
@@ -83,6 +97,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.make_csc(initial_state=salobj.State.ENABLED)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
+        self.set_speed_factor(20)
 
         data = await self.remote.evt_configuration.next(flush=False, timeout=STD_TIMEOUT)
         initial_limits = get_limits(data)
@@ -217,7 +232,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         np.testing.assert_allclose(data.position[:3], desired_position[:3], atol=1)
         np.testing.assert_allclose(data.position[3:], desired_position[3:], atol=1e-5)
 
-    async def check_move(self, destination, est_move_duration, elaztemp):
+    async def check_move(self, destination, est_move_duration, elaztemp, speed_factor=2):
         """Test point to point motion using the positionSet and move
         or moveLUT commands.
 
@@ -233,9 +248,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             Elevation, azimuth (deg) and temperature (C)
             for the moveLUT command.
             If None then call move instead of moveLUT.
+        speed_factor : `float`
+            Amount by which to scale actuator speeds. Intended to allow
+            speeding up moves so tests run more quickly.
         """
         self.assertEqual(len(destination), 6)
         await self.make_csc(initial_state=salobj.State.ENABLED)
+        self.set_speed_factor(speed_factor)
         await self.assert_next_controller_state(controllerState=Hexapod.ControllerState.ENABLED,
                                                 enabledSubstate=Hexapod.EnabledSubstate.STATIONARY)
         await self.check_next_position(desired_position=(0,)*6)
@@ -278,16 +297,21 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.assert_next_controller_state(
             controllerState=Hexapod.ControllerState.ENABLED,
             enabledSubstate=Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT)
-        await self.assert_next_controller_state(
-            controllerState=Hexapod.ControllerState.ENABLED,
-            enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
-            timeout=STD_TIMEOUT+est_move_duration)
+        try:
+            await self.assert_next_controller_state(
+                controllerState=Hexapod.ControllerState.ENABLED,
+                enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+                timeout=STD_TIMEOUT+est_move_duration)
+        except asyncio.TimeoutError:
+            self.fail(f"Move timed out in {STD_TIMEOUT+est_move_duration} seconds; "
+                      f"remaining move time {self.csc.mock_ctrl.hexapod.remaining_time:0.2f}")
+
         data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
         self.assertFalse(data.inPosition)
         data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
         self.assertTrue(data.inPosition)
         data = await self.remote.evt_actuatorInPosition.next(flush=False, timeout=STD_TIMEOUT)
-        self.assertEqual(tuple(data.inPosition), (False,)*6)
+        self.assertIn(False, data.inPosition)
         # Check that actuatorInPosition returns all in position;
         # this should occur within 6 events (fewer if several actuators
         # finish their move at the same time).

@@ -124,10 +124,10 @@ class SimpleHexapod:
 
     Parameters
     ----------
-    base_positions : `List` [`numpy.ndarray`]
+    base_positions : `List` [`List` [`float`]]
         Position of the base end of each linear actuator,
         as a list of z,y,z tuples, one per actuator.
-    mirror_positions : `List` [`numpy.ndarray`]
+    mirror_positions : `List` [`List` [`float`]]
         Position of the mirror end of each actuator at zero
         orientation, as a list of z,y,z tuples, one per actuator.
     pivot : `numpy.ndarray`
@@ -154,21 +154,36 @@ class SimpleHexapod:
                 raise ValueError(f"mirror_positions={mirror_positions}; each item must have 3 elements")
         if len(pivot) != 3:
             raise ValueError(f"pivot={pivot} must have 3 elements")
-        self.base_positions = base_positions
+        self.base_positions = [np.array(pos) for pos in base_positions]
         # Positions of mirror actuator ends and pivot at orientation zero.
-        self.neutral_mirror_positions = mirror_positions
+        self.neutral_mirror_positions = [np.array(pos) for pos in mirror_positions]
         self.neutral_pivot = np.array(pivot, dtype=float)
         # Information commanded by the `move` command.
         self.cmd_pos = np.zeros(3, dtype=float)
         self.cmd_xyzrot = np.zeros(3, dtype=float)
         self.cmd_mirror_positions = mirror_positions[:]
-        self.neutral_actuator_lengths = self.compute_actuator_lengths(mirror_positions=mirror_positions)
-        self.actuators = [Actuator(min_pos=min_length, max_pos=max_length, pos=actuator_length, speed=speed)
-                          for actuator_length in self.neutral_actuator_lengths]
+        self.neutral_actuator_lengths = self.compute_actuator_lengths(
+            mirror_positions=mirror_positions, absolute=True
+        )
+        self.actuators = [
+            Actuator(
+                min_pos=min_length, max_pos=max_length, pos=0, speed=speed
+            )
+            for actuator_length in self.neutral_actuator_lengths
+        ]
 
     @classmethod
-    def make_zigzag_model(cls, base_radius, mirror_radius, mirror_z, base_angle0, pivot,
-                          min_length, max_length, speed):
+    def make_zigzag_model(
+        cls,
+        base_radius,
+        mirror_radius,
+        mirror_z,
+        base_angle0,
+        pivot,
+        min_length,
+        max_length,
+        speed,
+    ):
         """Make a `SimpleHexapod` of a typical hexapod with 6 actuators in a
         symmetrical zigzag arrangement.
 
@@ -244,7 +259,9 @@ class SimpleHexapod:
         mirror_positions = self.compute_mirror_positions(pos=pos, xyzrot=xyzrot)
         # print(f"mirror_positions={mirror_positions}")
         # print(f"neutral_mirror_positions={self.neutral_mirror_positions}")
-        actuator_lengths = self.compute_actuator_lengths(mirror_positions=mirror_positions)
+        actuator_lengths = self.compute_actuator_lengths(
+            mirror_positions=mirror_positions, absolute=False
+        )
         self.assert_in_range(actuator_lengths)
         for actuator, actuator_length in zip(self.actuators, actuator_lengths):
             actuator.set_pos(actuator_length)
@@ -267,24 +284,33 @@ class SimpleHexapod:
         if not all(in_range):
             raise ValueError(f"One or more actuators would be out of range: {in_range}")
 
-    def compute_actuator_lengths(self, mirror_positions):
-        """Compute actuator lengths given mirror positions
-        and whether that length is in range.
+    def compute_actuator_lengths(self, mirror_positions, absolute):
+        """Compute actuator lengths, given mirror positions.
 
         Parameters
         ----------
         mirror_positions : `List` [`numpy.ndarray`]
             Position of the mirror end of each actuator.
+        absolute : `bool`
+            If True then return end to end actuator lengths.
+            If False then return lengths relative to neutral lengths;
+            this requires ``self.neutral_actuator_lengths``.
 
         Returns
         -------
-        actuator_lengths : `List` [`float`]
-            Required length of each actuator.
-        in_range : `List` [`bool`]
-            Is the length in range for each actuator?
+        actuator_end_to_end_lengths : `numpy.ndarray`
+            End to end length of each actuator.
         """
-        return [np.linalg.norm(mirror_pos - base_pos)
-                for mirror_pos, base_pos in zip(mirror_positions, self.base_positions)]
+        lengths = np.array(
+            [
+                np.linalg.norm(mirror_pos - base_pos)
+                for mirror_pos, base_pos in zip(mirror_positions, self.base_positions)
+            ],
+            dtype=float,
+        )
+        if not absolute:
+            lengths -= self.neutral_actuator_lengths
+        return lengths
 
     def compute_mirror_positions(self, pos, xyzrot):
         """Compute the actuator mirror positions needed to move the pivot point

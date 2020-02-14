@@ -76,25 +76,48 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
       MOVE_POINT_TO_POINT.
     * Acceleration is treated as instantanous.
     """
-    # Arguments for SimpleHexapod.make_zigzag_model
-    base_radius = 1e6
-    mirror_radius = 1e6
-    mirror_z = 0.5e6
-    base_angle0 = 0
-    pivot = (0, 0, mirror_z + 1e5)
-    max_length = mirror_z * 3
-    # Set speed such that reasonably large moves take about a second
-    # (for unit testing).
-    speed = mirror_z/500
 
-    def __init__(self,
-                 index,
-                 log,
-                 host=hexrotcomm.LOCAL_HOST,
-                 command_port=hexrotcomm.COMMAND_PORT,
-                 telemetry_port=hexrotcomm.TELEMETRY_PORT,
-                 initial_state=Hexapod.ControllerState.OFFLINE):
-        self.encoder_resolution = 200_000  # counts/deg; arbitrary
+    # Hexapod actuator positions (µm) from
+    # "CAMERA HEXAPOD STRUT FLEXURE COORDINATES.xlsx"
+    # (a copy is in the doc directory)
+    # received from John Andrew 2020-02-13.
+    actuator_base_positions = [
+        (-227647, 653753, 0),
+        (227647, 653753, 0),
+        (679990, -129728, 0),
+        (452343, -524025, 0),
+        (-452343, -524025, 0),
+        (-679990, -129728, 0),
+    ]
+    actuator_mirror_positions = [
+        (-472917, 512146, 403918),
+        (472917, 512146, 403918),
+        (679990, 153485, 403918),
+        (207073, -665631, 403918),
+        (-207073, -665631, 403918),
+        (-679990, 153485, 403918),
+    ]
+    # Actuator position limits (µm) and speed (µm/second) from
+    # https://github.com/lsst-ts/ts_mt_hexRot_middleware/blob/master/config/cam_hex/default.conf  # noqa
+    actuator_max_length = 14100
+    actuator_min_length = -14100
+    actuator_speed = 500
+
+    # Default pivot position (µm). This is merely a guess.
+    pivot = (0, 0, 500_000)
+
+    # Encoder resolution (counts/µm). This is merely a guess.
+    actuator_encoder_resolution = 10
+
+    def __init__(
+        self,
+        index,
+        log,
+        host=hexrotcomm.LOCAL_HOST,
+        command_port=hexrotcomm.COMMAND_PORT,
+        telemetry_port=hexrotcomm.TELEMETRY_PORT,
+        initial_state=Hexapod.ControllerState.OFFLINE,
+    ):
         index = enums.SalIndex(index)
         self.xy_max_limit = constants.XY_MAX_LIMIT[index-1]
         self.z_min_limit = constants.Z_MIN_LIMIT[index-1]
@@ -113,18 +136,16 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         # Order: x, y, z, u, w, v
         config.initial_pos = (0, 0, 0, 0, 0, 0)
         config.pivot = self.pivot
-        config.strut_displacement_max = self.max_length
-        config.strut_velocity_max = self.speed
+        config.strut_displacement_max = self.actuator_max_length
+        config.strut_velocity_max = self.actuator_speed
 
-        self.hexapod = simple_hexapod.SimpleHexapod.make_zigzag_model(
-            base_radius=self.base_radius,
-            mirror_radius=self.mirror_radius,
-            mirror_z=self.mirror_z,
-            base_angle0=self.base_angle0,
+        self.hexapod = simple_hexapod.SimpleHexapod(
+            base_positions=self.actuator_base_positions,
+            mirror_positions=self.actuator_mirror_positions,
             pivot=self.pivot,
-            min_length=0,
-            max_length=self.max_length,
-            speed=self.speed,
+            min_length=self.actuator_min_length,
+            max_length=self.actuator_max_length,
+            speed=self.actuator_speed,
         )
         self.move_commanded = False
 
