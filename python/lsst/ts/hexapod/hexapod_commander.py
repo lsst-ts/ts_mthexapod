@@ -37,14 +37,9 @@ def as_bool(value):
     The following are true: 1, t, true
     No other values are valid.
     """
-    return {
-        "0": False,
-        "f": False,
-        "false": False,
-        "1": True,
-        "t": True,
-        "true": True,
-    }[value]
+    return {"0": False, "f": False, "false": False, "1": True, "t": True, "true": True}[
+        value
+    ]
 
 
 class HexapodCommander(hexrotcomm.CscCommander):
@@ -61,6 +56,7 @@ class HexapodCommander(hexrotcomm.CscCommander):
 
     See bin/command_hexapod.py for an example of how to use this class.
     """
+
     def __init__(self, index):
         index = enums.SalIndex(index)
         super().__init__(
@@ -99,7 +95,8 @@ Temperature is in Celsius
 For example:
   move 5 5 5 0.001 0 0 0
   stop  # in case you want to stop a move early
-  exit""")
+  exit""",
+        )
 
     async def do_configureAcceleration(self, args):
         """Implement the configureAcceleration command.
@@ -110,7 +107,9 @@ For example:
             One value: accmax (deg/sec2).
         """
         kwargs = self.check_arguments(args, "accmax")
-        await self.remote.cmd_configureAcceleration.set_start(**kwargs, timeout=STD_TIMEOUT)
+        await self.remote.cmd_configureAcceleration.set_start(
+            **kwargs, timeout=STD_TIMEOUT
+        )
 
     async def do_configureLimits(self, args):
         """Implement the configureLimits command.
@@ -120,7 +119,9 @@ For example:
         args : `List` [`float`]
             Six values: xymax, zmin, zmax (µm), uvmax, wmin, wmax (deg).
         """
-        kwargs = self.check_arguments(args, "xymax", "zmin", "zmax", "uvmax", "wmin", "wmax")
+        kwargs = self.check_arguments(
+            args, "xymax", "zmin", "zmax", "uvmax", "wmin", "wmax"
+        )
         await self.remote.cmd_configureLimits.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_configureVelocity(self, args):
@@ -156,8 +157,19 @@ For example:
                 elevation (deg), azimuth (deg), temperature (C),
                 x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        kwargs = self.check_arguments(args, "elevation", "azimuth", "temperature",
-                                      "x", "y", "z", "u", "v", "w", ("sync", as_bool))
+        kwargs = self.check_arguments(
+            args,
+            "elevation",
+            "azimuth",
+            "temperature",
+            "x",
+            "y",
+            "z",
+            "u",
+            "v",
+            "w",
+            ("sync", as_bool),
+        )
         await self.remote.cmd_moveLUT.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_offset(self, args):
@@ -168,7 +180,9 @@ For example:
         args : `List` [`float`]
             7 values: x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        kwargs = self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
+        kwargs = self.check_arguments(
+            args, "x", "y", "z", "u", "v", "w", ("sync", as_bool)
+        )
         await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_offsetLUT(self, args):
@@ -181,8 +195,19 @@ For example:
                 elevation (deg), azimuth (deg), temperature (C),
                 x, y, z (µm), u, v, w (deg), sync (bool).
         """
-        kwargs = self.check_arguments(args, "elevation", "azimuth", "temperature",
-                                      "x", "y", "z", "u", "v", "w", ("sync", as_bool))
+        kwargs = self.check_arguments(
+            args,
+            "elevation",
+            "azimuth",
+            "temperature",
+            "x",
+            "y",
+            "z",
+            "u",
+            "v",
+            "w",
+            ("sync", as_bool),
+        )
         await self.remote.cmd_offset.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_pivot(self, args):
@@ -217,8 +242,9 @@ For example:
         position2 : `List` [`float`]
             Position 2: x, y, z (µm) and rotx, roty, rotz (deg)
         """
-        return np.allclose(position1[:3], position2[:3], atol=1) \
-            and np.allclose(position1[3:], position2[3:], atol=1e-5)
+        return np.allclose(position1[:3], position2[:3], atol=1) and np.allclose(
+            position1[3:], position2[3:], atol=1e-5
+        )
 
     async def tel_actuators_callback(self, data):
         """Callback for Actuators telemetry.
@@ -231,8 +257,9 @@ For example:
         data : self.controller.tel_actuators.DataType.
             Actuators data.
         """
-        if self.previous_tel_actuators is not None and \
-                np.allclose(self.previous_tel_actuators.calibrated, data.calibrated, atol=1):
+        if self.previous_tel_actuators is not None and np.allclose(
+            self.previous_tel_actuators.calibrated, data.calibrated, atol=1
+        ):
             return
         self.previous_tel_actuators = data
         print(f"actuators: {self.format_data(data)}")
@@ -248,9 +275,13 @@ For example:
         data : self.controller.tel_application.DataType.
             Actuators data.
         """
-        if self.previous_tel_application is not None \
-                and self.positions_close(self.previous_tel_application.position, data.position) \
-                and np.array_equal(data.demand, self.previous_tel_application.demand):
+        if (
+            self.previous_tel_application is not None
+            and self.positions_close(
+                self.previous_tel_application.position, data.position
+            )
+            and np.array_equal(data.demand, self.previous_tel_application.demand)
+        ):
             return
         self.previous_tel_application = data
         print(f"application: {self.format_data(data)}")

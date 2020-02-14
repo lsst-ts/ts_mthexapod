@@ -43,12 +43,14 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         base_positions = [np.random.normal(size=3) for i in range(6)]
         mirror_positions = [np.random.normal(size=3) for i in range(6)]
         pivot = np.random.normal(size=3)
-        model = hexapod.SimpleHexapod(base_positions=base_positions,
-                                      mirror_positions=mirror_positions,
-                                      pivot=pivot,
-                                      min_length=min_length,
-                                      max_length=max_length,
-                                      speed=speed)
+        model = hexapod.SimpleHexapod(
+            base_positions=base_positions,
+            mirror_positions=mirror_positions,
+            pivot=pivot,
+            min_length=min_length,
+            max_length=max_length,
+            speed=speed,
+        )
         np.testing.assert_equal(model.base_positions, base_positions)
         np.testing.assert_equal(model.neutral_mirror_positions, mirror_positions)
         np.testing.assert_equal(model.neutral_pivot, pivot)
@@ -67,7 +69,9 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         absolute_actuator_lengths = model.compute_actuator_lengths(
             mirror_positions, absolute=True
         )
-        np.testing.assert_allclose(absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7)
+        np.testing.assert_allclose(
+            absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7
+        )
 
     def test_constructor_errors(self):
         # Use default position limits large enough to not be a problem
@@ -89,30 +93,36 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         for bad_base_positions in bad_positions():
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(base_positions=bad_base_positions,
-                                      mirror_positions=mirror_positions,
-                                      pivot=pivot,
-                                      min_length=min_length,
-                                      max_length=max_length,
-                                      speed=speed)
+                hexapod.SimpleHexapod(
+                    base_positions=bad_base_positions,
+                    mirror_positions=mirror_positions,
+                    pivot=pivot,
+                    min_length=min_length,
+                    max_length=max_length,
+                    speed=speed,
+                )
 
         for bad_mirror_positions in bad_positions():
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(base_positions=base_positions,
-                                      mirror_positions=bad_mirror_positions,
-                                      pivot=pivot,
-                                      min_length=min_length,
-                                      max_length=max_length,
-                                      speed=speed)
+                hexapod.SimpleHexapod(
+                    base_positions=base_positions,
+                    mirror_positions=bad_mirror_positions,
+                    pivot=pivot,
+                    min_length=min_length,
+                    max_length=max_length,
+                    speed=speed,
+                )
 
         for bad_pivot in ((1, 2), (1, 2, 3, 4)):
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(base_positions=base_positions,
-                                      mirror_positions=mirror_positions,
-                                      pivot=bad_pivot,
-                                      min_length=min_length,
-                                      max_length=max_length,
-                                      speed=speed)
+                hexapod.SimpleHexapod(
+                    base_positions=base_positions,
+                    mirror_positions=mirror_positions,
+                    pivot=bad_pivot,
+                    min_length=min_length,
+                    max_length=max_length,
+                    speed=speed,
+                )
 
         for bad_min_length, bad_max_length in (
             (5, 5),  # illegal range
@@ -120,20 +130,24 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             (0.001, 2e99),  # min too big
         ):
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(base_positions=base_positions,
-                                      mirror_positions=mirror_positions,
-                                      pivot=pivot,
-                                      min_length=bad_min_length,
-                                      max_length=bad_max_length,
-                                      speed=speed)
+                hexapod.SimpleHexapod(
+                    base_positions=base_positions,
+                    mirror_positions=mirror_positions,
+                    pivot=pivot,
+                    min_length=bad_min_length,
+                    max_length=bad_max_length,
+                    speed=speed,
+                )
         for bad_speed in (0, -1):
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(base_positions=base_positions,
-                                      mirror_positions=mirror_positions,
-                                      pivot=pivot,
-                                      min_length=min_length,
-                                      max_length=max_length,
-                                      speed=bad_speed)
+                hexapod.SimpleHexapod(
+                    base_positions=base_positions,
+                    mirror_positions=mirror_positions,
+                    pivot=pivot,
+                    min_length=min_length,
+                    max_length=max_length,
+                    speed=bad_speed,
+                )
 
     def test_make_zigzag_model(self):
         # Arbitrary but reasonable values. Lengths are in microns
@@ -147,23 +161,31 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         min_length = -max_length
         speed = 5e6
 
-        model = hexapod.SimpleHexapod.make_zigzag_model(base_radius=base_radius,
-                                                        mirror_radius=mirror_radius,
-                                                        mirror_z=mirror_z,
-                                                        base_angle0=base_angle0,
-                                                        pivot=pivot,
-                                                        min_length=min_length,
-                                                        max_length=max_length,
-                                                        speed=speed)
-        desired_base_angles = [base_angle0,
-                               base_angle0+120, base_angle0+120,
-                               base_angle0+240, base_angle0+240,
-                               base_angle0]
-        for base_position, desired_base_angle in zip(model.base_positions, desired_base_angles):
+        model = hexapod.SimpleHexapod.make_zigzag_model(
+            base_radius=base_radius,
+            mirror_radius=mirror_radius,
+            mirror_z=mirror_z,
+            base_angle0=base_angle0,
+            pivot=pivot,
+            min_length=min_length,
+            max_length=max_length,
+            speed=speed,
+        )
+        desired_base_angles = [
+            base_angle0,
+            base_angle0 + 120,
+            base_angle0 + 120,
+            base_angle0 + 240,
+            base_angle0 + 240,
+            base_angle0,
+        ]
+        for base_position, desired_base_angle in zip(
+            model.base_positions, desired_base_angles
+        ):
             self.assertAlmostEqual(base_position[2], 0)
             meas_base_radius = math.hypot(base_position[0], base_position[1])
             self.assertAlmostEqual(meas_base_radius, base_radius)
-            base_angle = math.atan2(base_position[1], base_position[0])*u.rad
+            base_angle = math.atan2(base_position[1], base_position[0]) * u.rad
             salobj.assertAnglesAlmostEqual(base_angle, desired_base_angle)
 
         np.testing.assert_equal(model.base_positions[0], model.base_positions[5])
@@ -171,22 +193,35 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         np.testing.assert_equal(model.base_positions[3], model.base_positions[4])
 
         mirror_angle0 = base_angle0 + 60
-        desired_mirror_angles = [mirror_angle0, mirror_angle0,
-                                 mirror_angle0 + 120, mirror_angle0 + 120,
-                                 mirror_angle0 + 240, mirror_angle0 + 240]
-        for mirror_position, desired_mirror_angle in zip(model.neutral_mirror_positions,
-                                                         desired_mirror_angles):
+        desired_mirror_angles = [
+            mirror_angle0,
+            mirror_angle0,
+            mirror_angle0 + 120,
+            mirror_angle0 + 120,
+            mirror_angle0 + 240,
+            mirror_angle0 + 240,
+        ]
+        for mirror_position, desired_mirror_angle in zip(
+            model.neutral_mirror_positions, desired_mirror_angles
+        ):
             self.assertAlmostEqual(mirror_position[2], mirror_z)
             meas_mirror_radius = math.hypot(mirror_position[0], mirror_position[1])
             self.assertAlmostEqual(meas_mirror_radius, mirror_radius)
-            mirror_angle = math.atan2(mirror_position[1], mirror_position[0])*u.rad
+            mirror_angle = math.atan2(mirror_position[1], mirror_position[0]) * u.rad
             salobj.assertAnglesAlmostEqual(mirror_angle, desired_mirror_angle)
-        np.testing.assert_equal(model.neutral_mirror_positions[0], model.neutral_mirror_positions[1])
-        np.testing.assert_equal(model.neutral_mirror_positions[2], model.neutral_mirror_positions[3])
-        np.testing.assert_equal(model.neutral_mirror_positions[4], model.neutral_mirror_positions[5])
+        np.testing.assert_equal(
+            model.neutral_mirror_positions[0], model.neutral_mirror_positions[1]
+        )
+        np.testing.assert_equal(
+            model.neutral_mirror_positions[2], model.neutral_mirror_positions[3]
+        )
+        np.testing.assert_equal(
+            model.neutral_mirror_positions[4], model.neutral_mirror_positions[5]
+        )
 
-        for neutral_mirror_position, cmd_mirror_position in zip(model.neutral_mirror_positions,
-                                                                model.cmd_mirror_positions):
+        for neutral_mirror_position, cmd_mirror_position in zip(
+            model.neutral_mirror_positions, model.cmd_mirror_positions
+        ):
             np.testing.assert_equal(neutral_mirror_position, cmd_mirror_position)
 
         np.testing.assert_equal(model.neutral_pivot, pivot)
@@ -204,7 +239,9 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         absolute_actuator_lengths = model.compute_actuator_lengths(
             model.neutral_mirror_positions, absolute=True
         )
-        np.testing.assert_allclose(absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7)
+        np.testing.assert_allclose(
+            absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7
+        )
 
     async def test_move_translate(self):
         # Arbitrary but reasonable values. Lengths are in microns
@@ -220,14 +257,16 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         min_length = -max_length
         speed = 1e6  # make the moves go quickly
 
-        model = hexapod.SimpleHexapod.make_zigzag_model(base_radius=base_radius,
-                                                        mirror_radius=mirror_radius,
-                                                        mirror_z=mirror_z,
-                                                        base_angle0=base_angle0,
-                                                        pivot=pivot,
-                                                        min_length=min_length,
-                                                        max_length=max_length,
-                                                        speed=speed)
+        model = hexapod.SimpleHexapod.make_zigzag_model(
+            base_radius=base_radius,
+            mirror_radius=mirror_radius,
+            mirror_z=mirror_z,
+            base_angle0=base_angle0,
+            pivot=pivot,
+            min_length=min_length,
+            max_length=max_length,
+            speed=speed,
+        )
         neutral_lengths = [actuator.curr_pos for actuator in model.actuators]
 
         # A null move should not move anything.
@@ -239,7 +278,9 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         for cmd_mirror_position, neutral_mirror_position in zip(
             model.cmd_mirror_positions, model.neutral_mirror_positions
         ):
-            np.testing.assert_allclose(cmd_mirror_position, neutral_mirror_position, atol=1e-7)
+            np.testing.assert_allclose(
+                cmd_mirror_position, neutral_mirror_position, atol=1e-7
+            )
 
         # A translation should move the mirror end of all actuators
         # by the amount of the translation.
@@ -251,7 +292,9 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             model.cmd_mirror_positions, model.neutral_mirror_positions
         ):
             desired_mirror_position = neutral_mirror_position + translation
-            np.testing.assert_allclose(cmd_mirror_position, desired_mirror_position, atol=1e-7)
+            np.testing.assert_allclose(
+                cmd_mirror_position, desired_mirror_position, atol=1e-7
+            )
 
         await self.check_move(model)
 
@@ -286,14 +329,16 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         min_length = -max_length
         speed = 1e6  # make the moves go quickly
 
-        model = hexapod.SimpleHexapod.make_zigzag_model(base_radius=base_radius,
-                                                        mirror_radius=mirror_radius,
-                                                        mirror_z=mirror_z,
-                                                        base_angle0=base_angle0,
-                                                        pivot=pivot,
-                                                        min_length=min_length,
-                                                        max_length=max_length,
-                                                        speed=speed)
+        model = hexapod.SimpleHexapod.make_zigzag_model(
+            base_radius=base_radius,
+            mirror_radius=mirror_radius,
+            mirror_z=mirror_z,
+            base_angle0=base_angle0,
+            pivot=pivot,
+            min_length=min_length,
+            max_length=max_length,
+            speed=speed,
+        )
         translation = (-400, 300, 1260)
         rot_angle = 5.1  # degrees
         rotation = np.roll((rot_angle, 0, 0), axis)
@@ -321,15 +366,27 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             # * Rotates by the expected amount in the plane of rotation.
             axis1 = (axis + 1) % 3
             axis2 = (axis + 2) % 3
-            unrotated_len = math.hypot(relative_unrotated_mirror_position[axis1],
-                                       relative_unrotated_mirror_position[axis2])
-            rotated_len = math.hypot(relative_mirror_position[axis1],
-                                     relative_mirror_position[axis2])
+            unrotated_len = math.hypot(
+                relative_unrotated_mirror_position[axis1],
+                relative_unrotated_mirror_position[axis2],
+            )
+            rotated_len = math.hypot(
+                relative_mirror_position[axis1], relative_mirror_position[axis2]
+            )
             self.assertAlmostEqual(unrotated_len, rotated_len)
-            unrotated_angle_rad = math.atan2(relative_unrotated_mirror_position[axis2],
-                                             relative_unrotated_mirror_position[axis1])*u.rad
-            rotated_angle_rad = math.atan2(relative_mirror_position[axis2],
-                                           relative_mirror_position[axis1])*u.rad
+            unrotated_angle_rad = (
+                math.atan2(
+                    relative_unrotated_mirror_position[axis2],
+                    relative_unrotated_mirror_position[axis1],
+                )
+                * u.rad
+            )
+            rotated_angle_rad = (
+                math.atan2(
+                    relative_mirror_position[axis2], relative_mirror_position[axis1]
+                )
+                * u.rad
+            )
             delta_angle = rotated_angle_rad - unrotated_angle_rad
             salobj.assertAnglesAlmostEqual(delta_angle, rot_angle)
 

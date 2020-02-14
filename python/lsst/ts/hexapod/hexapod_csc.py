@@ -35,6 +35,7 @@ from . import mock_controller
 class ControllerConstants:
     """Constants needed to communicate with a hexapod controller.
     """
+
     def __init__(self, sync_pattern, config_frame_id, telemetry_frame_id):
         self.sync_pattern = sync_pattern
         self.config_frame_id = config_frame_id
@@ -43,12 +44,16 @@ class ControllerConstants:
 
 # Dict of SalIndex: ControllerConstants
 IndexControllerConstants = {
-    enums.SalIndex.CAM_HEXAPOD: ControllerConstants(sync_pattern=constants.CAM_SYNC_PATTERN,
-                                                    config_frame_id=enums.FrameId.CAM_CONFIG,
-                                                    telemetry_frame_id=enums.FrameId.CAM_TELEMETRY),
-    enums.SalIndex.M2_HEXAPOD: ControllerConstants(sync_pattern=constants.M2_SYNC_PATTERN,
-                                                   config_frame_id=enums.FrameId.M2_CONFIG,
-                                                   telemetry_frame_id=enums.FrameId.M2_TELEMETRY),
+    enums.SalIndex.CAM_HEXAPOD: ControllerConstants(
+        sync_pattern=constants.CAM_SYNC_PATTERN,
+        config_frame_id=enums.FrameId.CAM_CONFIG,
+        telemetry_frame_id=enums.FrameId.CAM_TELEMETRY,
+    ),
+    enums.SalIndex.M2_HEXAPOD: ControllerConstants(
+        sync_pattern=constants.M2_SYNC_PATTERN,
+        config_frame_id=enums.FrameId.M2_CONFIG,
+        telemetry_frame_id=enums.FrameId.M2_TELEMETRY,
+    ),
 }
 
 
@@ -85,88 +90,118 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     * The simulation mode can only be set at construction time.
     """
 
-    def __init__(self,
-                 index,
-                 initial_state=salobj.State.OFFLINE,
-                 simulation_mode=0):
+    def __init__(self, index, initial_state=salobj.State.OFFLINE, simulation_mode=0):
         index = enums.SalIndex(index)
         controller_constants = IndexControllerConstants[index]
-        self.xy_max_limit = constants.XY_MAX_LIMIT[index-1]
-        self.z_min_limit = constants.Z_MIN_LIMIT[index-1]
-        self.z_max_limit = constants.Z_MAX_LIMIT[index-1]
-        self.uv_max_limit = constants.UV_MAX_LIMIT[index-1]
-        self.w_min_limit = constants.W_MIN_LIMIT[index-1]
-        self.w_max_limit = constants.W_MAX_LIMIT[index-1]
+        self.xy_max_limit = constants.XY_MAX_LIMIT[index - 1]
+        self.z_min_limit = constants.Z_MIN_LIMIT[index - 1]
+        self.z_max_limit = constants.Z_MAX_LIMIT[index - 1]
+        self.uv_max_limit = constants.UV_MAX_LIMIT[index - 1]
+        self.w_min_limit = constants.W_MIN_LIMIT[index - 1]
+        self.w_max_limit = constants.W_MAX_LIMIT[index - 1]
 
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
 
-        super().__init__(name="Hexapod",
-                         index=index,
-                         sync_pattern=controller_constants.sync_pattern,
-                         CommandCode=enums.CommandCode,
-                         ConfigClass=structs.Config,
-                         TelemetryClass=structs.Telemetry,
-                         initial_state=initial_state,
-                         simulation_mode=simulation_mode)
+        super().__init__(
+            name="Hexapod",
+            index=index,
+            sync_pattern=controller_constants.sync_pattern,
+            CommandCode=enums.CommandCode,
+            ConfigClass=structs.Config,
+            TelemetryClass=structs.Telemetry,
+            initial_state=initial_state,
+            simulation_mode=simulation_mode,
+        )
 
     # Hexapod-specific commands.
     async def do_configureAcceleration(self, data):
         """Specify the acceleration limit."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.accmax, "accmax", constants.MAX_ACCEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(code=enums.CommandCode.CONFIG_ACCEL,
-                               param1=data.accmax)
+        utils.check_positive_value(
+            data.accmax,
+            "accmax",
+            constants.MAX_ACCEL_LIMIT,
+            ExceptionClass=salobj.ExpectedError,
+        )
+        await self.run_command(code=enums.CommandCode.CONFIG_ACCEL, param1=data.accmax)
 
     async def do_configureLimits(self, data):
         """Specify position and rotation limits."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.xymax, "xymax", self.xy_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_negative_value(data.zmin, "zmin", self.z_min_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.zmax, "zmax", self.z_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.uvmax, "uvmax", self.uv_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_negative_value(data.wmin, "wmin", self.w_min_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.wmax, "wmax", self.w_max_limit,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(code=enums.CommandCode.CONFIG_LIMITS,
-                               param1=data.xymax,
-                               param2=data.zmin,
-                               param3=data.zmax,
-                               param4=data.uvmax,
-                               param5=data.wmin,
-                               param6=data.wmax)
+        utils.check_positive_value(
+            data.xymax, "xymax", self.xy_max_limit, ExceptionClass=salobj.ExpectedError
+        )
+        utils.check_negative_value(
+            data.zmin, "zmin", self.z_min_limit, ExceptionClass=salobj.ExpectedError
+        )
+        utils.check_positive_value(
+            data.zmax, "zmax", self.z_max_limit, ExceptionClass=salobj.ExpectedError
+        )
+        utils.check_positive_value(
+            data.uvmax, "uvmax", self.uv_max_limit, ExceptionClass=salobj.ExpectedError
+        )
+        utils.check_negative_value(
+            data.wmin, "wmin", self.w_min_limit, ExceptionClass=salobj.ExpectedError
+        )
+        utils.check_positive_value(
+            data.wmax, "wmax", self.w_max_limit, ExceptionClass=salobj.ExpectedError
+        )
+        await self.run_command(
+            code=enums.CommandCode.CONFIG_LIMITS,
+            param1=data.xymax,
+            param2=data.zmin,
+            param3=data.zmax,
+            param4=data.uvmax,
+            param5=data.wmin,
+            param6=data.wmax,
+        )
 
     async def do_configureVelocity(self, data):
         """Specify velocity limits."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        utils.check_positive_value(data.xymax, "xymax", constants.MAX_LINEAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.rxrymax, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.zmax, "zmax", constants.MAX_LINEAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        utils.check_positive_value(data.rzmax, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT,
-                                   ExceptionClass=salobj.ExpectedError)
-        await self.run_command(code=enums.CommandCode.CONFIG_VEL,
-                               param1=data.xymax,
-                               param2=data.rxrymax,
-                               param3=data.zmax,
-                               param4=data.rzmax)
+        utils.check_positive_value(
+            data.xymax,
+            "xymax",
+            constants.MAX_LINEAR_VEL_LIMIT,
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_positive_value(
+            data.rxrymax,
+            "rxrymax",
+            constants.MAX_ANGULAR_VEL_LIMIT,
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_positive_value(
+            data.zmax,
+            "zmax",
+            constants.MAX_LINEAR_VEL_LIMIT,
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_positive_value(
+            data.rzmax,
+            "rzmax",
+            constants.MAX_ANGULAR_VEL_LIMIT,
+            ExceptionClass=salobj.ExpectedError,
+        )
+        await self.run_command(
+            code=enums.CommandCode.CONFIG_VEL,
+            param1=data.xymax,
+            param2=data.rxrymax,
+            param3=data.zmax,
+            param4=data.rzmax,
+        )
 
     async def do_move(self, data):
         """Move to a specified position and orientation.
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         cmd1 = self._make_position_set_command(data)
-        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                                 param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-                                 param2=data.sync)
+        cmd2 = self.make_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
+            param2=data.sync,
+        )
         await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_moveLUT(self, data):
@@ -175,12 +210,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         cmd1 = self._make_position_set_command(data)
-        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                                 param1=enums.SetEnabledSubstateParam.MOVE_LUT,
-                                 param2=data.sync,
-                                 param3=data.azimuth,
-                                 param4=data.elevation,
-                                 param5=data.temperature)
+        cmd2 = self.make_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.MOVE_LUT,
+            param2=data.sync,
+            param3=data.azimuth,
+            param4=data.elevation,
+            param5=data.temperature,
+        )
         await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_offset(self, data):
@@ -188,9 +225,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         cmd1 = self._make_offset_set_command(data)
-        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                                 param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-                                 param2=data.sync)
+        cmd2 = self.make_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
+            param2=data.sync,
+        )
         await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_offsetLUT(self, data):
@@ -199,30 +238,36 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
         cmd1 = self._make_offset_set_command(data)
-        cmd2 = self.make_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                                 param1=enums.SetEnabledSubstateParam.MOVE_LUT,
-                                 param2=data.sync,
-                                 param3=data.azimuth,
-                                 param4=data.elevation,
-                                 param5=data.temperature)
+        cmd2 = self.make_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.MOVE_LUT,
+            param2=data.sync,
+            param3=data.azimuth,
+            param4=data.elevation,
+            param5=data.temperature,
+        )
         await self.run_multiple_commands(cmd1, cmd2)
 
     async def do_pivot(self, data):
         """Set the coordinates of the pivot point.
         """
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
-        await self.run_command(code=enums.CommandCode.SET_PIVOTPOINT,
-                               param1=data.x,
-                               param2=data.y,
-                               param3=data.z)
+        await self.run_command(
+            code=enums.CommandCode.SET_PIVOTPOINT,
+            param1=data.x,
+            param2=data.y,
+            param3=data.z,
+        )
 
     async def do_stop(self, data):
         """Halt tracking or any other motion.
         """
         if self.summary_state != salobj.State.ENABLED:
             raise salobj.ExpectedError("Not enabled")
-        await self.run_command(code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                               param1=enums.SetEnabledSubstateParam.STOP)
+        await self.run_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.STOP,
+        )
 
     def config_callback(self, server):
         """Called when the TCP/IP controller outputs configuration.
@@ -253,7 +298,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             pivotX=server.config.pivot[0],
             pivotY=server.config.pivot[1],
             pivotZ=server.config.pivot[2],
-            elevationRawLUTElevIndex=[int(index) for index in server.config.el_lut_index],
+            elevationRawLUTElevIndex=[
+                int(index) for index in server.config.el_lut_index
+            ],
             elevationRawLUTX=server.config.el_lut_x,
             elevationRawLUTY=server.config.el_lut_y,
             elevationRawLUTZ=server.config.el_lut_z,
@@ -267,7 +314,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             azimuthRawLUTRx=server.config.az_lut_rx,
             azimuthRawLUTRy=server.config.az_lut_ry,
             azimuthRawLUTRz=server.config.az_lut_rz,
-            temperatureRawLUTTempIndex=[int(index) for index in server.config.temp_lut_index],
+            temperatureRawLUTTempIndex=[
+                int(index) for index in server.config.temp_lut_index
+            ],
             temperatureRawLUTX=server.config.temp_lut_x,
             temperatureRawLUTY=server.config.temp_lut_y,
             temperatureRawLUTZ=server.config.temp_lut_z,
@@ -290,12 +339,17 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Strangely telemetry.state, offline_substate and enabled_substate
         # are all floats from the controller. But they should only have
         # integer value, so I output them as integers.
-        self.evt_controllerState.set_put(controllerState=int(server.telemetry.state),
-                                         offlineSubstate=int(server.telemetry.offline_substate),
-                                         enabledSubstate=int(server.telemetry.enabled_substate),
-                                         applicationStatus=server.telemetry.application_status)
+        self.evt_controllerState.set_put(
+            controllerState=int(server.telemetry.state),
+            offlineSubstate=int(server.telemetry.offline_substate),
+            enabledSubstate=int(server.telemetry.enabled_substate),
+            applicationStatus=server.telemetry.application_status,
+        )
 
-        pos_error = [server.telemetry.measured_pos[i] - server.telemetry.commanded_pos[i] for i in range(6)]
+        pos_error = [
+            server.telemetry.measured_pos[i] - server.telemetry.commanded_pos[i]
+            for i in range(6)
+        ]
         self.tel_actuators.set_put(
             calibrated=server.telemetry.strut_encoder_microns,
             raw=server.telemetry.strut_encoder_raw,
@@ -310,22 +364,26 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
         )
 
-        actuator_in_position = tuple(status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
-                                     for status in server.telemetry.application_status)
-        self.evt_actuatorInPosition.set_put(
-            inPosition=actuator_in_position,
+        actuator_in_position = tuple(
+            status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+            for status in server.telemetry.application_status
         )
-        self.evt_inPosition.set_put(
-            inPosition=all(actuator_in_position),
-        )
+        self.evt_actuatorInPosition.set_put(inPosition=actuator_in_position)
+        self.evt_inPosition.set_put(inPosition=all(actuator_in_position))
 
         self.evt_commandableByDDS.set_put(
-            state=bool(server.telemetry.application_status[0] & Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE),
+            state=bool(
+                server.telemetry.application_status[0]
+                & Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE
+            )
         )
 
-        safety_interlock = server.telemetry.application_status[0] & Hexapod.ApplicationStatus.SAFTEY_INTERLOCK
+        safety_interlock = (
+            server.telemetry.application_status[0]
+            & Hexapod.ApplicationStatus.SAFTEY_INTERLOCK
+        )
         self.evt_interlock.set_put(
-            detail="Engaged" if safety_interlock else "Disengaged",
+            detail="Engaged" if safety_interlock else "Disengaged"
         )
 
     def make_mock_controller(self, initial_ctrl_state):
@@ -334,7 +392,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             index=self.salinfo.index,
             initial_state=initial_ctrl_state,
             command_port=self.server.command_port,
-            telemetry_port=self.server.telemetry_port)
+            telemetry_port=self.server.telemetry_port,
+        )
 
     def _make_position_set_command(self, data):
         """Make a POSITION_SET command for the low-level controller.
@@ -346,27 +405,53 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             May also be data from the ``offset`` or ``offsetLUT`` commands,
             but the fields must be changed to absolute positions.
         """
-        utils.check_symmetrical_range(data.x, "x", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(data.y, "y", self.server.config.pos_limits[0],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(data.z, "z", self.server.config.pos_limits[1],
-                          self.server.config.pos_limits[2],
-                          ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(data.u, "u", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_symmetrical_range(data.v, "v", self.server.config.pos_limits[3],
-                                      ExceptionClass=salobj.ExpectedError)
-        utils.check_range(data.w, "w", self.server.config.pos_limits[4],
-                          self.server.config.pos_limits[5],
-                          ExceptionClass=salobj.ExpectedError)
-        return self.make_command(code=enums.CommandCode.POSITION_SET,
-                                 param1=data.x,
-                                 param2=data.y,
-                                 param3=data.z,
-                                 param4=data.u,
-                                 param5=data.v,
-                                 param6=data.w)
+        utils.check_symmetrical_range(
+            data.x,
+            "x",
+            self.server.config.pos_limits[0],
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_symmetrical_range(
+            data.y,
+            "y",
+            self.server.config.pos_limits[0],
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_range(
+            data.z,
+            "z",
+            self.server.config.pos_limits[1],
+            self.server.config.pos_limits[2],
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_symmetrical_range(
+            data.u,
+            "u",
+            self.server.config.pos_limits[3],
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_symmetrical_range(
+            data.v,
+            "v",
+            self.server.config.pos_limits[3],
+            ExceptionClass=salobj.ExpectedError,
+        )
+        utils.check_range(
+            data.w,
+            "w",
+            self.server.config.pos_limits[4],
+            self.server.config.pos_limits[5],
+            ExceptionClass=salobj.ExpectedError,
+        )
+        return self.make_command(
+            code=enums.CommandCode.POSITION_SET,
+            param1=data.x,
+            param2=data.y,
+            param3=data.z,
+            param4=data.u,
+            param5=data.v,
+            param6=data.w,
+        )
 
     def _make_offset_set_command(self, data):
         """Make a POSITION_SET offset command for the low-level controller
@@ -387,10 +472,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """Make a CSC from command-line arguments and run it.
         """
         parser = argparse.ArgumentParser(f"Run {cls.__name__}")
-        parser.add_argument("index", type=int,
-                            help="Hexapod index; 1=Camera 2=M2")
-        parser.add_argument("-s", "--simulate", action="store_true",
-                            help="Run in simulation mode?")
+        parser.add_argument("index", type=int, help="Hexapod index; 1=Camera 2=M2")
+        parser.add_argument(
+            "-s", "--simulate", action="store_true", help="Run in simulation mode?"
+        )
 
         args = parser.parse_args()
         csc = cls(index=args.index, simulation_mode=int(args.simulate))

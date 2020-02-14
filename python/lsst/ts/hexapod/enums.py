@@ -35,6 +35,7 @@ class CommandCode(enum.IntEnum):
     In the low-level controller code these are defined in
     enum ``cmdType``. I have reworded them for clarity.
     """
+
     SET_STATE = 0x8000
     SET_ENABLED_SUBSTATE = 0x8001
     POSITION_SET = 0x8004
@@ -48,6 +49,7 @@ class CommandCode(enum.IntEnum):
 class FrameId(enum.IntEnum):
     """Frame IDs for Camera and M2 hexapod telemetry and configuration.
     """
+
     CAM_TELEMETRY = 0x7
     CAM_CONFIG = 0x1B
     M2_TELEMETRY = 0x8
@@ -57,6 +59,7 @@ class FrameId(enum.IntEnum):
 class SetEnabledSubstateParam(enum.IntEnum):
     """Substates for the ENABLED state.
     """
+
     ENABLED_INVALID = 0
     MOVE_POINT_TO_POINT = enum.auto()
     TRACK = enum.auto()

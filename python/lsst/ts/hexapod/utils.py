@@ -18,14 +18,23 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["check_positive_value", "check_negative_value", "check_range", "check_symmetrical_range",
-           "rot2d", "rot_about_x", "rot_about_y", "rot_about_z", "RAD_PER_DEG"]
+__all__ = [
+    "check_positive_value",
+    "check_negative_value",
+    "check_range",
+    "check_symmetrical_range",
+    "rot2d",
+    "rot_about_x",
+    "rot_about_y",
+    "rot_about_z",
+    "RAD_PER_DEG",
+]
 
 import math
 
 import numpy as np
 
-RAD_PER_DEG = math.pi/180
+RAD_PER_DEG = math.pi / 180
 
 
 def check_positive_value(value, name, max_value, ExceptionClass=ValueError):
@@ -123,8 +132,7 @@ def rot2d(xypos, ang):
     sinAng = math.sin(ang)
     cosAng = math.cos(ang)
 
-    return (cosAng * x - sinAng * y,
-            sinAng * x + cosAng * y)
+    return (cosAng * x - sinAng * y, sinAng * x + cosAng * y)
 
 
 def rot_about_x(xyzpos, ang):

@@ -19,10 +19,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["CAM_SYNC_PATTERN", "M2_SYNC_PATTERN", "MAX_ACCEL_LIMIT",
-           "MAX_LINEAR_VEL_LIMIT", "MAX_ANGULAR_VEL_LIMIT",
-           "XY_MAX_LIMIT", "Z_MIN_LIMIT", "Z_MAX_LIMIT",
-           "UV_MAX_LIMIT", "W_MIN_LIMIT", "W_MAX_LIMIT"]
+__all__ = [
+    "CAM_SYNC_PATTERN",
+    "M2_SYNC_PATTERN",
+    "MAX_ACCEL_LIMIT",
+    "MAX_LINEAR_VEL_LIMIT",
+    "MAX_ANGULAR_VEL_LIMIT",
+    "XY_MAX_LIMIT",
+    "Z_MIN_LIMIT",
+    "Z_MAX_LIMIT",
+    "UV_MAX_LIMIT",
+    "W_MIN_LIMIT",
+    "W_MAX_LIMIT",
+]
 
 # Required value of command.sync_pattern for hexapod commands.
 CAM_SYNC_PATTERN = 0x6666

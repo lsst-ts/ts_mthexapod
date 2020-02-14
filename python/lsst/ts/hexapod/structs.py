@@ -40,6 +40,7 @@ class Config(ctypes.Structure):
     In the low-level controller code these are defined in
     ``ddsConfigTelemetryStreamStructure_t``.
     """
+
     _pack_ = 1
     _fields_ = [
         ("strut_acceleration", ctypes.c_double),
@@ -83,6 +84,7 @@ class Telemetry(ctypes.Structure):
     In the low-level controller code these are defined in
     ``ddsTelemetryStreamStructure_t``.
     """
+
     _pack_ = 1
     _fields_ = [
         ("status_word", ctypes.c_uint16 * 6),

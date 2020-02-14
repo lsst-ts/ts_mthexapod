@@ -33,6 +33,7 @@ class Actuator:
     Information is computed on request. This works because the system being
     modeled can only be polled.
     """
+
     def __init__(self, min_pos, max_pos, pos, speed):
         if speed <= 0:
             raise ValueError(f"speed={speed} must be positive")
@@ -79,7 +80,7 @@ class Actuator:
             return self.end_pos
         else:
             dtime = curr_time - self._start_time
-            return self.start_pos + self.direction*self.speed*dtime
+            return self.start_pos + self.direction * self.speed * dtime
 
     @property
     def direction(self):
@@ -140,18 +141,26 @@ class SimpleHexapod:
     speed : `float`
         Actuator speed.
     """
-    def __init__(self, base_positions, mirror_positions, pivot,
-                 min_length, max_length, speed):
+
+    def __init__(
+        self, base_positions, mirror_positions, pivot, min_length, max_length, speed
+    ):
         if len(base_positions) != 6:
             raise ValueError(f"base_positions={base_positions} must have 6 elements")
         for pos in base_positions:
             if len(pos) != 3:
-                raise ValueError(f"base_positions={base_positions}; each item must have 3 elements")
+                raise ValueError(
+                    f"base_positions={base_positions}; each item must have 3 elements"
+                )
         if len(mirror_positions) != 6:
-            raise ValueError(f"mirror_positions={mirror_positions} must have 6 elements")
+            raise ValueError(
+                f"mirror_positions={mirror_positions} must have 6 elements"
+            )
         for pos in mirror_positions:
             if len(pos) != 3:
-                raise ValueError(f"mirror_positions={mirror_positions}; each item must have 3 elements")
+                raise ValueError(
+                    f"mirror_positions={mirror_positions}; each item must have 3 elements"
+                )
         if len(pivot) != 3:
             raise ValueError(f"pivot={pivot} must have 3 elements")
         self.base_positions = [np.array(pos) for pos in base_positions]
@@ -166,9 +175,7 @@ class SimpleHexapod:
             mirror_positions=mirror_positions, absolute=True
         )
         self.actuators = [
-            Actuator(
-                min_pos=min_length, max_pos=max_length, pos=0, speed=speed
-            )
+            Actuator(min_pos=min_length, max_pos=max_length, pos=0, speed=speed)
             for actuator_length in self.neutral_actuator_lengths
         ]
 
@@ -223,16 +230,26 @@ class SimpleHexapod:
         delta_angle = 120
         mirror_angle_offset = 60
         for i in range(3):
-            base_angle = base_angle0 + i*delta_angle
-            basepos = utils.rot_about_z((base_radius, 0, 0), base_angle*utils.RAD_PER_DEG)
+            base_angle = base_angle0 + i * delta_angle
+            basepos = utils.rot_about_z(
+                (base_radius, 0, 0), base_angle * utils.RAD_PER_DEG
+            )
             base_positions += [basepos, basepos]
             mirror_angle = base_angle + mirror_angle_offset
-            mirrorpos = utils.rot_about_z((mirror_radius, 0, mirror_z), mirror_angle*utils.RAD_PER_DEG)
+            mirrorpos = utils.rot_about_z(
+                (mirror_radius, 0, mirror_z), mirror_angle * utils.RAD_PER_DEG
+            )
             mirror_positions += [mirrorpos, mirrorpos]
         # base_positions has order [5, 0, 1, 2, 3, 4]; fix to [0, 1, 2...]
         base_positions = base_positions[1:] + base_positions[0:1]
-        return cls(base_positions=base_positions, mirror_positions=mirror_positions,
-                   pivot=pivot, min_length=min_length, max_length=max_length, speed=speed)
+        return cls(
+            base_positions=base_positions,
+            mirror_positions=mirror_positions,
+            pivot=pivot,
+            min_length=min_length,
+            max_length=max_length,
+            speed=speed,
+        )
 
     @property
     def moving(self):
@@ -279,8 +296,10 @@ class SimpleHexapod:
         """Assert that all actuators would be in range if set to the
         specified length.
         """
-        in_range = [actuator.min_pos <= actuator_length <= actuator.max_pos
-                    for actuator_length, actuator in zip(actuator_lengths, self.actuators)]
+        in_range = [
+            actuator.min_pos <= actuator_length <= actuator.max_pos
+            for actuator_length, actuator in zip(actuator_lengths, self.actuators)
+        ]
         if not all(in_range):
             raise ValueError(f"One or more actuators would be out of range: {in_range}")
 
@@ -332,17 +351,25 @@ class SimpleHexapod:
         """
         pos = np.array(pos, dtype=float)
         xyzrot = np.array(xyzrot, dtype=float)
-        xyzrot_rad = xyzrot*utils.RAD_PER_DEG
+        xyzrot_rad = xyzrot * utils.RAD_PER_DEG
         # Compute the mirror position and resulting length of each actuator,
         # as well as determining if that length in range.
         mirror_positions = []
-        for neutral_mirror_pos, base_pos in zip(self.neutral_mirror_positions, self.base_positions):
+        for neutral_mirror_pos, base_pos in zip(
+            self.neutral_mirror_positions, self.base_positions
+        ):
             # Rotate actuator mirror position
             # (we could do this after translation, but before is a bit easier).
             mirror_pos_in_pivot_frame = neutral_mirror_pos - self.neutral_pivot
-            mirror_pos_in_pivot_frame = utils.rot_about_x(mirror_pos_in_pivot_frame, xyzrot_rad[0])
-            mirror_pos_in_pivot_frame = utils.rot_about_y(mirror_pos_in_pivot_frame, xyzrot_rad[1])
-            mirror_pos_in_pivot_frame = utils.rot_about_z(mirror_pos_in_pivot_frame, xyzrot_rad[2])
+            mirror_pos_in_pivot_frame = utils.rot_about_x(
+                mirror_pos_in_pivot_frame, xyzrot_rad[0]
+            )
+            mirror_pos_in_pivot_frame = utils.rot_about_y(
+                mirror_pos_in_pivot_frame, xyzrot_rad[1]
+            )
+            mirror_pos_in_pivot_frame = utils.rot_about_z(
+                mirror_pos_in_pivot_frame, xyzrot_rad[2]
+            )
             mirror_pos = mirror_pos_in_pivot_frame + self.neutral_pivot
 
             # Translate actuator mirror position
