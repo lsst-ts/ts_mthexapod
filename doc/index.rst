@@ -16,11 +16,11 @@ How to start the system:
 * Wait for the ``connected`` event to report ``command=True`` and ``telemetry=True``.
   This should happen quickly; if it does not then check that the PXI is fully booted up and configured to use the correct IP address for the CSC.
 * Check the ``controllerState`` event.
-  If it is ``state=Offline, offline_substate=PublishOnly``, which is the state the PXI wakes up in, you must use the vendor's engineering user interface (EUI) to change the state to ``state=Offline, offline_substate=Available`` (or any more enabled mode).
+  If it is ``state=Offline, offline_substate=PublishOnly``, which is the state the PXI wakes up in, you must use the vendor's engineering user interface (EUI) to change the state to ``state=Offline, offline_substate=Available`` (or any more enabled state).
   You can set the state on the main panel.
 * Check the ``commandableByDDS`` event.
   If ``state=False`` then you must use the EUI to change the control mode from ``GUI`` to ``DDS``.
-  Use the ``Parameters`` panel to change the control mode (though the EUI _shows_ the control mode on the main panel).
+  Use the ``Parameters`` panel to change the control mode (the EUI *shows* the control mode on the main panel, but that display is read-only).
 
 Other notes:
 
@@ -32,7 +32,7 @@ Other notes:
 
 * Communication between the low level controller and CSC is quite unusual:
 
-  * The low level controller connects to a TCP/IP _server_ in the CSC.
+  * The low level controller connects to a TCP/IP *server* in the CSC.
   * The connection uses two separate sockets, one for commands and the other for telemetry and configuration.
   * The low level controller does not acknowledge commands in any way
     (it only reads from the command socket, it does not write anything to it).
@@ -53,3 +53,10 @@ Python API reference
 .. automodapi:: lsst.ts.hexapod
    :no-main-docstr:
    :no-inheritance-diagram:
+
+Revision History
+================
+
+.. toctree::
+    revision_history
+    :maxdepth: 1

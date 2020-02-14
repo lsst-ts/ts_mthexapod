@@ -8,6 +8,8 @@ import lsst.ts.hexapod
 
 
 _g = globals()
-_g.update(build_package_configs(
-    project_name='ts_hexapod',
-    version=lsst.ts.hexapod.__version__))
+_g.update(
+    build_package_configs(
+        project_name="ts_hexapod", version=lsst.ts.hexapod.__version__
+    )
+)

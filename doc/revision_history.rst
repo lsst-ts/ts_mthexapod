@@ -1,0 +1,65 @@
+.. py:currentmodule:: lsst.ts.hexapod
+
+.. _lsst.ts.hexapod.revision_history:
+
+###########################
+ts_hexapod Revision History
+###########################
+
+v0.4.0
+======
+
+Major changes:
+
+* Use correct hexapod geometry in the simulation mode.
+  The motion limits and reported actuator lengths and limits should now be much more realistic.
+* Code formatted by ``black``, with a pre-commit hook to enforce this.
+  See the README file for configuration instructions.
+
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+
+v0.3.1
+======
+
+Version 0.3.1
+
+Add a link to the docs in the README file.
+Add a unit test.
+
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+
+v0.3.0
+======
+
+Update for changes to the XML.
+
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+
+v0.2.2
+======
+
+The first version we tested against the real hexapod controller!
+
+Requires:
+* ts_hexrotcomm v0.1.0
+* ts_salobj 5
+* ts_idl 1
+* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
