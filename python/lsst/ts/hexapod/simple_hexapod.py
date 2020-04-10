@@ -20,96 +20,10 @@
 
 __all__ = ["SimpleHexapod"]
 
-import time
-
 import numpy as np
 
 from . import utils
-
-
-class Actuator:
-    """Model an actuator that moves between given limits at constant velocity.
-
-    Information is computed on request. This works because the system being
-    modeled can only be polled.
-    """
-
-    def __init__(self, min_pos, max_pos, pos, speed):
-        if speed <= 0:
-            raise ValueError(f"speed={speed} must be positive")
-        if min_pos >= max_pos:
-            raise ValueError(f"min_pos={min_pos} >= max_pos={max_pos}")
-        self.min_pos = min_pos
-        self.max_pos = max_pos
-        self._start_pos = pos
-        self._start_time = time.monotonic()
-        self._end_pos = pos
-        self._end_time = time.monotonic()
-        self.speed = speed
-        if not min_pos <= pos <= max_pos:
-            raise ValueError(f"pos={pos} not in range [{min_pos}, {max_pos}]")
-
-    @property
-    def start_pos(self):
-        """Start position of move."""
-        return self._start_pos
-
-    @property
-    def end_pos(self):
-        """End position of move."""
-        return self._end_pos
-
-    def set_pos(self, pos):
-        """Set a new desired position."""
-        if pos < self.min_pos or pos > self.max_pos:
-            raise ValueError(f"pos={pos} not in range [{self.min_pos}, {self.max_pos}]")
-        self._start_pos = self.curr_pos
-        self._start_time = time.monotonic()
-        self._end_pos = pos
-        dtime = self._move_duration()
-        self._end_time = self._start_time + dtime
-
-    def _move_duration(self):
-        return abs(self.end_pos - self.start_pos) / self.speed
-
-    @property
-    def curr_pos(self):
-        """Current position."""
-        curr_time = time.monotonic()
-        if curr_time > self._end_time:
-            return self.end_pos
-        else:
-            dtime = curr_time - self._start_time
-            return self.start_pos + self.direction * self.speed * dtime
-
-    @property
-    def direction(self):
-        """1 if moving or moved to greater position, -1 otherwise."""
-        return 1 if self.end_pos >= self.start_pos else -1
-
-    @property
-    def moving(self):
-        """Is the axis moving?"""
-        return time.monotonic() < self._end_time
-
-    def stop(self):
-        """Stop motion instantly.
-
-        Set start_pos and end_pos to the current position
-        and start_time and end_time to the current time.
-        """
-        curr_pos = self.curr_pos
-        curr_time = time.monotonic()
-        self._start_pos = curr_pos
-        self._start_time = curr_time
-        self._end_pos = curr_pos
-        self._end_time = curr_time
-
-    @property
-    def remaining_time(self):
-        """Remaining time for this move (sec)."""
-        duration = self._end_time - time.monotonic()
-        return max(duration, 0)
+from lsst.ts import simactuators
 
 
 class SimpleHexapod:
@@ -175,7 +89,12 @@ class SimpleHexapod:
             mirror_positions=mirror_positions, absolute=True
         )
         self.actuators = [
-            Actuator(min_pos=min_length, max_pos=max_length, pos=0, speed=speed)
+            simactuators.PointToPointActuator(
+                min_position=min_length,
+                max_position=max_length,
+                start_position=0,
+                speed=speed,
+            )
             for actuator_length in self.neutral_actuator_lengths
         ]
 
@@ -281,7 +200,7 @@ class SimpleHexapod:
         )
         self.assert_in_range(actuator_lengths)
         for actuator, actuator_length in zip(self.actuators, actuator_lengths):
-            actuator.set_pos(actuator_length)
+            actuator.set_position(actuator_length)
         self.cmd_pos = pos
         self.cmd_xyzrot = xyzrot
         self.cmd_mirror_positions = mirror_positions
@@ -297,7 +216,7 @@ class SimpleHexapod:
         specified length.
         """
         in_range = [
-            actuator.min_pos <= actuator_length <= actuator.max_pos
+            actuator.min_position <= actuator_length <= actuator.max_position
             for actuator_length, actuator in zip(actuator_lengths, self.actuators)
         ]
         if not all(in_range):

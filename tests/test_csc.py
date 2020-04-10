@@ -485,7 +485,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         move_kwargs = self.make_xyzuvw_kwargs(destination)
         await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
         cmd_lengths = [
-            actuator.end_pos for actuator in self.csc.mock_ctrl.hexapod.actuators
+            actuator.end_position for actuator in self.csc.mock_ctrl.hexapod.actuators
         ]
         await self.assert_next_controller_state(
             controllerState=Hexapod.ControllerState.ENABLED,
@@ -501,7 +501,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         # of actuator lengths, so test that motion halted by examining
         # the actuators.
         stopped_lengths = [
-            actuator.end_pos for actuator in self.csc.mock_ctrl.hexapod.actuators
+            actuator.end_position for actuator in self.csc.mock_ctrl.hexapod.actuators
         ]
         for i in range(6):
             self.assertNotAlmostEqual(cmd_lengths[i], stopped_lengths[i])

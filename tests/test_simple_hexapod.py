@@ -58,10 +58,10 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         np.testing.assert_equal(model.cmd_xyzrot, np.zeros(3))
         np.testing.assert_equal(model.cmd_mirror_positions, mirror_positions)
         for actuator in model.actuators:
-            self.assertAlmostEqual(actuator.min_pos, min_length)
-            self.assertAlmostEqual(actuator.max_pos, max_length)
+            self.assertAlmostEqual(actuator.min_position, min_length)
+            self.assertAlmostEqual(actuator.max_position, max_length)
             self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.curr_pos, 0)
+            self.assertAlmostEqual(actuator.current_position, 0)
         relative_actuator_lengths = model.compute_actuator_lengths(
             mirror_positions, absolute=False
         )
@@ -80,7 +80,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         speed = 5e6
         base_positions = [np.random.normal(size=3) for i in range(6)]
         # Use a large mean for the mirror positions normal distribution
-        # so we can reliably test min_pos and max_pos
+        # so we can reliably test min_position and max_position
         mirror_positions = [np.random.normal(loc=1e6, size=3) for i in range(6)]
         pivot = np.random.normal(size=3)
 
@@ -227,10 +227,10 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         np.testing.assert_equal(model.neutral_pivot, pivot)
 
         for actuator in model.actuators:
-            self.assertAlmostEqual(actuator.min_pos, min_length)
-            self.assertAlmostEqual(actuator.max_pos, max_length)
+            self.assertAlmostEqual(actuator.min_position, min_length)
+            self.assertAlmostEqual(actuator.max_position, max_length)
             self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.curr_pos, 0)
+            self.assertAlmostEqual(actuator.current_position, 0)
 
         relative_actuator_lengths = model.compute_actuator_lengths(
             model.neutral_mirror_positions, absolute=False
@@ -267,13 +267,13 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             max_length=max_length,
             speed=speed,
         )
-        neutral_lengths = [actuator.curr_pos for actuator in model.actuators]
+        neutral_lengths = [actuator.current_position for actuator in model.actuators]
 
         # A null move should not move anything.
         model.move((0, 0, 0), (0, 0, 0))
         np.testing.assert_allclose(model.cmd_pos, (0, 0, 0), atol=1e-7)
         np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0), atol=1e-7)
-        lengths = [actuator.curr_pos for actuator in model.actuators]
+        lengths = [actuator.current_position for actuator in model.actuators]
         np.testing.assert_allclose(neutral_lengths, lengths, atol=1e-7)
         for cmd_mirror_position, neutral_mirror_position in zip(
             model.cmd_mirror_positions, model.neutral_mirror_positions

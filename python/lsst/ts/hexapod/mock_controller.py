@@ -302,7 +302,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             xyzrot=self.telemetry.commanded_pos[3:6],
         )
         self.telemetry.commanded_length = tuple(
-            actuator.end_pos for actuator in self.hexapod.actuators
+            actuator.end_position for actuator in self.hexapod.actuators
         )
         self.telemetry.enabled_substate = Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT
         self.move_commanded = True
@@ -337,14 +337,16 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # state, enabled_substate and offline_substate
             # are all set by set_state
             self.telemetry.test_state = 0
-            curr_lengths = [actuator.curr_pos for actuator in self.hexapod.actuators]
+            current_lengths = [
+                actuator.current_position for actuator in self.hexapod.actuators
+            ]
             if self.telemetry.state == Hexapod.ControllerState.ENABLED:
                 # Add some fake encoder jitter,
-                curr_lengths += 0.1 * np.random.random(6)
+                current_lengths += 0.1 * np.random.random(6)
             self.telemetry.strut_encoder_raw = tuple(
-                pos * self.actuator_encoder_resolution for pos in curr_lengths
+                pos * self.actuator_encoder_resolution for pos in current_lengths
             )
-            self.telemetry.strut_encoder_microns = tuple(curr_lengths)
+            self.telemetry.strut_encoder_microns = tuple(current_lengths)
 
             # self.telemetry.commanded_pos and commanded_length are both set
             # by MOVE and MOVE_LUT.
