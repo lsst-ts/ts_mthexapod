@@ -6,6 +6,20 @@
 ts_hexapod Revision History
 ###########################
 
+v0.5.0
+======
+
+Use `lsst.ts.simactuators.PointToPointActuator` instead of an internal copy.
+
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators
+
 v0.4.0
 ======
 
@@ -22,7 +36,7 @@ Requires:
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
-* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
 v0.3.1
 ======
@@ -38,7 +52,7 @@ Requires:
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
-* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
 v0.3.0
 ======
@@ -51,7 +65,7 @@ Requires:
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
-* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
 v0.2.2
 ======
@@ -62,4 +76,4 @@ Requires:
 * ts_hexrotcomm v0.1.0
 * ts_salobj 5
 * ts_idl 1
-* Hexapod IDL files, e.g. made using `make_idl_files.py Hexapod`
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
