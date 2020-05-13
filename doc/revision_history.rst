@@ -6,6 +6,12 @@
 ts_hexapod Revision History
 ###########################
 
+v0.5.2
+======
+
+* Fix flake8 violations.
+* Add Jenkinsfile for CI job.
+
 v0.5.1
 ======
 
