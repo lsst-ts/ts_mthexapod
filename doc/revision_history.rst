@@ -6,6 +6,12 @@
 ts_hexapod Revision History
 ###########################
 
+v0.5.1
+======
+
+* Include conda package build configuration.
+* Added a Jenkinsfile to support continuous integration and to build conda packages.
+
 v0.5.0
 ======
 
