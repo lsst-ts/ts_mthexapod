@@ -28,81 +28,102 @@ pipeline {
         stage("Checkout sal") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_sal && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                       "source ~/.setup.sh && " +
+                       "cd /home/saluser/repos/ts_sal && " +
+                       "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                       " git pull\" "
                 }
             }
         }
         stage("Checkout salobj") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_salobj && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd /home/saluser/repos/ts_salobj && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                    "git pull\""
                 }
             }
         }
         stage("Checkout xml") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd /home/saluser/repos/ts_xml && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                    "git pull\" "
                 }
             }
         }
         stage("Checkout IDL") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_idl && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd /home/saluser/repos/ts_idl && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                    "git pull\" "
                 }
             }
         }
         stage("Build IDL files") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && setup ts_sal -t current && make_idl_files.py Hexapod\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "setup ts_sal -t current && " +
+                    "make_idl_files.py Hexapod\" "
                 }
             }
         }
         stage("Checkout config_mttcs") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_config_mttcs/ && /home/saluser/.checkout_repo.sh \${work_branches} \"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd /home/saluser/repos/ts_config_mttcs/ && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} \" "
                 }
             }
         }
         stage("Setup hexrotcomm") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ && git clone https://github.com/lsst-ts/ts_hexrotcomm.git && cd ts_hexrotcomm && /home/saluser/.checkout_repo.sh \${work_branches} && eups declare -r . -t saluser\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && cd /home/saluser/repos/ && " +
+                    "git clone https://github.com/lsst-ts/ts_hexrotcomm.git && " +
+                    "cd ts_hexrotcomm && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                    "eups declare -r . -t saluser\""
                 }
             }
         }
         stage("Setup simactuators") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ && git clone https://github.com/lsst-ts/ts_simactuators.git && cd ts_simactuators && /home/saluser/.checkout_repo.sh \${work_branches} && eups declare -r . -t saluser\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd /home/saluser/repos/ && " +
+                    "git clone https://github.com/lsst-ts/ts_simactuators.git && " +
+                    "cd ts_simactuators && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                    "eups declare -r . -t saluser\""
                 }
             }
         }
         stage("Running tests") {
             steps {
                 script {
-                    sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd repo && eups declare -r . -t saluser && setup ts_hexapod -t saluser && export LSST_DDS_IP=192.168.0.1 && pytest --color=no -ra --junitxml=tests/results/results.xml\"
-                    """
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd repo && " +
+                    "eups declare -r . -t saluser && " +
+                    "setup ts_hexapod -t saluser && " +
+                    "export LSST_DDS_IP=192.168.0.1 && " +
+                    "pytest --color=no -ra --junitxml=tests/results/results.xml\""
                 }
             }
         }
@@ -123,9 +144,11 @@ pipeline {
                 reportName: "Coverage Report"
               ])
 
-            sh """
-            docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ && setup ts_hexapod -t saluser && package-docs build\"
-            """
+            sh "docker exec -u saluser \${container_name} sh -c \"" +
+               "source ~/.setup.sh && " +
+               "cd /home/saluser/repo/ && " +
+               "setup ts_hexapod -t saluser && " +
+               "package-docs build\" "
 
             script {
 
