@@ -40,7 +40,7 @@ import argparse
 
 from lsst.ts import hexapod
 
-parser = argparse.ArgumentParser(f"Command the hexapod from the command line")
+parser = argparse.ArgumentParser("Command the hexapod from the command line")
 parser.add_argument("index", type=int, help="Hexapod index; 1=Camera 2=M2")
 args = parser.parse_args()
 
