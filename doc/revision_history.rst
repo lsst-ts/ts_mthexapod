@@ -2,9 +2,27 @@
 
 .. _lsst.ts.hexapod.revision_history:
 
-###########################
-ts_hexapod Revision History
-###########################
+################
+Revision History
+################
+
+v0.5.3
+======
+
+Changes:
+
+* Add ``tests/test_black.py`` to verify that files are formatted with black.
+  This requires ts_salobj 5.11 or later.
+* Update ``.travis.yml`` to remove ``sudo: false`` to github travis checks pass once again.
+
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5.11
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators
 
 v0.5.2
 ======
@@ -12,11 +30,29 @@ v0.5.2
 * Fix flake8 violations.
 * Add Jenkinsfile for CI job.
 
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators
+
 v0.5.1
 ======
 
 * Include conda package build configuration.
 * Added a Jenkinsfile to support continuous integration and to build conda packages.
+
+Requires:
+
+* ts_hexrotcomm v0.2.0
+* ts_salobj 5
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators
 
 v0.5.0
 ======
