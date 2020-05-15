@@ -1,10 +1,10 @@
 .. py:currentmodule:: lsst.ts.hexapod
 
-.. _lsst.ts.hexapod.revision_history:
+.. _lsst.ts.hexapod.version_history:
 
-################
-Revision History
-################
+###############
+Version History
+###############
 
 v0.5.3
 ======
