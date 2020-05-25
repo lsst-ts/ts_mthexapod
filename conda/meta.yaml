@@ -36,6 +36,7 @@ test:
     - ts-idl
     - ts-salobj
     - ts-hexrotcomm
+    - black
   source_files:
     - python
     - bin
