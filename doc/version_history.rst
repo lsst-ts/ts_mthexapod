@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v0.5.4
+======
+
+Changes:
+
+* Add black to conda test dependencies
+
 v0.5.3
 ======
 
