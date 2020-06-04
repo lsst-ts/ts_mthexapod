@@ -61,7 +61,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             self.assertAlmostEqual(actuator.min_position, min_length)
             self.assertAlmostEqual(actuator.max_position, max_length)
             self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.current_position, 0)
+            self.assertAlmostEqual(actuator.position(), 0)
         relative_actuator_lengths = model.compute_actuator_lengths(
             mirror_positions, absolute=False
         )
@@ -230,7 +230,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             self.assertAlmostEqual(actuator.min_position, min_length)
             self.assertAlmostEqual(actuator.max_position, max_length)
             self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.current_position, 0)
+            self.assertAlmostEqual(actuator.position(), 0)
 
         relative_actuator_lengths = model.compute_actuator_lengths(
             model.neutral_mirror_positions, absolute=False
@@ -267,13 +267,13 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             max_length=max_length,
             speed=speed,
         )
-        neutral_lengths = [actuator.current_position for actuator in model.actuators]
+        neutral_lengths = [actuator.position() for actuator in model.actuators]
 
         # A null move should not move anything.
         model.move((0, 0, 0), (0, 0, 0))
         np.testing.assert_allclose(model.cmd_pos, (0, 0, 0), atol=1e-7)
         np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0), atol=1e-7)
-        lengths = [actuator.current_position for actuator in model.actuators]
+        lengths = [actuator.position() for actuator in model.actuators]
         np.testing.assert_allclose(neutral_lengths, lengths, atol=1e-7)
         for cmd_mirror_position, neutral_mirror_position in zip(
             model.cmd_mirror_positions, model.neutral_mirror_positions
@@ -393,13 +393,13 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         await self.check_move(model)
 
     async def check_move(self, model):
-        """Check the remaining_time and moving attributes."""
-        self.assertTrue(model.moving)
+        """Check the remaining_time and moving methods."""
+        self.assertTrue(model.moving())
         margin = 0.02
-        await asyncio.sleep(model.remaining_time - margin)
-        self.assertTrue(model.moving)
+        await asyncio.sleep(model.remaining_time() - margin)
+        self.assertTrue(model.moving())
         await asyncio.sleep(margin * 2)
-        self.assertFalse(model.moving)
+        self.assertFalse(model.moving())
 
 
 if __name__ == "__main__":

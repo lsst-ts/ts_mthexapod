@@ -24,6 +24,7 @@ import math
 
 import numpy as np
 
+from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums import Hexapod
 from . import constants
@@ -297,7 +298,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
                 "Must call POSITION_SET before calling MOVE_POINT_TO_POINT"
             )
         self.telemetry.commanded_pos = self.set_position
-        self.hexapod.move(
+        duration = self.hexapod.move(
             pos=self.telemetry.commanded_pos[0:3],
             xyzrot=self.telemetry.commanded_pos[3:6],
         )
@@ -307,9 +308,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.telemetry.enabled_substate = Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT
         self.move_commanded = True
         self.log.debug(
-            "Move to %s; estimated move time %0.1f",
+            "Move to %s; move duration %0.1f",
             self.telemetry.commanded_pos[:],
-            self.hexapod.remaining_time,
+            duration,
         )
 
     async def end_run_command(self, command, cmd_method):
@@ -318,13 +319,14 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
     async def update_telemetry(self):
         try:
+            curr_tai = salobj.current_tai()
             self.telemetry.status_word = (0,) * 6
             self.telemetry.latching_fault_status_register = (0,) * 6
             self.telemetry.copley_fault_status_register = (0,) * 6
             if self.telemetry.state != Hexapod.ControllerState.ENABLED:
                 self.move_commanded = False
             axes_in_position = [
-                self.move_commanded and not actuator.moving
+                self.move_commanded and not actuator.moving(curr_tai)
                 for actuator in self.hexapod.actuators
             ]
             self.telemetry.application_status = tuple(
@@ -338,7 +340,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # are all set by set_state
             self.telemetry.test_state = 0
             current_lengths = [
-                actuator.current_position for actuator in self.hexapod.actuators
+                actuator.position(curr_tai) for actuator in self.hexapod.actuators
             ]
             if self.telemetry.state == Hexapod.ControllerState.ENABLED:
                 # Add some fake encoder jitter,

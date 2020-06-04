@@ -170,15 +170,13 @@ class SimpleHexapod:
             speed=speed,
         )
 
-    @property
-    def moving(self):
+    def moving(self, tai=None):
         """Is any actuator moving?"""
-        return any(actuator.moving for actuator in self.actuators)
+        return any(actuator.moving(tai) for actuator in self.actuators)
 
-    @property
-    def remaining_time(self):
+    def remaining_time(self, tai=None):
         """Remaining time for this move (sec)."""
-        return max(actuator.remaining_time for actuator in self.actuators)
+        return max(actuator.remaining_time(tai) for actuator in self.actuators)
 
     def move(self, pos, xyzrot):
         """Move the actuators so the pivot point is at the specified
@@ -191,6 +189,11 @@ class SimpleHexapod:
         xyzrot : `numpy.ndarray`
             Orientation of translated pivot point,
             as a rotation about x, then y, then z (deg).
+
+        Returns
+        -------
+        duration : `float`
+            Duration of the move (second).
         """
         mirror_positions = self.compute_mirror_positions(pos=pos, xyzrot=xyzrot)
         # print(f"mirror_positions={mirror_positions}")
@@ -199,11 +202,14 @@ class SimpleHexapod:
             mirror_positions=mirror_positions, absolute=False
         )
         self.assert_in_range(actuator_lengths)
+        max_duration = 0
         for actuator, actuator_length in zip(self.actuators, actuator_lengths):
-            actuator.set_position(actuator_length)
+            duration = actuator.set_position(actuator_length)
+            max_duration = max(duration, max_duration)
         self.cmd_pos = pos
         self.cmd_xyzrot = xyzrot
         self.cmd_mirror_positions = mirror_positions
+        return max_duration
 
     def stop(self):
         """Stop all actuators.
