@@ -6,6 +6,38 @@
 Version History
 ###############
 
+v0.6.0
+======
+
+Changes:
+
+* Update for ts_simactuators 2.
+
+Requires:
+
+* ts_hexrotcomm 0.5
+* ts_salobj 5.15
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators 2
+
+v0.5.4
+======
+
+Changes:
+
+* Add black to conda test dependencies.
+
+Requires:
+
+* ts_hexrotcomm 0.2
+* ts_salobj 5.11
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators
+
 v0.5.3
 ======
 
@@ -17,7 +49,7 @@ Changes:
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5.11
 * ts_idl 1
 * ts_xml 4.6
@@ -32,7 +64,7 @@ v0.5.2
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
@@ -47,7 +79,7 @@ v0.5.1
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
@@ -61,7 +93,7 @@ Use `lsst.ts.simactuators.PointToPointActuator` instead of an internal copy.
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
@@ -80,7 +112,7 @@ Major changes:
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
@@ -96,7 +128,7 @@ Add a unit test.
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6
@@ -109,7 +141,7 @@ Update for changes to the XML.
 
 Requires:
 
-* ts_hexrotcomm v0.2.0
+* ts_hexrotcomm 0.2
 * ts_salobj 5
 * ts_idl 1
 * ts_xml 4.6

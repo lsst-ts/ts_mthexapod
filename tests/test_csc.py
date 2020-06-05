@@ -391,7 +391,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         except asyncio.TimeoutError:
             self.fail(
                 f"Move timed out in {STD_TIMEOUT+est_move_duration} seconds; "
-                f"remaining move time {self.csc.mock_ctrl.hexapod.remaining_time:0.2f}"
+                f"remaining move time {self.csc.mock_ctrl.hexapod.remaining_time():0.2f}"
             )
 
         data = await self.remote.evt_inPosition.next(flush=False, timeout=STD_TIMEOUT)
