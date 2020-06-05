@@ -16,7 +16,7 @@ Changes:
 Requires:
 
 * ts_hexrotcomm 0.5
-* ts_salobj 5.11
+* ts_salobj 5.15
 * ts_idl 1
 * ts_xml 4.6
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
