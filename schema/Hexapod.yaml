@@ -1,0 +1,6 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://github.com/lsst-ts/ts_hexapod/tree/schema/Hexapod.yaml
+title: Hexapod v1
+description: Configuration for Hexapod, which has no configuration yet.
+type: object
+additionalProperties: false
