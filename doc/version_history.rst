@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v0.7.0
+======
+
+* Make HexapodCsc configurable.
+
+Requires:
+
+* ts_hexrotcomm 0.7
+* ts_salobj 5.15
+* ts_idl 1
+* ts_xml 4.6
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators 2
+
 v0.6.0
 ======
 
