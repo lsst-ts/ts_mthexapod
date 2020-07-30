@@ -21,6 +21,7 @@
 
 import argparse
 import copy
+import pathlib
 
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
@@ -103,6 +104,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
 
+        schema_path = (
+            pathlib.Path(__file__).parents[4].joinpath("schema", "Hexapod.yaml")
+        )
         super().__init__(
             name="Hexapod",
             index=index,
@@ -110,11 +114,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             CommandCode=enums.CommandCode,
             ConfigClass=structs.Config,
             TelemetryClass=structs.Telemetry,
+            schema_path=schema_path,
             initial_state=initial_state,
             simulation_mode=simulation_mode,
         )
 
-    # Hexapod-specific commands.
+    async def configure(self, config):
+        pass
+
     async def do_configureAcceleration(self, data):
         """Specify the acceleration limit."""
         self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
