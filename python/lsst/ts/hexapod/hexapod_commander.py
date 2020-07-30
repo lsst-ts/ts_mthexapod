@@ -76,11 +76,11 @@ State transitions commands (none take arguments):
 * clearError
 
 Other commands and arguments:
-* configureAcceleration accmax                      # Set acceleration: µm/s2
-* configureLimits xymax zmin zmax uvmax wmin wmax   # Set position limits: µm µm µm deg deg deg
-* configureVelocity xymax rxrymax zmax rzmax        # Set velocity: µm/s deg/s µm/s deg/s
+* configureAcceleration acceleration                # Set acceleration: µm/s2
+* configureLimits maxXY minZ maxZ maxUV minU maxW   # Set position limits: µm µm µm deg deg deg
+* configureVelocity xy uv z w           # Set velocity: µm/s deg/s µm/s deg/s
 * move x  y  z  u   v   w   synch       # Move to the specified position and orientation
-* moveLUT elevation azimuth temperature x  y  z  u  v  w    synch       # Move with compensation
+* moveWithCompensation elevation azimuth temperature x  y  z  u  v  w    synch       # Move with compensation
 * offset x  y  z  u   v   w   synch     # Offset by a specified change in position and orientation
 * offsetLUT elevation azimuth temperature x  y  z  u   v   w   synch    # Offset with compensation
 * pivot x  y  z     # Set the pivot point
@@ -104,9 +104,9 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            One value: accmax (deg/sec2).
+            One value: acceleration (deg/sec2).
         """
-        kwargs = self.check_arguments(args, "accmax")
+        kwargs = self.check_arguments(args, "acceleration")
         await self.remote.cmd_configureAcceleration.set_start(
             **kwargs, timeout=STD_TIMEOUT
         )
@@ -117,10 +117,10 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            Six values: xymax, zmin, zmax (µm), uvmax, wmin, wmax (deg).
+            Six values: maxXY, minZ, maxZ (µm), maxUV, minU, maxW (deg).
         """
         kwargs = self.check_arguments(
-            args, "xymax", "zmin", "zmax", "uvmax", "wmin", "wmax"
+            args, "maxXY", "minZ", "maxZ", "maxUV", "minU", "maxW"
         )
         await self.remote.cmd_configureLimits.set_start(**kwargs, timeout=STD_TIMEOUT)
 
@@ -130,10 +130,10 @@ For example:
         Parameters
         ----------
         args : `List` [`float`]
-            Four values: xymax (µm/sec), rxrymax (deg/sec),
-            zmax (µm/sec), rzmax (deg/sec)
+            Four values: xy (µm/sec), uv (deg/sec),
+            z (µm/sec), w (deg/sec)
         """
-        kwargs = self.check_arguments(args, "xymax", "rxrymax", "zmax", "rzmax")
+        kwargs = self.check_arguments(args, "xy", "uv", "z", "w")
         await self.remote.cmd_configureVelocity.set_start(**kwargs, timeout=STD_TIMEOUT)
 
     async def do_move(self, args):
@@ -147,8 +147,8 @@ For example:
         self.check_arguments(args, "x", "y", "z", "u", "v", "w", ("sync", as_bool))
         await self.remote.cmd_move.start(timeout=STD_TIMEOUT)
 
-    async def do_moveLUT(self, args):
-        """Implement the moveLUT command.
+    async def do_moveWithCompensation(self, args):
+        """Implement the moveWithCompensation command.
 
         Parameters
         ----------
@@ -170,7 +170,9 @@ For example:
             "w",
             ("sync", as_bool),
         )
-        await self.remote.cmd_moveLUT.set_start(**kwargs, timeout=STD_TIMEOUT)
+        await self.remote.cmd_moveWithCompensation.set_start(
+            **kwargs, timeout=STD_TIMEOUT
+        )
 
     async def do_offset(self, args):
         """Implement the offset command.

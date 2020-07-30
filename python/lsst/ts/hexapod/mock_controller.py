@@ -127,8 +127,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.w_min_limit = constants.W_MIN_LIMIT[index - 1]
         self.w_max_limit = constants.W_MAX_LIMIT[index - 1]
         config = structs.Config()
-        config.strut_acceleration = 500
-        # Order: xy (um), zmin, max, uv (deg), wmin, wmax
+        config.acceleration_strut = 500
+        # Order: xy (um), minZ, max, uv (deg), minW, maxW
         config.pos_limits = (
             self.xy_max_limit,
             self.z_min_limit,
@@ -147,8 +147,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         # Order: x, y, z, u, w, v
         config.initial_pos = (0, 0, 0, 0, 0, 0)
         config.pivot = self.pivot
-        config.strut_displacement_max = self.actuator_max_length
-        config.strut_velocity_max = self.actuator_speed
+        config.max_displacement_strut = self.actuator_max_length
+        config.max_velocity_strut = self.actuator_speed
 
         self.hexapod = simple_hexapod.SimpleHexapod(
             base_positions=self.actuator_base_positions,
@@ -214,17 +214,17 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
                 f"Requested accel limit {command.param1} "
                 f"not in range (0, {constants.MAX_ACCEL_LIMIT}]"
             )
-        self.config.strut_acceleration = command.param1
+        self.config.acceleration_strut = command.param1
         await self.write_config()
 
     async def do_config_limits(self, command):
         self.assert_stationary()
-        utils.check_positive_value(command.param1, "xymax", self.xy_max_limit)
-        utils.check_negative_value(command.param2, "zmin", self.z_min_limit)
-        utils.check_positive_value(command.param3, "zmax", self.z_max_limit)
-        utils.check_positive_value(command.param4, "uvmax", self.uv_max_limit)
-        utils.check_negative_value(command.param5, "wmin", self.w_min_limit)
-        utils.check_positive_value(command.param6, "wmax", self.w_max_limit)
+        utils.check_positive_value(command.param1, "maxXY", self.xy_max_limit)
+        utils.check_negative_value(command.param2, "minZ", self.z_min_limit)
+        utils.check_positive_value(command.param3, "maxZ", self.z_max_limit)
+        utils.check_positive_value(command.param4, "maxUV", self.uv_max_limit)
+        utils.check_negative_value(command.param5, "minW", self.w_min_limit)
+        utils.check_positive_value(command.param6, "maxW", self.w_max_limit)
         self.config.pos_limits = (
             command.param1,
             command.param2,
@@ -237,18 +237,12 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
     async def do_config_vel(self, command):
         self.assert_stationary()
+        utils.check_positive_value(command.param1, "xy", constants.MAX_LINEAR_VEL_LIMIT)
         utils.check_positive_value(
-            command.param1, "xymax", constants.MAX_LINEAR_VEL_LIMIT
+            command.param2, "uv", constants.MAX_ANGULAR_VEL_LIMIT
         )
-        utils.check_positive_value(
-            command.param2, "rxrymax", constants.MAX_ANGULAR_VEL_LIMIT
-        )
-        utils.check_positive_value(
-            command.param3, "zmax", constants.MAX_LINEAR_VEL_LIMIT
-        )
-        utils.check_positive_value(
-            command.param4, "rzmax", constants.MAX_ANGULAR_VEL_LIMIT
-        )
+        utils.check_positive_value(command.param3, "z", constants.MAX_LINEAR_VEL_LIMIT)
+        utils.check_positive_value(command.param4, "w", constants.MAX_ANGULAR_VEL_LIMIT)
         self.config.vel_limits = (
             command.param1,
             command.param2,
