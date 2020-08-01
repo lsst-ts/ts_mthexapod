@@ -126,6 +126,13 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.uv_max_limit = constants.UV_MAX_LIMIT[index - 1]
         self.w_min_limit = constants.W_MIN_LIMIT[index - 1]
         self.w_max_limit = constants.W_MAX_LIMIT[index - 1]
+        # Amplitude of jitter in various measured values,
+        # to simulate encoder jitter. This add realism
+        # and exercises jitter rejection in HexapodCommander.
+        self.xyz_jitter = 0.1  # um
+        self.uvw_jitter = 1.0e-6  # deg
+        self.strut_jitter = 0.1  # encoder counts
+
         config = structs.Config()
         config.acceleration_strut = 500
         # Order: xy (um), minZ, max, uv (deg), minW, maxW
@@ -338,7 +345,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             ]
             if self.telemetry.state == Hexapod.ControllerState.ENABLED:
                 # Add some fake encoder jitter,
-                current_lengths += 0.1 * np.random.random(6)
+                current_lengths += self.strut_jitter * (np.random.random(6) - 0.5)
             self.telemetry.strut_encoder_raw = tuple(
                 pos * self.actuator_encoder_resolution for pos in current_lengths
             )
@@ -353,8 +360,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             if self.telemetry.state == Hexapod.ControllerState.ENABLED:
                 # Add ~0.1 micron jitter to the current positions and
                 # ~0.003 arcsec jitter to the current rotations for realism.
-                measured_pos[:3] += 0.1 * np.random.random(3)
-                measured_pos[3:] += 1.0e-6 * np.random.random(3)
+                measured_pos[:3] += self.xyz_jitter * (np.random.random(3) - 0.5)
+                measured_pos[3:] += self.uvw_jitter * (np.random.random(3) - 0.5)
             self.telemetry.measured_pos = tuple(measured_pos)
             if (
                 self.telemetry.state == Hexapod.ControllerState.ENABLED
