@@ -25,7 +25,7 @@ import enum
 
 
 class SalIndex(enum.IntEnum):
-    CAM_HEXAPOD = 1
+    CAMERA_HEXAPOD = 1
     M2_HEXAPOD = 2
 
 

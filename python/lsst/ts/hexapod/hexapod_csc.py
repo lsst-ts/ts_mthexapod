@@ -45,7 +45,7 @@ class ControllerConstants:
 
 # Dict of SalIndex: ControllerConstants
 IndexControllerConstants = {
-    enums.SalIndex.CAM_HEXAPOD: ControllerConstants(
+    enums.SalIndex.CAMERA_HEXAPOD: ControllerConstants(
         sync_pattern=constants.CAM_SYNC_PATTERN,
         config_frame_id=enums.FrameId.CAM_CONFIG,
         telemetry_frame_id=enums.FrameId.CAM_TELEMETRY,
