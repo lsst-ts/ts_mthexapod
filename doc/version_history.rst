@@ -6,10 +6,36 @@
 Version History
 ###############
 
+v0.8.0
+======
+
+Major Changes:
+
+* Add support for compensated moves, where compensation is done in the CSC instead of in the low-level controller.
+* Add a data fitter for compensation data. See the README in new directory ``fitter``.
+* Overhaul the SAL API.
+
+Minor Changes:
+
+* Add missing ``config_dir`` constructor argument to `HexapodCsc`.
+* Use `lsst.ts.salobj.BaseCscTestCase` and `lsst.ts.salobj.CscCommander` instead of the versions in ts_hexrotcomm.
+* Add several ``<x>_jitter`` attributes to `MockMTHexapodController` to clarify the mount of jitter added to measured values.
+
+Requires:
+
+* ts_hexrotcomm 0.7
+* ts_salobj 5.15
+* ts_idl 1
+* ts_xml 6.2
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators 2
+
 v0.7.0
 ======
 
-* Make HexapodCsc configurable.
+Changes:
+
+* Make `HexapodCsc` configurable.
 
 Requires:
 
