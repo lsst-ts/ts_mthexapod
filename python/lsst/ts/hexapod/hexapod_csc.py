@@ -389,7 +389,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         safety_interlock = (
             server.telemetry.application_status[0]
-            & Hexapod.ApplicationStatus.SAFTEY_INTERLOCK
+            & Hexapod.ApplicationStatus.SAFETY_INTERLOCK
         )
         self.evt_interlock.set_put(
             detail="Engaged" if safety_interlock else "Disengaged"
