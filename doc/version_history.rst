@@ -6,23 +6,6 @@
 Version History
 ###############
 
-v0.9.0
-======
-
-Changes:
-
-* Use corrected spelling of ``Hexapod.ApplicationStatus.SAFETY_INTERLOCK``.
-  This requires ts_idl 1.4 or later.
-
-Requires:
-
-* ts_hexrotcomm 0.7
-* ts_salobj 5.15
-* ts_idl 1.4
-* ts_xml 6.2
-* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
-* ts_simactuators 2
-
 v0.8.0
 ======
 
@@ -37,12 +20,14 @@ Minor Changes:
 * Add missing ``config_dir`` constructor argument to `HexapodCsc`.
 * Use `lsst.ts.salobj.BaseCscTestCase` and `lsst.ts.salobj.CscCommander` instead of the versions in ts_hexrotcomm.
 * Add several ``<x>_jitter`` attributes to `MockMTHexapodController` to clarify the mount of jitter added to measured values.
+* Use corrected spelling of ``Hexapod.ApplicationStatus.SAFETY_INTERLOCK``.
+  This requires ts_idl 1.4 or later.
 
 Requires:
 
 * ts_hexrotcomm 0.7
 * ts_salobj 5.15
-* ts_idl 1
+* ts_idl 1.4
 * ts_xml 6.2
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators 2
