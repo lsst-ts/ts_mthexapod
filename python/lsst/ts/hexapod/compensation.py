@@ -38,7 +38,7 @@ class Compensation:
         Elevation `CosinePolynomial` coefficients,
         as a sequence of 6 coefficient sequences, for x, y, z, u, v, w.
         Each coefficient sequence must contain at least one element.
-        Here is an example showing valid, though unrealistic, values:
+        Here is an example showing valid, though unrealistic, values::
 
             elevation_coeffs=[
                 [0.11, 0.012],
@@ -51,7 +51,7 @@ class Compensation:
 
     temperature_coeffs  : `list` [`list` [`float`]]
         Temperature `RangedPolynomial` coefficients, with the same format
-        as ``elevation_coeffs`.
+        as ``elevation_coeffs``.
     min_temperature : `float`
         Minimum temperature for which ``temperature_coeffs`` is valid.
     max_temperature : `float`
