@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.8.1
+======
+
+Changes:
+
+* Modernize the documentation.
+
+Requires:
+
+* ts_hexrotcomm 0.7
+* ts_salobj 5.15 or 6
+* ts_idl 1.4 (for salobj 5) or 2 (for salobj 6)
+* ts_xml 6.2
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators 2
+
 v0.8.0
 ======
 
@@ -27,7 +43,7 @@ Requires:
 
 * ts_hexrotcomm 0.7
 * ts_salobj 5.15
-* ts_idl 1.4
+* ts_idl 1.4 (for salobj 5) or 2 (for salobj 6)
 * ts_xml 6.2
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators 2
