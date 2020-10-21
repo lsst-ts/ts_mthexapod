@@ -21,6 +21,9 @@
 
 from .constants import *
 from .enums import *
+from .fourier_series import *
+from .ranged_polynomial import *
+from .compensation import *
 from .structs import *
 from .utils import *
 from .hexapod_commander import *

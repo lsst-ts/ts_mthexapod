@@ -43,10 +43,10 @@ class Config(ctypes.Structure):
 
     _pack_ = 1
     _fields_ = [
-        ("strut_acceleration", ctypes.c_double),
-        # Order: xy, zmin, max, uv, wmin, wmax
+        ("acceleration_strut", ctypes.c_double),
+        # Order: max xy, min z, max z, max uv, min w, max w
         ("pos_limits", ctypes.c_double * 6),
-        # Order: xy, xy rotation, z, z rotation
+        # Order: xy, uv, z, w
         ("vel_limits", ctypes.c_double * 4),
         ("initial_pos", ctypes.c_double * 6),
         ("pivot", ctypes.c_double * 3),
@@ -54,25 +54,25 @@ class Config(ctypes.Structure):
         ("el_lut_x", ctypes.c_double * ELEVATION_ELEMENTS),
         ("el_lut_y", ctypes.c_double * ELEVATION_ELEMENTS),
         ("el_lut_z", ctypes.c_double * ELEVATION_ELEMENTS),
-        ("el_lut_rx", ctypes.c_double * ELEVATION_ELEMENTS),
-        ("el_lut_ry", ctypes.c_double * ELEVATION_ELEMENTS),
-        ("el_lut_rz", ctypes.c_double * ELEVATION_ELEMENTS),
+        ("el_lut_u", ctypes.c_double * ELEVATION_ELEMENTS),
+        ("el_lut_v", ctypes.c_double * ELEVATION_ELEMENTS),
+        ("el_lut_w", ctypes.c_double * ELEVATION_ELEMENTS),
         ("az_lut_index", ctypes.c_double * AZIMUTH_ELEMENTS),
         ("az_lut_x", ctypes.c_double * AZIMUTH_ELEMENTS),
         ("az_lut_y", ctypes.c_double * AZIMUTH_ELEMENTS),
         ("az_lut_z", ctypes.c_double * AZIMUTH_ELEMENTS),
-        ("az_lut_rx", ctypes.c_double * AZIMUTH_ELEMENTS),
-        ("az_lut_ry", ctypes.c_double * AZIMUTH_ELEMENTS),
-        ("az_lut_rz", ctypes.c_double * AZIMUTH_ELEMENTS),
+        ("az_lut_u", ctypes.c_double * AZIMUTH_ELEMENTS),
+        ("az_lut_v", ctypes.c_double * AZIMUTH_ELEMENTS),
+        ("az_lut_w", ctypes.c_double * AZIMUTH_ELEMENTS),
         ("temp_lut_index", ctypes.c_double * TEMPERATURE_ELEMENTS),
         ("temp_lut_x", ctypes.c_double * TEMPERATURE_ELEMENTS),
         ("temp_lut_y", ctypes.c_double * TEMPERATURE_ELEMENTS),
         ("temp_lut_z", ctypes.c_double * TEMPERATURE_ELEMENTS),
-        ("temp_lut_rx", ctypes.c_double * TEMPERATURE_ELEMENTS),
-        ("temp_lut_ry", ctypes.c_double * TEMPERATURE_ELEMENTS),
-        ("temp_lut_rz", ctypes.c_double * TEMPERATURE_ELEMENTS),
-        ("strut_displacement_max", ctypes.c_double),
-        ("strut_velocity_max", ctypes.c_double),
+        ("temp_lut_u", ctypes.c_double * TEMPERATURE_ELEMENTS),
+        ("temp_lut_v", ctypes.c_double * TEMPERATURE_ELEMENTS),
+        ("temp_lut_w", ctypes.c_double * TEMPERATURE_ELEMENTS),
+        ("max_displacement_strut", ctypes.c_double),
+        ("max_velocity_strut", ctypes.c_double),
     ]
     # Set the frame ID when constructing the CSC
     FRAME_ID = None

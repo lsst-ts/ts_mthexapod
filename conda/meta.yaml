@@ -36,12 +36,13 @@ test:
     - ts-idl
     - ts-salobj
     - ts-hexrotcomm
-    - black
+    - black == 19.10b0
   source_files:
     - python
     - bin
     - tests
     - setup.cfg
+    - schema
   commands:
     - py.test
 

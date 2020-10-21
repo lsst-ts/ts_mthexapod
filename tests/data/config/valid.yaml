@@ -1,0 +1,40 @@
+# Valid coefficients
+# The values are not realistic, but do give
+# compensation offsets that are typically in range.
+# In particular, note that coefficients are supplied
+# for axes that may not need any compensation (x, v, and w),
+# in order to better test the code.
+camera_config:
+  elevation_coeffs:
+  - [0.11, 0.12]
+  - [0.22, 0.22]
+  - [0.32, 0.32]
+  - [0.000042, 0.000042]
+  - [0.000052, 0.000052]
+  - [0.000062, 0.000062]
+  temperature_coeffs:
+  - [0.10, -0.11, 0.12]
+  - [0.20, -0.22, 0.22]
+  - [0.30, -0.32, 0.32]
+  - [0.000040, -0.000042, 0.000042]
+  - [0.000050, -0.000052, 0.000052]
+  - [0.000060, -0.000062, 0.000062]
+  min_temperature: -20
+  max_temperature: 25
+m2_config:
+  elevation_coeffs:
+  - [0.111, 0.121]
+  - [0.221, 0.22]
+  - [0.321, 0.32]
+  - [0.0000421, 0.000042]
+  - [0.0000521, 0.000052]
+  - [0.0000621, 0.000062]
+  temperature_coeffs:
+  - [0.101, -0.11, 0.12]
+  - [0.201, -0.22, 0.22]
+  - [0.301, -0.32, 0.32]
+  - [0.0000401, -0.000042, 0.000042]
+  - [0.0000501, -0.000052, 0.000052]
+  - [0.0000601, -0.000062, 0.000062]
+  min_temperature: -21
+  max_temperature: 26
