@@ -6,22 +6,6 @@
 Version History
 ###############
 
-v0.8.1
-======
-
-Changes:
-
-* Modernize the documentation.
-
-Requires:
-
-* ts_hexrotcomm 0.7
-* ts_salobj 5.15 or 6
-* ts_idl 1.4 (for salobj 5) or 2 (for salobj 6)
-* ts_xml 6.2
-* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
-* ts_simactuators 2
-
 v0.8.0
 ======
 
@@ -30,6 +14,7 @@ Major Changes:
 * Add support for compensated moves, where compensation is done in the CSC instead of in the low-level controller.
 * Add a data fitter for compensation data. See the README in new directory ``fitter``.
 * Overhaul the SAL API.
+* Modernize the documentation.
 
 Minor Changes:
 
@@ -42,7 +27,7 @@ Minor Changes:
 Requires:
 
 * ts_hexrotcomm 0.7
-* ts_salobj 5.15
+* ts_salobj 5.15 or 6
 * ts_idl 1.4 (for salobj 5) or 2 (for salobj 6)
 * ts_xml 6.2
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
