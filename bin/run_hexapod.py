@@ -23,6 +23,6 @@
 """An example of how to run a CSC"""
 import asyncio
 
-from lsst.ts.hexapod import HexapodCsc
+from lsst.ts.hexapod import HexapodCsc, SalIndex
 
-asyncio.run(HexapodCsc.amain())
+asyncio.run(HexapodCsc.amain(index=SalIndex))

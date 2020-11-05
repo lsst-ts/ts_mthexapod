@@ -6,6 +6,26 @@
 Version History
 ###############
 
+v0.9.0
+======
+
+Changes:
+
+* Updated to use and require ts_salobj 6.1 and ts_hexrotcomm 0.10.
+* Update the handling of initial_state in `HexapodCsc`:
+
+    * If initial_state != OFFLINE then report all transitional summary states and controller states at startup.
+    * Require initial_state = OFFLINE unless simulating.
+
+Requires:
+
+* ts_hexrotcomm 0.10
+* ts_salobj 6.1
+* ts_idl 2
+* ts_xml 6.2
+* Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
+* ts_simactuators 2
+
 v0.8.0
 ======
 
