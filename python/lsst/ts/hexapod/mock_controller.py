@@ -26,7 +26,11 @@ import numpy as np
 
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
-from lsst.ts.idl.enums import MTHexapod
+from lsst.ts.idl.enums.MTHexapod import (
+    ControllerState,
+    EnabledSubstate,
+    ApplicationStatus,
+)
 from . import constants
 from . import enums
 from . import structs
@@ -39,7 +43,7 @@ TRACK_TIMEOUT = 1
 
 
 class MockMTHexapodController(hexrotcomm.BaseMockController):
-    """Mock MTMTHexapod controller that talks over TCP/IP.
+    """Mock MTHexapod controller that talks over TCP/IP.
 
     Parameters
     ----------
@@ -55,7 +59,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     telemetry_port : `int` (optional)
         Telemetry socket port. This argument is intended for unit tests;
         use the default value for normal operation.
-    initial_state : `MTHexapod.ControllerState` (optional)
+    initial_state : `lsst.ts.idl.enums.MTHexapod.ControllerState` (optional)
         Initial state of mock controller.
 
     Notes
@@ -117,7 +121,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         host=hexrotcomm.LOCAL_HOST,
         command_port=hexrotcomm.COMMAND_PORT,
         telemetry_port=hexrotcomm.TELEMETRY_PORT,
-        initial_state=MTHexapod.ControllerState.OFFLINE,
+        initial_state=ControllerState.OFFLINE,
     ):
         index = enums.SalIndex(index)
         self.xy_max_limit = constants.XY_MAX_LIMIT[index - 1]
@@ -288,9 +292,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         await self.write_config()
 
     async def do_stop(self, command):
-        self.assert_state(MTHexapod.ControllerState.ENABLED)
+        self.assert_state(ControllerState.ENABLED)
         self.hexapod.stop()
-        self.telemetry.enabled_substate = MTHexapod.EnabledSubstate.STATIONARY
+        self.telemetry.enabled_substate = EnabledSubstate.STATIONARY
         self.move_commanded = False
 
     async def do_move_point_to_point(self, command):
@@ -306,9 +310,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.telemetry.commanded_length = tuple(
             actuator.end_position for actuator in self.hexapod.actuators
         )
-        self.telemetry.enabled_substate = (
-            MTHexapod.EnabledSubstate.MOVING_POINT_TO_POINT
-        )
+        self.telemetry.enabled_substate = EnabledSubstate.MOVING_POINT_TO_POINT
         self.move_commanded = True
         self.log.debug(
             "Move to %s; move duration %0.1f",
@@ -326,15 +328,15 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             self.telemetry.status_word = (0,) * 6
             self.telemetry.latching_fault_status_register = (0,) * 6
             self.telemetry.copley_fault_status_register = (0,) * 6
-            if self.telemetry.state != MTHexapod.ControllerState.ENABLED:
+            if self.telemetry.state != ControllerState.ENABLED:
                 self.move_commanded = False
             axes_in_position = [
                 self.move_commanded and not actuator.moving(curr_tai)
                 for actuator in self.hexapod.actuators
             ]
             self.telemetry.application_status = tuple(
-                int(in_position) * MTHexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
-                | MTHexapod.ApplicationStatus.DDS_COMMAND_SOURCE
+                int(in_position) * ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+                | ApplicationStatus.DDS_COMMAND_SOURCE
                 for in_position in axes_in_position
             )
             self.telemetry.input_pin_states = (0,) * 3
@@ -345,7 +347,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             current_lengths = [
                 actuator.position(curr_tai) for actuator in self.hexapod.actuators
             ]
-            if self.telemetry.state == MTHexapod.ControllerState.ENABLED:
+            if self.telemetry.state == ControllerState.ENABLED:
                 # Add some fake encoder jitter,
                 current_lengths += self.strut_jitter * (np.random.random(6) - 0.5)
             self.telemetry.strut_encoder_raw = tuple(
@@ -359,18 +361,18 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # but SimpleHexapod does not yet support determining orientation
             # from actuator length.
             measured_pos = np.copy(self.telemetry.commanded_pos)
-            if self.telemetry.state == MTHexapod.ControllerState.ENABLED:
+            if self.telemetry.state == ControllerState.ENABLED:
                 # Add ~0.1 micron jitter to the current positions and
                 # ~0.003 arcsec jitter to the current rotations for realism.
                 measured_pos[:3] += self.xyz_jitter * (np.random.random(3) - 0.5)
                 measured_pos[3:] += self.uvw_jitter * (np.random.random(3) - 0.5)
             self.telemetry.measured_pos = tuple(measured_pos)
             if (
-                self.telemetry.state == MTHexapod.ControllerState.ENABLED
+                self.telemetry.state == ControllerState.ENABLED
                 and self.telemetry.enabled_substate
-                == MTHexapod.EnabledSubstate.MOVING_POINT_TO_POINT
+                == EnabledSubstate.MOVING_POINT_TO_POINT
                 and all(axes_in_position)
             ):
-                self.telemetry.enabled_substate = MTHexapod.EnabledSubstate.STATIONARY
+                self.telemetry.enabled_substate = EnabledSubstate.STATIONARY
         except Exception:
             self.log.exception("update_telemetry failed; output incomplete telemetry")
