@@ -26,7 +26,7 @@ import numpy as np
 
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
-from lsst.ts.idl.enums import Hexapod
+from lsst.ts.idl.enums import MTHexapod
 from . import constants
 from . import enums
 from . import structs
@@ -36,7 +36,7 @@ from . import mock_controller
 
 
 class ControllerConstants:
-    """Constants needed to communicate with a hexapod controller.
+    """Constants needed to communicate with an MTHexapod controller.
     """
 
     def __init__(self, sync_pattern, config_frame_id, telemetry_frame_id):
@@ -61,7 +61,7 @@ IndexControllerConstants = {
 
 
 class HexapodCsc(hexrotcomm.BaseCsc):
-    """MT hexapod CSC.
+    """MTHexapod CSC.
 
     Parameters
     ----------
@@ -124,9 +124,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
 
-        schema_path = pathlib.Path(__file__).parents[4] / "schema" / "Hexapod.yaml"
+        schema_path = pathlib.Path(__file__).parents[4] / "schema" / "MTHexapod.yaml"
         super().__init__(
-            name="Hexapod",
+            name="MTHexapod",
             index=index,
             sync_pattern=controller_constants.sync_pattern,
             CommandCode=enums.CommandCode,
@@ -153,7 +153,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_configureAcceleration(self, data):
         """Specify the acceleration limit."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         utils.check_positive_value(
             data.acceleration,
             "acceleration",
@@ -166,7 +166,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_configureLimits(self, data):
         """Specify position and rotation limits."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         utils.check_positive_value(
             data.maxXY, "maxXY", self.xy_max_limit, ExceptionClass=salobj.ExpectedError
         )
@@ -197,7 +197,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_configureVelocity(self, data):
         """Specify velocity limits."""
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         utils.check_positive_value(
             data.xy,
             "xy",
@@ -233,7 +233,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_move(self, data):
         """Move to a specified position and orientation.
         """
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         cmd1 = self._make_position_set_command(data)
         cmd2 = self.make_command(
             code=enums.CommandCode.SET_ENABLED_SUBSTATE,
@@ -248,7 +248,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """Move to a specified position and orientation,
         with compensation for telescope elevation, azimuth and temperature.
         """
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         compensation_offsets = self.compensation.get_offsets(
             azimuth=data.azimuth,
             elevation=data.elevation,
@@ -276,7 +276,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_offset(self, data):
         """Move by a specified offset in position and orientation.
         """
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         cmd1 = self._make_offset_set_command(data)
         absolute_position = [getattr(cmd1, f"param{i+1}") for i in range(6)]
         cmd2 = self.make_command(
@@ -290,7 +290,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_pivot(self, data):
         """Set the coordinates of the pivot point.
         """
-        self.assert_enabled_substate(Hexapod.EnabledSubstate.STATIONARY)
+        self.assert_enabled_substate(MTHexapod.EnabledSubstate.STATIONARY)
         await self.run_command(
             code=enums.CommandCode.SET_PIVOTPOINT,
             param1=data.x,
@@ -379,7 +379,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
         actuator_in_position = tuple(
-            status & Hexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+            status & MTHexapod.ApplicationStatus.HEX_MOVE_COMPLETE_MASK
             for status in server.telemetry.application_status
         )
         self.evt_actuatorInPosition.set_put(inPosition=actuator_in_position)
@@ -388,13 +388,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.evt_commandableByDDS.set_put(
             state=bool(
                 server.telemetry.application_status[0]
-                & Hexapod.ApplicationStatus.DDS_COMMAND_SOURCE
+                & MTHexapod.ApplicationStatus.DDS_COMMAND_SOURCE
             )
         )
 
         safety_interlock = (
             server.telemetry.application_status[0]
-            & Hexapod.ApplicationStatus.SAFETY_INTERLOCK
+            & MTHexapod.ApplicationStatus.SAFETY_INTERLOCK
         )
         self.evt_interlock.set_put(
             detail="Engaged" if safety_interlock else "Disengaged"

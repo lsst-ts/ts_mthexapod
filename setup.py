@@ -28,7 +28,7 @@ setuptools.setup(
     packages=setuptools.find_namespace_packages(where="python"),
     package_data={"": ["*.rst", "*.yaml"]},
     scripts=["bin/run_hexapod.py", "bin/command_hexapod.py"],
-    data_files=[(os.path.join(data_files_path, "schema"), ["schema/Hexapod.yaml"])],
+    data_files=[(os.path.join(data_files_path, "schema"), ["schema/MTHexapod.yaml"])],
     tests_require=tests_require,
     extras_require={"dev": dev_requires},
     license="GPL",

@@ -33,7 +33,7 @@ __all__ = [
     "W_MAX_LIMIT",
 ]
 
-# Required value of command.sync_pattern for hexapod commands.
+# Required value of command.sync_pattern for MTHexapod commands.
 CAM_SYNC_PATTERN = 0x6666
 M2_SYNC_PATTERN = 0xB4B4
 

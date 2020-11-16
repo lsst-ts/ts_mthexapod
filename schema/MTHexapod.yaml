@@ -6,7 +6,7 @@ description: Configuration for the Hexapod CSCs
 definitions:
   instance_specific_config:
     description: >-
-      Configuration specific to the Camera or M2 hexapod.
+      Configuration specific to the Camera or M2 MTHexapod.
       A warning about default values: if you specify any fields of camera_config or m2_config
       then you must specify all fields that item.
     type: object

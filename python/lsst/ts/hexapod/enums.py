@@ -47,7 +47,7 @@ class CommandCode(enum.IntEnum):
 
 
 class FrameId(enum.IntEnum):
-    """Frame IDs for Camera and M2 hexapod telemetry and configuration.
+    """Frame IDs for Camera and M2 MTHexapod telemetry and configuration.
     """
 
     CAM_TELEMETRY = 0x7

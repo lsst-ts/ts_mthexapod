@@ -19,18 +19,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""Monitor and command an MT Hexapod.
+"""Monitor and command an MTHexapod.
 
 To use:
 
-command_hexapod.py 1  # For the Camera Hexapod
+command_hexapod.py 1  # For the Camera MTHexapod
 
 or
 
-command_hexapod.py 2  # For the M2 Hexapod
+command_hexapod.py 2  # For the M2 MTHexapod
 
 Then wait for it to connect. Once it has connected it will print
-initial hexapod status and help.
+initial MTHexapod status and help.
 
 Commands are entered by typing the command and arguments (if any),
 separated by spaces, then <return>. "help" is a command.
