@@ -20,9 +20,9 @@ import matplotlib
 import scipy.optimize
 
 # Edit the following to change matplotlib's backend
-matplotlib.use("Qt5Agg")  # noqa
+matplotlib.use("Qt5Agg")
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa
 
 RAD_PER_DEG = math.pi / 180.0
 
@@ -114,7 +114,7 @@ def fourier(ang, *coeffs):
 
 
 def fit_one(data, cause, axis, model, ncoeffs):
-    """Fit one axis of Hexapod motion vs cause to a model.
+    """Fit one axis of MTHexapod motion vs cause to a model.
 
     Parameters
     ----------
@@ -236,7 +236,7 @@ model_names = sorted(model_dict.keys())
 
 
 def main():
-    parser = argparse.ArgumentParser(f"fit Hexapod compensation coefficients")
+    parser = argparse.ArgumentParser("fit MTHexapod compensation coefficients")
     parser.add_argument(
         "datafile", help="Path to data file.",
     )

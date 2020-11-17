@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -23,18 +23,18 @@ import unittest
 
 import numpy as np
 
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 
 
 class FourierSeriesTestCase(unittest.TestCase):
     def test_constructor_errors(self):
         # No coefficients
         with self.assertRaises(ValueError):
-            hexapod.FourierSeries(coeffs=[])
+            mthexapod.FourierSeries(coeffs=[])
 
     def test_values(self):
         coeffs = [-0.5, 0.4, -0.3, 0.2, 0.1, -0.15]
-        poly = hexapod.FourierSeries(coeffs=coeffs)
+        poly = mthexapod.FourierSeries(coeffs=coeffs)
         angarr = np.linspace(-360, 360, num=50, endpoint=True)
         pred_values = (
             coeffs[0]
@@ -53,7 +53,7 @@ class FourierSeriesTestCase(unittest.TestCase):
         is constant everywhere.
         """
         coeffs = [1.3]
-        poly = hexapod.FourierSeries(coeffs=coeffs)
+        poly = mthexapod.FourierSeries(coeffs=coeffs)
         xarr = np.linspace(-360, 360, num=50)
         np.testing.assert_allclose(poly(xarr), coeffs[0])
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -19,24 +19,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""Monitor and command an MT Hexapod.
 
-To use:
-
-command_hexapod.py 1  # For the Camera Hexapod
-
-or
-
-command_hexapod.py 2  # For the M2 Hexapod
-
-Then wait for it to connect. Once it has connected it will print
-initial hexapod status and help.
-
-Commands are entered by typing the command and arguments (if any),
-separated by spaces, then <return>. "help" is a command.
-"""
+"""An example of how to run a CSC"""
 import asyncio
 
-from lsst.ts import hexapod
+from lsst.ts.mthexapod import HexapodCsc, SalIndex
 
-asyncio.run(hexapod.HexapodCommander.amain(index=True))
+asyncio.run(HexapodCsc.amain(index=SalIndex))

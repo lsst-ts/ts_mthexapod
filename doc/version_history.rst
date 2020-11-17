@@ -1,10 +1,30 @@
-.. py:currentmodule:: lsst.ts.hexapod
+.. py:currentmodule:: lsst.ts.mthexapod
 
-.. _lsst.ts.hexapod.version_history:
+.. _lsst.ts.mthexapod.version_history:
 
 ###############
 Version History
 ###############
+
+v0.10.0
+=======
+
+Changes:
+
+* Updated to use and require ts_xml 7, ts_idl 2.2, and ts_hexrotcomm 0.11:
+
+    * Rename SAL component and ts_idl enum module ``Hexapod`` to ``MTHexapod``.
+
+* Renamed the package to ``ts_mthexapod``.
+
+Requires:
+
+* ts_hexrotcomm 0.11
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7
+* MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
+
 
 v0.9.0
 ======

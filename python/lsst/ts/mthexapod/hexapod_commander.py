@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -43,24 +43,24 @@ def as_bool(value):
 
 
 class HexapodCommander(salobj.CscCommander):
-    """Command the Hexapod CSC from the command line.
+    """Command the MTHexapod CSC from the command line.
 
     Parameters
     ----------
     index : `int`
-        SAL index of Hexapod CSC.
+        SAL index of MTHexapod CSC.
 
     Read commands from stdin and write updated events and telemetry to stdout.
     The telemetry is filtered so that tiny changes due to encoder jitter
     are ignored.
 
-    See bin/command_hexapod.py for an example of how to use this class.
+    See bin/command_mthexapod.py for an example of how to use this class.
     """
 
     def __init__(self, index, enable):
         index = enums.SalIndex(index)
         super().__init__(
-            name="Hexapod", index=index, enable=enable,
+            name="MTHexapod", index=index, enable=enable,
         )
         for command_to_ignore in ("abort", "setValue"):
             del self.command_dict[command_to_ignore]

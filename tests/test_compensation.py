@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -24,7 +24,7 @@ import unittest
 
 import numpy as np
 
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 
 
 class CompensationTestCase(unittest.TestCase):
@@ -36,14 +36,14 @@ class CompensationTestCase(unittest.TestCase):
             max_temperature=20,
         )
         # Make sure these arguments work
-        hexapod.Compensation(**kwargs)
+        mthexapod.Compensation(**kwargs)
 
         # Omit an argument
         for name in kwargs:
             bad_kwargs = kwargs.copy()
             del bad_kwargs[name]
             with self.assertRaises(TypeError):
-                hexapod.Compensation(**bad_kwargs)
+                mthexapod.Compensation(**bad_kwargs)
 
         # Wrong number of coefficients
         for name, ncoeff in itertools.product(
@@ -52,14 +52,14 @@ class CompensationTestCase(unittest.TestCase):
             bad_kwargs = kwargs.copy()
             bad_kwargs[name] = [[0]] * ncoeff
             with self.assertRaises(ValueError):
-                hexapod.Compensation(**bad_kwargs)
+                mthexapod.Compensation(**bad_kwargs)
 
         # min_temperature >= max_temperature
         for delta in (0, 0.001, 1):
             bad_kwargs = kwargs.copy()
             bad_kwargs["min_temperature"] = bad_kwargs["max_temperature"] + delta
             with self.assertRaises(ValueError):
-                hexapod.Compensation(**bad_kwargs)
+                mthexapod.Compensation(**bad_kwargs)
 
     def test_get_offsets(self):
         elevation_coeffs = [
@@ -80,7 +80,7 @@ class CompensationTestCase(unittest.TestCase):
         ]
         min_temperature = -20
         max_temperature = 25
-        compensation = hexapod.Compensation(
+        compensation = mthexapod.Compensation(
             elevation_coeffs=elevation_coeffs,
             temperature_coeffs=temperature_coeffs,
             min_temperature=min_temperature,
@@ -90,7 +90,7 @@ class CompensationTestCase(unittest.TestCase):
             np.polynomial.Polynomial(coeffs) for coeffs in elevation_coeffs
         ]
         temperature_polynomials = [
-            hexapod.RangedPolynomial(
+            mthexapod.RangedPolynomial(
                 coeffs, min_x=min_temperature, max_x=max_temperature
             )
             for coeffs in temperature_coeffs

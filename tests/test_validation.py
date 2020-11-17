@@ -34,7 +34,7 @@ class ValidationTestCase(unittest.TestCase):
     """Test validation of the config schema."""
 
     def setUp(self):
-        schemaname = "Hexapod.yaml"
+        schemaname = "MTHexapod.yaml"
         schemapath = pathlib.Path(__file__).parents[1].joinpath("schema", schemaname)
         with open(schemapath, "r") as f:
             rawschema = f.read()
