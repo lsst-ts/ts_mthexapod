@@ -30,6 +30,7 @@ import numpy as np
 
 from lsst.ts import salobj
 from lsst.ts import hexapod
+from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums import Hexapod
 
 STD_TIMEOUT = 10  # timeout for command ack
@@ -41,7 +42,7 @@ index_gen = salobj.index_generator(imin=1, imax=2)
 local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
 
-class TestHexapodCsc(salobj.BaseCscTestCase, asynctest.TestCase):
+class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
     def basic_make_csc(self, initial_state, simulation_mode=1, config_dir=None):
         return hexapod.HexapodCsc(
             index=next(index_gen),
@@ -69,7 +70,6 @@ class TestHexapodCsc(salobj.BaseCscTestCase, asynctest.TestCase):
             index=next(index_gen),
             exe_name="run_hexapod.py",
             cmdline_args=["--simulate"],
-            initial_state=salobj.State.OFFLINE,
         )
 
     async def test_constructor_errors(self):

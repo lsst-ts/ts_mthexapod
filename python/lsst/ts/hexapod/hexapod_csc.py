@@ -18,8 +18,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-import argparse
 import copy
 import pathlib
 import types
@@ -74,15 +72,20 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         configuration directory (obtained from `_get_default_config_dir`).
         This is provided for unit testing.
     initial_state : `lsst.ts.salobj.State` or `int` (optional)
-        The initial state of the CSC. Ignored (other than checking
-        that it is a valid value) except in simulation mode,
-        because in normal operation the initial state is the current state
-        of the controller. This is provided for unit testing.
+        The initial state of the CSC.
+        Must be `lsst.ts.salobj.State.OFFLINE` unless simulating
+        (``simulation_mode != 0``).
     simulation_mode : `int` (optional)
         Simulation mode. Allowed values:
 
         * 0: regular operation.
         * 1: simulation: use a mock low level controller.
+
+    Raises
+    ------
+    ValueError
+        If ``initial_state != lsst.ts.salobj.State.OFFLINE``
+        and not simulating (``simulation_mode = 0``).
 
     Notes
     -----
@@ -98,6 +101,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
       (that's why this code inherits from Controller instead of BaseCsc).
     * The simulation mode can only be set at construction time.
     """
+
+    valid_simulation_modes = [0, 1]
 
     def __init__(
         self,
@@ -525,17 +530,3 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         position_data.w += self.server.telemetry.commanded_pos[5]
 
         return self._make_position_set_command(position_data)
-
-    @classmethod
-    async def amain(cls):
-        """Make a CSC from command-line arguments and run it.
-        """
-        parser = argparse.ArgumentParser(f"Run {cls.__name__}")
-        parser.add_argument("index", type=int, help="Hexapod index; 1=Camera 2=M2")
-        parser.add_argument(
-            "-s", "--simulate", action="store_true", help="Run in simulation mode?"
-        )
-
-        args = parser.parse_args()
-        csc = cls(index=args.index, simulation_mode=int(args.simulate))
-        await csc.done_task
