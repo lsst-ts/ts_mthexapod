@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -23,11 +23,11 @@
 
 To use:
 
-command_hexapod.py 1  # For the Camera MTHexapod
+command_mthexapod.py 1  # For the Camera MTHexapod
 
 or
 
-command_hexapod.py 2  # For the M2 MTHexapod
+command_mthexapod.py 2  # For the M2 MTHexapod
 
 Then wait for it to connect. Once it has connected it will print
 initial MTHexapod status and help.
@@ -37,6 +37,6 @@ separated by spaces, then <return>. "help" is a command.
 """
 import asyncio
 
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 
-asyncio.run(hexapod.HexapodCommander.amain(index=True))
+asyncio.run(mthexapod.HexapodCommander.amain(index=True))

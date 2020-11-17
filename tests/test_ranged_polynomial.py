@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -23,27 +23,27 @@ import unittest
 
 import numpy as np
 
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 
 
 class RangedPolynomialTestCase(unittest.TestCase):
     def test_constructor_errors(self):
         # No coefficients
         with self.assertRaises(ValueError):
-            hexapod.RangedPolynomial(coeffs=[], min_x=0, max_x=1)
+            mthexapod.RangedPolynomial(coeffs=[], min_x=0, max_x=1)
 
         # Invalid range (min_x > max_x):
         for min_x in (-100, -0.001, 0, 0.001, 100):
             for dx in (-10, -0.001):
                 bad_max_x = min_x + dx
                 with self.assertRaises(ValueError):
-                    hexapod.RangedPolynomial(coeffs=[0], min_x=min_x, max_x=bad_max_x)
+                    mthexapod.RangedPolynomial(coeffs=[0], min_x=min_x, max_x=bad_max_x)
 
     def test_values(self):
         coeffs = [-0.5, 0.4, -0.3, 0.2]
         min_x = -10
         max_x = 10
-        poly = hexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
+        poly = mthexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
         for x in np.linspace(min_x, max_x, num=10, endpoint=True):
             pred_value = coeffs[0] + x * (coeffs[1] + x * (coeffs[2] + x * coeffs[3]))
             self.assertAlmostEqual(poly(x), pred_value)
@@ -68,7 +68,7 @@ class RangedPolynomialTestCase(unittest.TestCase):
         coeffs = [1.3]
         min_x = -10
         max_x = 10
-        poly = hexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
+        poly = mthexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
         for x in (min_x - 1, min_x, 0, max_x, max_x + 1):
             self.assertAlmostEqual(poly(x), coeffs[0])
 

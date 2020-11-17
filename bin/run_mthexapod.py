@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -23,6 +23,6 @@
 """An example of how to run a CSC"""
 import asyncio
 
-from lsst.ts.hexapod import HexapodCsc, SalIndex
+from lsst.ts.mthexapod import HexapodCsc, SalIndex
 
 asyncio.run(HexapodCsc.amain(index=SalIndex))

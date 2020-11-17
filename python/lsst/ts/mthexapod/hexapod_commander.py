@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -54,7 +54,7 @@ class HexapodCommander(salobj.CscCommander):
     The telemetry is filtered so that tiny changes due to encoder jitter
     are ignored.
 
-    See bin/command_hexapod.py for an example of how to use this class.
+    See bin/command_mthexapod.py for an example of how to use this class.
     """
 
     def __init__(self, index, enable):

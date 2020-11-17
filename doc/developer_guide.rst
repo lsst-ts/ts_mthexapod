@@ -1,14 +1,14 @@
-.. py:currentmodule:: lsst.ts.hexapod
+.. py:currentmodule:: lsst.ts.mthexapod
 
-.. _lsst.ts.hexapod.developer_guide:
+.. _lsst.ts.mthexapod.developer_guide:
 
 ###############
 Developer Guide
 ###############
 
-The Hexapod CSC is implemented using `ts_salobj <https://github.com/lsst-ts/ts_salobj>`_ and `ts_hexrotcom <https://ts-hexrotcomm.lsst.io>`_.
+The MTHexapod CSC is implemented using `ts_salobj <https://github.com/lsst-ts/ts_salobj>`_ and `ts_hexrotcom <https://ts-hexrotcomm.lsst.io>`_.
 
-.. _lsst.ts.hexapod-api:
+.. _lsst.ts.mthexapod-api:
 
 API
 ===
@@ -17,7 +17,7 @@ The primary class is:
 
 * `HexapodCsc`: the CSC.
 
-.. automodapi:: lsst.ts.hexapod
+.. automodapi:: lsst.ts.mthexapod
    :no-main-docstr:
    :no-inheritance-diagram:
 
@@ -36,5 +36,5 @@ This is a pure python package. There is nothing to build except the documentatio
 Contributing
 ============
 
-``lsst.ts.hexapod`` is developed at https://github.com/lsst-ts/ts_hexapod.
-You can find Jira issues for this module using `labels=ts_hexapod <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%20%3D%20ts_hexapod>`_..
+``lsst.ts.mthexapod`` is developed at https://github.com/lsst-ts/ts_mthexapod.
+You can find Jira issues for this module using `labels=ts_mthexapod <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%20%3D%20ts_mthexapod>`_..

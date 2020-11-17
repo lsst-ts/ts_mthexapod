@@ -16,10 +16,10 @@ base_prefix = pathlib.PurePosixPath(sys.base_prefix)
 data_files_path = tools_path.relative_to(base_prefix).parents[1]
 
 setuptools.setup(
-    name="ts_hexapod",
+    name="ts_mthexapod",
     description="CSC for main telescope hexapods (camera and secondary mirror)",
     use_scm_version={
-        "write_to": "python/lsst/ts/hexapod/version.py",
+        "write_to": "python/lsst/ts/mthexapod/version.py",
         "write_to_template": scm_version_template,
     },
     setup_requires=["setuptools_scm", "pytest-runner"],
@@ -27,13 +27,13 @@ setuptools.setup(
     package_dir={"": "python"},
     packages=setuptools.find_namespace_packages(where="python"),
     package_data={"": ["*.rst", "*.yaml"]},
-    scripts=["bin/run_hexapod.py", "bin/command_hexapod.py"],
+    scripts=["bin/run_mthexapod.py", "bin/command_mthexapod.py"],
     data_files=[(os.path.join(data_files_path, "schema"), ["schema/MTHexapod.yaml"])],
     tests_require=tests_require,
     extras_require={"dev": dev_requires},
     license="GPL",
     project_urls={
         "Bug Tracker": "https://jira.lsstcorp.org/secure/Dashboard.jspa",
-        "Source Code": "https://github.com/lsst-ts/ts_hexapod",
+        "Source Code": "https://github.com/lsst-ts/ts_mthexapod",
     },
 )

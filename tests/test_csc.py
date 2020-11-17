@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -29,7 +29,7 @@ import asynctest
 import numpy as np
 
 from lsst.ts import salobj
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import ControllerState, EnabledSubstate
 
@@ -44,7 +44,7 @@ local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
     def basic_make_csc(self, initial_state, simulation_mode=1, config_dir=None):
-        return hexapod.HexapodCsc(
+        return mthexapod.HexapodCsc(
             index=next(index_gen),
             initial_state=initial_state,
             simulation_mode=simulation_mode,
@@ -68,14 +68,14 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.check_bin_script(
             name="MTHexapod",
             index=next(index_gen),
-            exe_name="run_hexapod.py",
+            exe_name="run_mthexapod.py",
             cmdline_args=["--simulate"],
         )
 
     async def test_constructor_errors(self):
         for bad_index in (0, 3):
             with self.assertRaises(ValueError):
-                hexapod.HexapodCsc(
+                mthexapod.HexapodCsc(
                     index=bad_index,
                     initial_state=salobj.State.STANDBY,
                     simulation_mode=1,
@@ -118,7 +118,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             )
             self.assertAlmostEqual(data.accelerationStrut, new_limit)
 
-            for bad_acceleration in (-1, 0, hexapod.MAX_ACCEL_LIMIT + 0.001):
+            for bad_acceleration in (-1, 0, mthexapod.MAX_ACCEL_LIMIT + 0.001):
                 with self.subTest(bad_acceleration=bad_acceleration):
                     with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
                         await self.remote.cmd_configureAcceleration.set_start(
@@ -257,8 +257,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             for i in range(4):
                 self.assertAlmostEqual(new_vel_limits[i], reported_limits[i])
 
-            bad_linear_vel_limit = hexapod.MAX_LINEAR_VEL_LIMIT + 0.001
-            bad_angular_vel_limit = hexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
+            bad_linear_vel_limit = mthexapod.MAX_LINEAR_VEL_LIMIT + 0.001
+            bad_angular_vel_limit = mthexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
             for bad_vel_limits in (
                 (
                     0,
