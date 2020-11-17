@@ -1,34 +1,34 @@
-.. py:currentmodule:: lsst.ts.hexapod
+.. py:currentmodule:: lsst.ts.mthexapod
 
-.. _lsst.ts.hexapod:
+.. _lsst.ts.mthexapod:
 
-###############
-lsst.ts.hexapod
-###############
+#################
+lsst.ts.mthexapod
+#################
 
 .. image:: https://img.shields.io/badge/Project Metadata-gray.svg
-    :target: https://ts-xml.lsst.io/index.html#index-master-csc-table-hexapod
+    :target: https://ts-xml.lsst.io/index.html#index-master-csc-table-mthexapod
 .. image:: https://img.shields.io/badge/SAL\ Interface-gray.svg
-    :target: https://ts-xml.lsst.io/sal_interfaces/Hexapod.html
+    :target: https://ts-xml.lsst.io/sal_interfaces/MTHexapod.html
 .. image:: https://img.shields.io/badge/GitHub-gray.svg
-    :target: https://github.com/lsst-ts/ts_hexapod
+    :target: https://github.com/lsst-ts/ts_mthexapod
 .. image:: https://img.shields.io/badge/Jira-gray.svg
-    :target: https://jira.lsstcorp.org/issues/?jql=labels+%3D+ts_hexapod
+    :target: https://jira.lsstcorp.org/issues/?jql=labels+%3D+ts_mthexapod
 
 Overview
 ========
 
-The Hexapod CSC controls the camera and M2 hexapods on the Simonyi Survey Telescope.
+The MTHexapod CSC controls the camera and M2 hexapods on the Simonyi Survey Telescope.
 Run one instance of the CSC for each hexapod, using index=1 for the camera hexapod and index=2 for the M2 hexapod.
 
 User Guide
 ==========
 
-Start a Hexapod CSC as follows:
+Start an MTHexapod CSC as follows:
 
 .. prompt:: bash
 
-    run_hexapod.py <index>
+    run_mthexapod.py <index>
 
 where ``<index>`` is 1 for the camera hexapod, 2 for the M2 hexapod
 
@@ -38,9 +38,9 @@ Then check that the CSC has control of the low-level controller, as follows:
   This should happen quickly; if it does not then check that the low-level controller is fully booted up and configured to use the correct IP address for the CSC.
 * Check the ``controllerState`` event.
   If it is ``state=Offline, offline_substate=PublishOnly``, which is the state the low-level controller wakes up in,
-  then you must :ref:`use the EUI <lsst.ts.hexapod.eui>` to change the state.
+  then you must :ref:`use the EUI <lsst.ts.mthexapod.eui>` to change the state.
 * Check the ``commandableByDDS`` event.
-  If ``state=False`` then you must :ref:`use the EUI <lsst.ts.hexapod.eui>` to change the control mode.
+  If ``state=False`` then you must :ref:`use the EUI <lsst.ts.mthexapod.eui>` to change the control mode.
 
 Notes
 -----
@@ -69,9 +69,9 @@ The CSC includes a simulation mode. To run using CSC's internal simulator:
 
 .. prompt:: bash
 
-    run_hexapod.py <index> --simulate
+    run_mthexapod.py <index> --simulate
 
-.. _lsst.ts.hexapod.eui:
+.. _lsst.ts.mthexapod.eui:
 
 The Engineering User Interface (EUI)
 ------------------------------------

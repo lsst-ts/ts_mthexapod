@@ -1,10 +1,10 @@
-##########
-ts_hexapod
-##########
+############
+ts_mthexapod
+############
 
 Python Commandable SAL Component (CSC) for the camera and M2 hexapods on the Simonyi Survey Telescope.
 
-`Documentation <https://ts-hexapod.lsst.io>`_
+`Documentation <https://ts-mthexapod.lsst.io>`_
 
 The package is compatible with Vera Rubin LSST DM's ``scons`` build system, and the `eups <https://github.com/RobertLuptonTheGood/eups>`_ package management system.
 Assuming you have the basic DM stack installed you can do the following, from within the package directory:
@@ -15,8 +15,8 @@ Assuming you have the basic DM stack installed you can do the following, from wi
 * ``package-docs build`` to build the documentation.
   This requires ``documenteer``; see `building single package docs <https://developer.lsst.io/stack/building-single-package-docs.html>`_ for installation instructions.
 
-This code is automatically formatted by ``black`` using a git pre-commit hook.
+This code uses ``pre-commit`` to maintain ``black`` formatting and ``flake8`` compliance.
 To enable this:
 
-* Install the ``black`` Python package.
-* Run ``git config core.hooksPath .githooks`` once in this repository.
+* Run ``pre-commit install`` once.
+* If directed, run ``git config --unset-all core.hooksPath`` once.

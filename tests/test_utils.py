@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -24,7 +24,7 @@ import unittest
 
 import numpy as np
 
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -48,7 +48,7 @@ class UtilsTestCase(unittest.TestCase):
     def test_rot2d(self):
         for xypos, angle, desired_rotxy in self.xyiter():
             with self.subTest(xypos=xypos, angle=angle):
-                rotxy = hexapod.rot2d(xypos, angle * hexapod.RAD_PER_DEG)
+                rotxy = mthexapod.rot2d(xypos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotxy, desired_rotxy, atol=1e-10)
 
     def test_rot_about_x(self):
@@ -58,7 +58,7 @@ class UtilsTestCase(unittest.TestCase):
             pos = (xpos, ypos, zpos)
             desired_rotpos = (xpos, desired_roty, desired_rotz)
             with self.subTest(pos=pos, angle=angle):
-                rotpos = hexapod.rot_about_x(pos, angle * hexapod.RAD_PER_DEG)
+                rotpos = mthexapod.rot_about_x(pos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
 
     def test_rot_about_y(self):
@@ -68,7 +68,7 @@ class UtilsTestCase(unittest.TestCase):
             pos = (xpos, ypos, zpos)
             desired_rotpos = (desired_rotx, ypos, desired_rotz)
             with self.subTest(pos=pos, angle=angle):
-                rotpos = hexapod.rot_about_y(pos, angle * hexapod.RAD_PER_DEG)
+                rotpos = mthexapod.rot_about_y(pos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
 
     def test_rot_about_z(self):
@@ -78,7 +78,7 @@ class UtilsTestCase(unittest.TestCase):
             pos = (xpos, ypos, zpos)
             desired_rotpos = (desired_rotx, desired_roty, zpos)
             with self.subTest(pos=pos, angle=angle):
-                rotpos = hexapod.rot_about_z(pos, angle * hexapod.RAD_PER_DEG)
+                rotpos = mthexapod.rot_about_z(pos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
 
 

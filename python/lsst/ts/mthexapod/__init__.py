@@ -1,7 +1,6 @@
-#!/usr/bin/env python
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -20,9 +19,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""An example of how to run a CSC"""
-import asyncio
+from .constants import *
+from .enums import *
+from .fourier_series import *
+from .ranged_polynomial import *
+from .compensation import *
+from .structs import *
+from .utils import *
+from .hexapod_commander import *
+from .simple_hexapod import *
+from .mock_controller import *
+from .hexapod_csc import *
 
-from lsst.ts.hexapod import HexapodCsc, SalIndex
-
-asyncio.run(HexapodCsc.amain(index=SalIndex))
+try:
+    from .version import *
+except ImportError:
+    __version__ = "?"

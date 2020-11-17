@@ -1,12 +1,12 @@
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://github.com/lsst-ts/ts_hexapod/tree/schema/Hexapod.yaml
-title: Hexapod v1
-description: Configuration for the Hexapod CSCs
+$id: https://github.com/lsst-ts/ts_mthexapod/tree/schema/MTHexapod.yaml
+title: MTHexapod v1
+description: Configuration for the MTHexapod CSCs
 
 definitions:
   instance_specific_config:
     description: >-
-      Configuration specific to the Camera or M2 hexapod.
+      Configuration specific to the Camera or M2 MTHexapod.
       A warning about default values: if you specify any fields of camera_config or m2_config
       then you must specify all fields that item.
     type: object

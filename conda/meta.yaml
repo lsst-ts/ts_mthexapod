@@ -1,6 +1,6 @@
 {% set data= load_setup_py_data() %}
 package:
-  name: ts-hexapod
+  name: ts-mthexapod
   version: {{ data.get('version') }}
 
 source:
@@ -20,23 +20,11 @@ build:
 
 test:
   requires:
-    - pytest
-    - pytest-flake8
-    - pytest-cov
-    - asynctest
-    - pytest-tornasync
-    - numpy
-    - astropy
-    - jsonschema
-    - pyyaml
-    - boto3
-    - moto
-    - ts-simactuators
-    - ts-dds
+    - ts-conda-build
     - ts-idl
     - ts-salobj
     - ts-hexrotcomm
-    - black == 19.10b0
+    - ts-simactuators
   source_files:
     - python
     - bin
@@ -57,6 +45,7 @@ requirements:
     - python
     - setuptools
     - setuptools_scm
+    - ts-idl
     - ts-salobj
-    - ts-simactuators
     - ts-hexrotcomm
+    - ts-simactuators

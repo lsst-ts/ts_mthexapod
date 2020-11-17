@@ -1,6 +1,7 @@
-# This file is part of ts_hexapod.
+#!/usr/bin/env python
+# This file is part of ts_mthexapod.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -18,20 +19,24 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Monitor and command an MTHexapod.
 
-from .constants import *
-from .enums import *
-from .fourier_series import *
-from .ranged_polynomial import *
-from .compensation import *
-from .structs import *
-from .utils import *
-from .hexapod_commander import *
-from .simple_hexapod import *
-from .mock_controller import *
-from .hexapod_csc import *
+To use:
 
-try:
-    from .version import *
-except ImportError:
-    __version__ = "?"
+command_mthexapod.py 1  # For the Camera MTHexapod
+
+or
+
+command_mthexapod.py 2  # For the M2 MTHexapod
+
+Then wait for it to connect. Once it has connected it will print
+initial MTHexapod status and help.
+
+Commands are entered by typing the command and arguments (if any),
+separated by spaces, then <return>. "help" is a command.
+"""
+import asyncio
+
+from lsst.ts import mthexapod
+
+asyncio.run(mthexapod.HexapodCommander.amain(index=True))

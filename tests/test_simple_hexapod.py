@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -28,7 +28,7 @@ import astropy.units as u
 import numpy as np
 
 from lsst.ts import salobj
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 
 
 class SimpleHexapodTestCase(asynctest.TestCase):
@@ -43,7 +43,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         base_positions = [np.random.normal(size=3) for i in range(6)]
         mirror_positions = [np.random.normal(size=3) for i in range(6)]
         pivot = np.random.normal(size=3)
-        model = hexapod.SimpleHexapod(
+        model = mthexapod.SimpleHexapod(
             base_positions=base_positions,
             mirror_positions=mirror_positions,
             pivot=pivot,
@@ -93,7 +93,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         for bad_base_positions in bad_positions():
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(
+                mthexapod.SimpleHexapod(
                     base_positions=bad_base_positions,
                     mirror_positions=mirror_positions,
                     pivot=pivot,
@@ -104,7 +104,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         for bad_mirror_positions in bad_positions():
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(
+                mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=bad_mirror_positions,
                     pivot=pivot,
@@ -115,7 +115,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
 
         for bad_pivot in ((1, 2), (1, 2, 3, 4)):
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(
+                mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
                     pivot=bad_pivot,
@@ -130,7 +130,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
             (0.001, 2e99),  # min too big
         ):
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(
+                mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
                     pivot=pivot,
@@ -140,7 +140,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
                 )
         for bad_speed in (0, -1):
             with self.assertRaises(ValueError):
-                hexapod.SimpleHexapod(
+                mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
                     pivot=pivot,
@@ -161,7 +161,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         min_length = -max_length
         speed = 5e6
 
-        model = hexapod.SimpleHexapod.make_zigzag_model(
+        model = mthexapod.SimpleHexapod.make_zigzag_model(
             base_radius=base_radius,
             mirror_radius=mirror_radius,
             mirror_z=mirror_z,
@@ -257,7 +257,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         min_length = -max_length
         speed = 1e6  # make the moves go quickly
 
-        model = hexapod.SimpleHexapod.make_zigzag_model(
+        model = mthexapod.SimpleHexapod.make_zigzag_model(
             base_radius=base_radius,
             mirror_radius=mirror_radius,
             mirror_z=mirror_z,
@@ -329,7 +329,7 @@ class SimpleHexapodTestCase(asynctest.TestCase):
         min_length = -max_length
         speed = 1e6  # make the moves go quickly
 
-        model = hexapod.SimpleHexapod.make_zigzag_model(
+        model = mthexapod.SimpleHexapod.make_zigzag_model(
             base_radius=base_radius,
             mirror_radius=mirror_radius,
             mirror_z=mirror_z,

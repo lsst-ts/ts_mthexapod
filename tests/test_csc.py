@@ -1,4 +1,4 @@
-# This file is part of ts_hexapod.
+# This file is part of ts_mthexapod.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -29,9 +29,9 @@ import asynctest
 import numpy as np
 
 from lsst.ts import salobj
-from lsst.ts import hexapod
+from lsst.ts import mthexapod
 from lsst.ts import hexrotcomm
-from lsst.ts.idl.enums import Hexapod
+from lsst.ts.idl.enums.MTHexapod import ControllerState, EnabledSubstate
 
 STD_TIMEOUT = 10  # timeout for command ack
 
@@ -44,7 +44,7 @@ local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
     def basic_make_csc(self, initial_state, simulation_mode=1, config_dir=None):
-        return hexapod.HexapodCsc(
+        return mthexapod.HexapodCsc(
             index=next(index_gen),
             initial_state=initial_state,
             simulation_mode=simulation_mode,
@@ -66,16 +66,16 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         """Test running from the command line script.
         """
         await self.check_bin_script(
-            name="Hexapod",
+            name="MTHexapod",
             index=next(index_gen),
-            exe_name="run_hexapod.py",
+            exe_name="run_mthexapod.py",
             cmdline_args=["--simulate"],
         )
 
     async def test_constructor_errors(self):
         for bad_index in (0, 3):
             with self.assertRaises(ValueError):
-                hexapod.HexapodCsc(
+                mthexapod.HexapodCsc(
                     index=bad_index,
                     initial_state=salobj.State.STANDBY,
                     simulation_mode=1,
@@ -118,7 +118,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             )
             self.assertAlmostEqual(data.accelerationStrut, new_limit)
 
-            for bad_acceleration in (-1, 0, hexapod.MAX_ACCEL_LIMIT + 0.001):
+            for bad_acceleration in (-1, 0, mthexapod.MAX_ACCEL_LIMIT + 0.001):
                 with self.subTest(bad_acceleration=bad_acceleration):
                     with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
                         await self.remote.cmd_configureAcceleration.set_start(
@@ -145,8 +145,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.ENABLED,
-                enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
             )
             self.set_speed_factor(20)
 
@@ -257,8 +257,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             for i in range(4):
                 self.assertAlmostEqual(new_vel_limits[i], reported_limits[i])
 
-            bad_linear_vel_limit = hexapod.MAX_LINEAR_VEL_LIMIT + 0.001
-            bad_angular_vel_limit = hexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
+            bad_linear_vel_limit = mthexapod.MAX_LINEAR_VEL_LIMIT + 0.001
+            bad_angular_vel_limit = mthexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
             for bad_vel_limits in (
                 (
                     0,
@@ -347,11 +347,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.STANDBY,
+                controllerState=ControllerState.STANDBY,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.DISABLED,
+                controllerState=ControllerState.DISABLED,
             )
             await self.check_move(
                 destination=(500, -300, 200, 0.03, -0.02, 0.03),
@@ -442,8 +442,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         self.set_speed_factor(speed_factor)
         await self.assert_next_sample(
             topic=self.remote.evt_controllerState,
-            controllerState=Hexapod.ControllerState.ENABLED,
-            enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.STATIONARY,
         )
         await self.assert_next_position(desired_position=(0,) * 6)
 
@@ -493,14 +493,14 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             compensated_destination = np.add(destination, comp_offsets)
         await self.assert_next_sample(
             topic=self.remote.evt_controllerState,
-            controllerState=Hexapod.ControllerState.ENABLED,
-            enabledSubstate=Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
         )
         try:
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.ENABLED,
-                enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
                 timeout=STD_TIMEOUT + est_move_duration,
             )
         except asyncio.TimeoutError:
@@ -557,13 +557,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         await self.remote.cmd_offset.set_start(**offset_kwargs, timeout=STD_TIMEOUT)
         await self.assert_next_sample(
             topic=self.remote.evt_controllerState,
-            controllerState=Hexapod.ControllerState.ENABLED,
-            enabledSubstate=Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
         )
         await self.assert_next_sample(
             topic=self.remote.evt_controllerState,
-            controllerState=Hexapod.ControllerState.ENABLED,
-            enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.STATIONARY,
         )
         await self.assert_next_position(desired_position=desired_destination)
 
@@ -575,8 +575,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.ENABLED,
-                enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
             )
             await self.assert_next_position(desired_position=(0,) * 6)
             move_kwargs = self.make_xyzuvw_kwargs(destination)
@@ -587,14 +587,14 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             ]
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.ENABLED,
-                enabledSubstate=Hexapod.EnabledSubstate.MOVING_POINT_TO_POINT,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
             )
             await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
-                controllerState=Hexapod.ControllerState.ENABLED,
-                enabledSubstate=Hexapod.EnabledSubstate.STATIONARY,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
             )
             await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
             # The Mock controller does not compute position as a function
