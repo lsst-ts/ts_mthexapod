@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.11.0
+=======
+
+Changes:
+
+* Update to use and require ts_hexrotcomm 0.12:
+
+    * Add argument ``curr_tai`` to `MockMTHexapodController.update_telemetry` and use it.
+
+Requires:
+
+* ts_hexrotcomm 0.12
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7
+* MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
+
 v0.10.0
 =======
 
@@ -24,7 +41,6 @@ Requires:
 * ts_idl 2.2
 * ts_xml 7
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
-
 
 v0.9.0
 ======
