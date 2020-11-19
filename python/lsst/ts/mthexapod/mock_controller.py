@@ -24,7 +24,6 @@ import math
 
 import numpy as np
 
-from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import (
     ControllerState,
@@ -322,9 +321,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         if cmd_method != self.do_position_set:
             self.set_position = (math.nan,) * 6
 
-    async def update_telemetry(self):
+    async def update_telemetry(self, curr_tai):
         try:
-            curr_tai = salobj.current_tai()
             self.telemetry.status_word = (0,) * 6
             self.telemetry.latching_fault_status_register = (0,) * 6
             self.telemetry.copley_fault_status_register = (0,) * 6
