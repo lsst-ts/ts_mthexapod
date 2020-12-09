@@ -23,12 +23,14 @@ __all__ = ["Compensation"]
 import numpy as np
 
 from .ranged_polynomial import RangedPolynomial
+from . import base
 
 NUM_AXES = 6  # x, y, z, u, v, w
 
 
 class Compensation:
-    """Compute hexapod compensation for elevation, azimuth, and temperature.
+    """Compute hexapod compensation for elevation, azimuth, camera rotation,
+    and temperature.
 
     The compensation is computed as offsets for x, y, z, u, v, w.
 
@@ -49,6 +51,10 @@ class Compensation:
                 [0.000062],
             ]
 
+    azimuth_coeffs  : `list` [`list` [`float`]]
+        Azimuth coefficients, with the same format as ``elevation_coeffs``.
+    rotation_coeffs  : `list` [`list` [`float`]]
+        Rotation coefficients, with the same format as ``elevation_coeffs``.
     temperature_coeffs  : `list` [`list` [`float`]]
         Temperature `RangedPolynomial` coefficients, with the same format
         as ``elevation_coeffs``.
@@ -60,25 +66,36 @@ class Compensation:
     Raises
     ------
     ValueError
-        If ``elevation_coeffs``, ``azimuth_coeffs`` or ``temperature_coeffs``
-        is not a sequence of 6 items, or if any item is not a sequence
-        of floats with at least 1 element.
+        If ``elevation_coeffs``, ``azimuth_coeffs``, ``rotation_coeffs``,
+        or ``temperature_coeffs`` is not a sequence of 6 items,
+        or if any item is not a sequence of floats with at least 1 element.
     """
 
     def __init__(
-        self, *, elevation_coeffs, temperature_coeffs, min_temperature, max_temperature,
+        self,
+        *,
+        elevation_coeffs,
+        azimuth_coeffs,
+        rotation_coeffs,
+        temperature_coeffs,
+        min_temperature,
+        max_temperature,
     ):
-        if len(elevation_coeffs) != NUM_AXES:
-            raise ValueError(
-                f"elevation_coeffs={elevation_coeffs} must be 6 lists of coefficients"
-            )
-        if len(temperature_coeffs) != NUM_AXES:
-            raise ValueError(
-                f"temperature_coeffs={temperature_coeffs} must be 6 lists of coefficients"
-            )
-        self.elevation_polys = [
-            np.polynomial.Polynomial(elevation_coeffs[i]) for i in range(NUM_AXES)
-        ]
+        for name, coeffs in (
+            ("elevation", elevation_coeffs),
+            ("azimuth", azimuth_coeffs),
+            ("rotation", rotation_coeffs),
+            ("temperature", temperature_coeffs),
+        ):
+            if len(coeffs) != 6:
+                raise ValueError(f"{name}={coeffs} must be 6 lists of coefficients")
+
+            if name != "temperature":
+                setattr(
+                    self,
+                    f"{name}_polys",
+                    [np.polynomial.Polynomial(coeffs[i]) for i in range(NUM_AXES)],
+                )
         self.temperature_polys = [
             RangedPolynomial(
                 coeffs=temperature_coeffs[i],
@@ -88,34 +105,31 @@ class Compensation:
             for i in range(NUM_AXES)
         ]
 
-    def get_offsets(self, elevation, azimuth, temperature):
-        """Get compensation offsets.
+    def get_offset(self, inputs):
+        """Get compensation offset.
 
         Parameters
         ----------
-        elevation : `float`
-            Telescope elevation (deg). Must be in range [0, 90].
-        azimuth : `float`
-            Telescope azimuth (deg). There are no range limits;
-            azimuth is wrapped as needed.
-        temperature : `float`
-            Ambient temperature (C). There are no range limits;
-            see `RangedPolynomial` for details.
+        inputs : `CompensationInputs`
+            Inputs for the compensation model.
 
         Returns
         -------
-        offsets : `list` [`float`]
-            Offsets for x, y, z (um), u, v, w (deg), such that
-            compensated value = nominal value + offsets.
+        offset : `Position`
+            Compensation offsets, such that::
+
+                compensated position = uncompensated position + offset.
 
         Raises
         ------
         ValueError
             If elevation not in range [0, 90].
         """
-        if elevation < 0 or elevation > 90:
-            raise ValueError(f"elevation={elevation} must be in range [0, 90]")
-        return [
-            self.elevation_polys[i](elevation) + self.temperature_polys[i](temperature)
+        offsets = [
+            self.elevation_polys[i](inputs.elevation)
+            + self.azimuth_polys[i](inputs.azimuth)
+            + self.rotation_polys[i](inputs.rotation)
+            + self.temperature_polys[i](inputs.temperature)
             for i in range(NUM_AXES)
         ]
+        return base.Position(*offsets)
