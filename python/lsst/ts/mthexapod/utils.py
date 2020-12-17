@@ -23,6 +23,8 @@ __all__ = [
     "check_negative_value",
     "check_range",
     "check_symmetrical_range",
+    "check_position",
+    "check_new_position_limits",
     "rot2d",
     "rot_about_x",
     "rot_about_y",
@@ -111,6 +113,100 @@ def check_symmetrical_range(value, name, max_value, ExceptionClass=ValueError):
     """
     if not -max_value <= value <= max_value:
         raise ExceptionClass(f"{name}={value} not in range [-{max_value}, {max_value}]")
+
+
+def check_position(position, limits, ExceptionClass=ValueError):
+    """Raise ExceptionClass if a position is not within limits.
+
+    Parameters
+    ----------
+    position : `Position`
+        Position to check.
+    limits : `PositionLimits`
+        Position limits.
+    ExceptionClass : `Exception`, optional
+        Exception class to raise.
+    """
+    check_symmetrical_range(
+        value=position.x,
+        name="x",
+        max_value=limits.maxXY,
+        ExceptionClass=ExceptionClass,
+    )
+    check_symmetrical_range(
+        value=position.y,
+        name="y",
+        max_value=limits.maxXY,
+        ExceptionClass=ExceptionClass,
+    )
+    check_range(
+        value=position.z,
+        name="z",
+        min_value=limits.minZ,
+        max_value=limits.maxZ,
+        ExceptionClass=ExceptionClass,
+    )
+    check_symmetrical_range(
+        value=position.u,
+        name="u",
+        max_value=limits.maxUV,
+        ExceptionClass=ExceptionClass,
+    )
+    check_symmetrical_range(
+        value=position.v,
+        name="v",
+        max_value=limits.maxUV,
+        ExceptionClass=ExceptionClass,
+    )
+    check_range(
+        value=position.w,
+        name="w",
+        min_value=limits.minW,
+        max_value=limits.maxW,
+        ExceptionClass=ExceptionClass,
+    )
+
+
+def check_new_position_limits(limits, max_limits, ExceptionClass=ValueError):
+    """Raise ExceptionClass if proposed new position limits are not with range
+    of the maximum allowed position limits.
+    """
+    check_positive_value(
+        value=limits.maxXY,
+        name="maxXY",
+        max_value=max_limits.maxXY,
+        ExceptionClass=ExceptionClass,
+    )
+    check_negative_value(
+        value=limits.minZ,
+        name="minZ",
+        min_value=max_limits.minZ,
+        ExceptionClass=ExceptionClass,
+    )
+    check_positive_value(
+        value=limits.maxZ,
+        name="maxZ",
+        max_value=max_limits.maxZ,
+        ExceptionClass=ExceptionClass,
+    )
+    check_positive_value(
+        value=limits.maxUV,
+        name="maxUV",
+        max_value=max_limits.maxUV,
+        ExceptionClass=ExceptionClass,
+    )
+    check_negative_value(
+        value=limits.minW,
+        name="minW",
+        min_value=max_limits.minW,
+        ExceptionClass=ExceptionClass,
+    )
+    check_positive_value(
+        value=limits.maxW,
+        name="maxW",
+        max_value=max_limits.maxW,
+        ExceptionClass=ExceptionClass,
+    )
 
 
 def rot2d(xypos, ang):
