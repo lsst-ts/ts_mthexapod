@@ -4,7 +4,7 @@ ts_mthexapod
 
 Python Commandable SAL Component (CSC) for the camera and M2 hexapods on the Simonyi Survey Telescope.
 
-`Documentation <https://ts-mthexapod.lsst.io>`_
+Documentation: https://ts-mthexapod.lsst.io
 
 The package is compatible with Vera Rubin LSST DM's ``scons`` build system, and the `eups <https://github.com/RobertLuptonTheGood/eups>`_ package management system.
 Assuming you have the basic DM stack installed you can do the following, from within the package directory:
