@@ -25,13 +25,11 @@ __all__ = [
     "MAX_ACCEL_LIMIT",
     "MAX_LINEAR_VEL_LIMIT",
     "MAX_ANGULAR_VEL_LIMIT",
-    "XY_MAX_LIMIT",
-    "Z_MIN_LIMIT",
-    "Z_MAX_LIMIT",
-    "UV_MAX_LIMIT",
-    "W_MIN_LIMIT",
-    "W_MAX_LIMIT",
+    "MAX_POSITION_LIMITS",
 ]
+
+from . import base
+from . import enums
 
 # Required value of command.sync_pattern for MTHexapod commands.
 CAM_SYNC_PATTERN = 0x6666
@@ -44,10 +42,12 @@ MAX_ACCEL_LIMIT = 500.0
 MAX_LINEAR_VEL_LIMIT = 2000.0
 MAX_ANGULAR_VEL_LIMIT = 0.1146
 
-# Space command limits (CAM, M2), in microns and degrees
-XY_MAX_LIMIT = (11400, 10500)
-Z_MIN_LIMIT = (-13100, -8900)
-Z_MAX_LIMIT = (13100, 8900)
-UV_MAX_LIMIT = (0.36, 0.175)
-W_MIN_LIMIT = (-0.10, -0.05)
-W_MAX_LIMIT = (0.10, 0.05)
+# Position limits for the two hexapods
+MAX_POSITION_LIMITS = {
+    enums.SalIndex.CAMERA_HEXAPOD: base.PositionLimits(
+        maxXY=11400, minZ=-13100, maxZ=13100, maxUV=0.36, minW=-0.10, maxW=0.10,
+    ),
+    enums.SalIndex.M2_HEXAPOD: base.PositionLimits(
+        maxXY=10500, minZ=-8900, maxZ=8900, maxUV=0.175, minW=-0.05, maxW=0.05,
+    ),
+}

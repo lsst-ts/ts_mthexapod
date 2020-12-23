@@ -20,7 +20,7 @@
 
 __all__ = ["MockMTHexapodController"]
 
-import math
+import dataclasses
 
 import numpy as np
 
@@ -30,6 +30,7 @@ from lsst.ts.idl.enums.MTHexapod import (
     EnabledSubstate,
     ApplicationStatus,
 )
+from . import base
 from . import constants
 from . import enums
 from . import structs
@@ -123,12 +124,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         initial_state=ControllerState.OFFLINE,
     ):
         index = enums.SalIndex(index)
-        self.xy_max_limit = constants.XY_MAX_LIMIT[index - 1]
-        self.z_min_limit = constants.Z_MIN_LIMIT[index - 1]
-        self.z_max_limit = constants.Z_MAX_LIMIT[index - 1]
-        self.uv_max_limit = constants.UV_MAX_LIMIT[index - 1]
-        self.w_min_limit = constants.W_MIN_LIMIT[index - 1]
-        self.w_max_limit = constants.W_MAX_LIMIT[index - 1]
+        self.max_pos_limits = constants.MAX_POSITION_LIMITS[index]
         # Amplitude of jitter in various measured values,
         # to simulate encoder jitter. This add realism
         # and exercises jitter rejection in HexapodCommander.
@@ -139,14 +135,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         config = structs.Config()
         config.acceleration_strut = 500
         # Order: xy (um), minZ, max, uv (deg), minW, maxW
-        config.pos_limits = (
-            self.xy_max_limit,
-            self.z_min_limit,
-            self.z_max_limit,
-            self.uv_max_limit,
-            self.w_min_limit,
-            self.w_max_limit,
-        )
+        config.pos_limits = dataclasses.astuple(self.max_pos_limits)
         # Order: xy (deg/sec), xy rotation (um/sec), z, z rotation
         config.vel_limits = (
             constants.MAX_LINEAR_VEL_LIMIT,
@@ -172,7 +161,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
         telemetry = structs.Telemetry()
         telemetry.commanded_pos = (0,) * 6
-        self.set_position = (math.nan,) * 6
+        # The position specified by the POSITION_SET command (a `Position`);
+        # reset to None after any other command.
+        self.set_position = None
 
         # Dict of command key: command
         extra_commands = {
@@ -229,20 +220,10 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
     async def do_config_limits(self, command):
         self.assert_stationary()
-        utils.check_positive_value(command.param1, "maxXY", self.xy_max_limit)
-        utils.check_negative_value(command.param2, "minZ", self.z_min_limit)
-        utils.check_positive_value(command.param3, "maxZ", self.z_max_limit)
-        utils.check_positive_value(command.param4, "maxUV", self.uv_max_limit)
-        utils.check_negative_value(command.param5, "minW", self.w_min_limit)
-        utils.check_positive_value(command.param6, "maxW", self.w_max_limit)
-        self.config.pos_limits = (
-            command.param1,
-            command.param2,
-            command.param3,
-            command.param4,
-            command.param5,
-            command.param6,
-        )
+        limits_values = tuple(getattr(command, f"param{i + 1}") for i in range(6))
+        limits = base.PositionLimits(*limits_values)
+        utils.check_new_position_limits(limits=limits, max_limits=self.max_pos_limits)
+        self.config.pos_limits = limits_values
         await self.write_config()
 
     async def do_config_vel(self, command):
@@ -266,24 +247,11 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
     async def do_position_set(self, command):
         self.assert_stationary()
-        utils.check_symmetrical_range(command.param1, "x", self.config.pos_limits[0])
-        utils.check_symmetrical_range(command.param2, "y", self.config.pos_limits[0])
-        utils.check_range(
-            command.param3, "z", self.config.pos_limits[1], self.config.pos_limits[2]
-        )
-        utils.check_symmetrical_range(command.param4, "u", self.config.pos_limits[3])
-        utils.check_symmetrical_range(command.param5, "v", self.config.pos_limits[3])
-        utils.check_range(
-            command.param6, "w", self.config.pos_limits[4], self.config.pos_limits[5]
-        )
-        self.set_position = (
-            command.param1,
-            command.param2,
-            command.param3,
-            command.param4,
-            command.param5,
-            command.param6,
-        )
+        position_values = tuple(getattr(command, f"param{i + 1}") for i in range(6))
+        position = base.Position(*position_values)
+        limits = base.PositionLimits(*self.config.pos_limits)
+        utils.check_position(position=position, limits=limits)
+        self.set_position = position
 
     async def do_set_pivotpoint(self, command):
         self.assert_stationary()
@@ -297,11 +265,11 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.move_commanded = False
 
     async def do_move_point_to_point(self, command):
-        if not math.isfinite(self.set_position[0]):
+        if self.set_position is None:
             raise RuntimeError(
                 "Must call POSITION_SET before calling MOVE_POINT_TO_POINT"
             )
-        self.telemetry.commanded_pos = self.set_position
+        self.telemetry.commanded_pos = dataclasses.astuple(self.set_position)
         duration = self.hexapod.move(
             pos=self.telemetry.commanded_pos[0:3],
             xyzrot=self.telemetry.commanded_pos[3:6],
@@ -319,7 +287,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
     async def end_run_command(self, command, cmd_method):
         if cmd_method != self.do_position_set:
-            self.set_position = (math.nan,) * 6
+            self.set_position = None
 
     async def update_telemetry(self, curr_tai):
         try:

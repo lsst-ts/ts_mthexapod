@@ -5,18 +5,52 @@ description: Configuration for the MTHexapod CSCs
 
 definitions:
   instance_specific_config:
-    description: >-
-      Configuration specific to the Camera or M2 MTHexapod.
-      A warning about default values: if you specify any fields of camera_config or m2_config
-      then you must specify all fields that item.
+    description: Configuration specific to the Camera or M2 MTHexapod.
     type: object
     properties:
+      reference_position:
+        description: >-
+          The reference position for this hexapod in order: x y z (um) u, v, w (deg).
+          This position should be your best guess of the position to produce a collimated beam.
+          The moveToReference command moves to this position.
+        type: array
+        minItems: 6
+        maxItems: 6
+        items:
+          type: number
       elevation_coeffs:
         description: >-
           Elevation compensation coefficients.
           Rows are coefficients for x, y, z (um), u, v, w (deg).
           Values are the coefficients in equation C0 + C1 el + C2 el^2 + ..., where el is in deg.
-          Compensated value = nominal value + elevation compensation + temperature compensation.
+          Compensated value = uncompensated (user-specified) value + elevation compensation
+            + azimuth compensation + rotation compensation + temperature compensation.
+        type: array
+        minItems: 6
+        maxItems: 6
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: number
+      azimuth_coeffs:
+        description: >-
+          Azimuth compensation coefficients.
+          Rows are coefficients for x, y, z (um), u, v, w (deg).
+          Values are the coefficients in equation C0 + C1 az + C2 az^2 + ..., where az is in deg.
+        type: array
+        minItems: 6
+        maxItems: 6
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: number
+      rotation_coeffs:
+        description: >-
+          Camera rotation compensation coefficients.
+          Rows are coefficients for x, y, z (um), u, v, w (deg).
+          Values are the coefficients in equation C0 + C1 rot + C2 rot^2 + ..., where rot is in deg.
         type: array
         minItems: 6
         maxItems: 6
@@ -53,10 +87,29 @@ definitions:
 
 type: object
 properties:
+  compensation_interval:
+    description: Time between compensation updates (seconds).
+    type: number
+    default: 0.2
   camera_config:
     $ref: "#/definitions/instance_specific_config"
     default:
+      reference_position: [0, 0, 0, 0, 0, 0]
       elevation_coeffs:
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+      azimuth_coeffs:
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+      rotation_coeffs:
         - [0]
         - [0]
         - [0]
@@ -75,7 +128,22 @@ properties:
   m2_config:
     $ref: "#/definitions/instance_specific_config"
     default:
+      reference_position: [0, 0, 0, 0, 0, 0]
       elevation_coeffs:
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+      azimuth_coeffs:
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+        - [0]
+      rotation_coeffs:
         - [0]
         - [0]
         - [0]
