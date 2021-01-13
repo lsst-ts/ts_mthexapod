@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import copy
 import itertools
 import unittest
 import pathlib
@@ -44,8 +45,12 @@ class ValidationTestCase(unittest.TestCase):
 
     def test_default(self):
         result = self.validator.validate(None)
+        self.assertEqual(result["compensation_interval"], 0.2)
         for instance in self.instance_names:
+            self.assertEqual(len(result[instance]["reference_position"]), 6)
             self.assertEqual(len(result[instance]["elevation_coeffs"]), 6)
+            self.assertEqual(len(result[instance]["azimuth_coeffs"]), 6)
+            self.assertEqual(len(result[instance]["rotation_coeffs"]), 6)
             self.assertEqual(len(result[instance]["temperature_coeffs"]), 6)
             self.assertLessEqual(result[instance]["min_temperature"], 0)
             self.assertGreaterEqual(result[instance]["max_temperature"], 20)
@@ -54,35 +59,62 @@ class ValidationTestCase(unittest.TestCase):
         defaults = self.validator.validate(None)
         for instance in self.instance_names:
             for name, delta in (("min_temperature", -1.5), ("max_temperature", 3.1)):
-                data = defaults.copy()
+                data = copy.deepcopy(defaults)
                 value = data[instance][name] + delta
                 data[instance][name] = value
                 result = self.validator.validate(data)
                 self.assertAlmostEqual(result[instance][name], value)
 
+    def test_reference_position_specified(self):
+        name = "reference_position"
+        defaults = self.validator.validate(None)
+
+        for instance in self.instance_names:
+            data = copy.deepcopy(defaults)
+            value = [1, 2, 3, 4, 5, 6]
+            data[instance][name] = value
+            result = self.validator.validate(data)
+            self.assertAlmostEqual(result[instance][name], value)
+
+            for bad_value in (
+                [1, 2, 3, 4, 5],  # Too few values
+                [1, 2, 3, 4, 5, 6, 7],  # Too many values
+                [1, 2, 3, 4, 5, "not a number"],
+            ):
+                data = copy.deepcopy(defaults)
+                data[instance][name] = bad_value
+                with self.assertRaises(jsonschema.exceptions.ValidationError):
+                    self.validator.validate(data)
+
     def test_coeffs_specified(self):
         defaults = self.validator.validate(None)
-        for instance in self.instance_names:
-            for short_name, coeffs in itertools.product(
-                ("elevation", "temperature"),
-                (
-                    [[0]] * 6,
-                    [
-                        [1.1, 1.2],
-                        [2.1, 2.2, 2.3],
-                        [3.1, 3.2, 3.3, 3.4],
-                        [4.1, 4.2, 4.3, 4.4, 4.5],
-                        [5.1, 5.2, 5.3, 5.4, 5.5, 5.6],
-                        [6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7],
-                    ],
-                ),
-            ):
-                data = defaults.copy()
-                name = f"{short_name}_coeffs"
-                data[instance][name] = coeffs
-                result = self.validator.validate(data)
-                for i in range(6):
-                    np.testing.assert_allclose(result[instance][name][i], coeffs[i])
+        # Test validating a dict that only has data for one instance,
+        # and with a dict that has data for all instances.
+        for just_one_instance in (False, True):
+            for instance in self.instance_names:
+                for short_name, coeffs in itertools.product(
+                    ("elevation", "azimuth", "rotation", "temperature"),
+                    (
+                        [[0]] * 6,
+                        [
+                            [1.1, 1.2],
+                            [2.1, 2.2, 2.3],
+                            [3.1, 3.2, 3.3, 3.4],
+                            [4.1, 4.2, 4.3, 4.4, 4.5],
+                            [5.1, 5.2, 5.3, 5.4, 5.5, 5.6],
+                            [6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7],
+                        ],
+                    ),
+                ):
+                    if just_one_instance:
+                        data = {instance: copy.deepcopy(defaults[instance])}
+                    else:
+                        data = copy.deepcopy(defaults)
+                    name = f"{short_name}_coeffs"
+                    data[instance][name] = coeffs
+                    result = self.validator.validate(data)
+                    for i in range(6):
+                        np.testing.assert_allclose(result[instance][name][i], coeffs[i])
 
     def test_bad_coeffs(self):
         defaults = self.validator.validate(None)
@@ -100,7 +132,7 @@ class ValidationTestCase(unittest.TestCase):
                     [[0], [0], [0], [0], [0], []],
                 ),
             ):
-                data = defaults.copy()
+                data = copy.deepcopy(defaults)
                 name = f"{short_name}_coeffs"
                 data[instance][name] = bad_coeffs
                 with self.assertRaises(jsonschema.exceptions.ValidationError):

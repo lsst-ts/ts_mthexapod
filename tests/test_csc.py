@@ -20,6 +20,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
+import copy
+import dataclasses
 import logging
 import pathlib
 import unittest
@@ -34,6 +37,9 @@ from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import ControllerState, EnabledSubstate
 
 STD_TIMEOUT = 10  # timeout for command ack
+EPSILON = 1e-10  # approx allowed error between float and double
+
+ZERO_POSITION = mthexapod.Position(0, 0, 0, 0, 0, 0)
 
 logging.basicConfig()
 
@@ -42,14 +48,446 @@ index_gen = salobj.index_generator(imin=1, imax=2)
 local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
 
+class CompensationInputs:
+    """Inputs for the compensation model."""
+
+    def __init__(self, elevation, azimuth, rotation, temperature):
+        self.elevation = elevation
+        self.azimuth = azimuth
+        self.rotation = rotation
+        self.temperature = temperature
+
+
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
-    def basic_make_csc(self, initial_state, simulation_mode=1, config_dir=None):
+    def basic_make_csc(
+        self, initial_state, config_dir=None, settings_to_apply="", simulation_mode=1
+    ):
         return mthexapod.HexapodCsc(
             index=next(index_gen),
             initial_state=initial_state,
+            settings_to_apply=settings_to_apply,
             simulation_mode=simulation_mode,
             config_dir=config_dir,
         )
+
+    @contextlib.asynccontextmanager
+    async def make_csc(
+        self,
+        initial_state=salobj.State.STANDBY,
+        config_dir=None,
+        settings_to_apply="",
+        simulation_mode=1,
+        log_level=None,
+        timeout=STD_TIMEOUT,
+    ):
+        # TODO DM-28005: add a controller for the temperature
+        async with super().make_csc(
+            initial_state=initial_state,
+            config_dir=config_dir,
+            settings_to_apply=settings_to_apply,
+            simulation_mode=simulation_mode,
+            log_level=log_level,
+            timeout=timeout,
+        ), salobj.Controller(
+            name="NewMTMount",
+        ) as self.mtmount_controller, salobj.Controller(
+            name="MTRotator",
+        ) as self.mtrotator_controller:
+            # self.mtmount_controller = mtmount_controller
+            # self.mtrotator_controller = mtrotator_controller
+            yield
+
+    async def assert_next_application(self, desired_position):
+        """Wait for and check the next application telemetry.
+
+        Test desired_position against the ``demand`` field
+        (for which tight matching is expected)
+        and the ``position`` field (with more slop to accommodate jitter
+        added by the mock controller).
+
+        Try three samples before giving up, to avoid a race condition
+        (two may suffice, but allowing a third is inexpensive).
+
+        Parameters
+        ----------
+        desired_position : `Position`
+            Desired position
+        """
+        for i in range(3):
+            desired_pos_tuple = dataclasses.astuple(desired_position)
+            data = await self.remote.tel_application.next(
+                flush=True, timeout=STD_TIMEOUT
+            )
+            if np.allclose(data.demand, desired_pos_tuple):
+                if i > 0:
+                    print(f"assert_next_application required {i + 1} iterations")
+                break
+        else:
+            self.fail(
+                f"desired_position={desired_pos_tuple} - "
+                f"demand={data.demand} too large: "
+                f"{np.subtract(desired_pos_tuple, data.demand)}"
+            )
+
+        # Add slop to accommodate jitter added by the mock controller.
+        np.testing.assert_allclose(data.position[:3], desired_pos_tuple[:3], atol=1)
+        np.testing.assert_allclose(data.position[3:], desired_pos_tuple[3:], atol=1e-5)
+
+    async def assert_next_compensation(self, compensation_inputs, offset):
+        """Wait for and check the next compensation event.
+
+        Parameters
+        ----------
+        compensation_inputs : `CompensationInputs`
+            Compensation inputs.
+        offset : `Position`
+            Expected compensation offset.
+        """
+        data = await self.assert_next_sample(self.remote.evt_compensationOffset)
+        self.assertAlmostEqual(data.elevation, compensation_inputs.elevation)
+        self.assertAlmostEqual(data.azimuth, compensation_inputs.azimuth)
+        self.assertAlmostEqual(data.rotation, compensation_inputs.rotation)
+        # TODO DM-28005: check specified temperature
+        self.assertAlmostEqual(data.temperature, 0)
+
+        for i, name in enumerate(("x", "y", "z", "u", "v", "w")):
+            self.assertAlmostEqual(getattr(data, name), getattr(offset, name))
+
+    async def assert_next_compensated_position(self, position):
+        """Wait for and check the next uncompensatedPosition event.
+
+        Parameters
+        ----------
+        position : `Position`
+            Expected compensated position.
+        """
+        data = await self.assert_next_sample(self.remote.evt_compensatedPosition)
+        read_position = mthexapod.Position.from_struct(data)
+
+        self.assert_dataclasses_almost_equal(position, read_position)
+
+    async def assert_next_uncompensated_position(self, position):
+        """Wait for and check the next uncompensatedPosition event.
+
+        Parameters
+        ----------
+        position : `Position`
+            Expected uncompensated position.
+        """
+        data = await self.assert_next_sample(self.remote.evt_uncompensatedPosition)
+        read_position = mthexapod.Position.from_struct(data)
+
+        self.assert_dataclasses_almost_equal(position, read_position)
+
+    async def check_move(
+        self,
+        uncompensated_position,
+        est_move_duration,
+        speed_factor=2,
+        command_move=True,
+    ):
+        """Test point to point motion using the move command.
+
+        Initially expects to see the following events:
+
+        * controllerState with state ENABLED/STATIONARY
+        * inPosition event with inPosition=False
+        * actuatorInPosition with all axes False.
+
+        Checks inPosition and uncompensatedPosition events.
+        Does not check compensatedPosition or application telemetry,
+        since those values depend on whether the move is compensated.
+
+        Parameters
+        ----------
+        uncompensated_position : `Position`
+            Uncompensated position.
+        est_move_duration : `float`
+            Estimated move duration (sec)
+        speed_factor : `float`
+            Amount by which to scale actuator speeds. Intended to allow
+            speeding up moves so tests run more quickly.
+        command_move : `bool`
+            Issue the move command? Set True for most tests,
+            false when testing moveToReference.
+        """
+        self.set_speed_factor(speed_factor)
+        await self.assert_next_sample(
+            topic=self.remote.evt_controllerState,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.STATIONARY,
+        )
+        await self.basic_check_move(
+            uncompensated_position=uncompensated_position,
+            est_move_duration=est_move_duration,
+            command_move=command_move,
+        )
+
+    async def basic_check_move(
+        self, uncompensated_position, est_move_duration, command_move=True
+    ):
+        """Test point to point motion using the move command.
+
+        Initially expects to see the following events:
+
+        * inPosition event with inPosition=False
+
+        Checks inPosition and target events.
+        Does not check application telemetry, since those values
+        depend on whether the move is compensated.
+
+        Parameters
+        ----------
+        uncompensated_position : `Position`
+            Desired position.
+        est_move_duration : `float`
+            Estimated move duration (sec)
+        command_move : `bool`
+            Issue the move command? Set True for most tests,
+            false when testing moveToReference.
+        """
+        t0 = time.time()
+        if command_move:
+            await self.remote.cmd_move.set_start(
+                **vars(uncompensated_position), timeout=STD_TIMEOUT
+            )
+        await self.assert_next_sample(
+            topic=self.remote.evt_controllerState,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
+        )
+        try:
+            await self.assert_next_sample(
+                topic=self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+                timeout=STD_TIMEOUT + est_move_duration,
+            )
+        except asyncio.TimeoutError:
+            self.fail(
+                f"Move timed out in {STD_TIMEOUT+est_move_duration} seconds; "
+                f"remaining move time {self.csc.mock_ctrl.hexapod.remaining_time():0.2f}"
+            )
+
+        await self.assert_next_sample(self.remote.evt_inPosition, inPosition=False)
+        await self.assert_next_sample(self.remote.evt_inPosition, inPosition=True)
+        data = await self.remote.evt_actuatorInPosition.next(
+            flush=False, timeout=STD_TIMEOUT
+        )
+        self.assertIn(False, data.inPosition)
+        # Check that actuatorInPosition returns all in position;
+        # this should occur within 6 events (fewer if several actuators
+        # finish their move at the same time).
+        for i in range(6):
+            try:
+                data = await self.remote.evt_actuatorInPosition.next(
+                    flush=False, timeout=STD_TIMEOUT
+                )
+                self.assertIn(True, data.inPosition)
+                if False not in data.inPosition:
+                    break
+            except asyncio.TimeoutError:
+                self.fail("actuatorInPosition timed out before all True")
+        else:
+            self.fail("actuatorInPosition output 6 times, but not all True")
+
+        print(f"Move duration: {time.time() - t0:0.2f} seconds")
+        await self.assert_next_uncompensated_position(position=uncompensated_position)
+
+    async def check_compensation(
+        self, uncompensated_position, compensation_inputs, update_inputs
+    ):
+        """Check compensation for a given set of of compensation inputs.
+
+        Parameters
+        ----------
+        uncompensated_position : `list` [`float`]
+            Target x, y, z (um), u, v, w (deg).
+        compensation_inputs : `CompensationInputs`
+            Compensation inputs
+        update_inputs : `bool`
+            Send these compensation_inputs to the CSC?
+            Set False if this has already been done.
+        """
+        if update_inputs:
+            await self.set_compensation_inputs(**vars(compensation_inputs))
+
+        # Wait for the compensation event with the correct inputs
+        # (we have to set inputs one at a time, so we may see
+        # a compensation event with incorrect inputs)
+        data = None
+        while (
+            data is None
+            or abs(data.elevation - compensation_inputs.elevation) > EPSILON
+            or abs(data.azimuth - compensation_inputs.azimuth) > EPSILON
+            or abs(data.rotation - compensation_inputs.rotation) > EPSILON
+            # TODO DM-28005: check specified temperature
+        ):
+            data = await self.remote.evt_compensationOffset.next(
+                flush=False, timeout=STD_TIMEOUT
+            )
+
+        # TODO DM-28005: use compensation_inputs directly
+        hacked_compensation_inputs = copy.copy(compensation_inputs)
+        hacked_compensation_inputs.temperature = 0
+        compensation_offset = self.csc.compensation.get_offset(
+            hacked_compensation_inputs
+        )
+        if update_inputs:
+            # We set the compensation inputs, so we know compensation
+            # should be nonzero in at least one axis.
+            nonzero = [
+                offset != 0 for offset in dataclasses.astuple(compensation_offset)
+            ]
+            self.assertIn(True, nonzero)
+
+        self.assertAlmostEqual(data.elevation, compensation_inputs.elevation)
+        self.assertAlmostEqual(data.azimuth, compensation_inputs.azimuth)
+        self.assertAlmostEqual(data.rotation, compensation_inputs.rotation)
+        # TODO DM-28005: check specified temperature
+        self.assertAlmostEqual(data.temperature, 0)
+
+        reported_compensation_offset = mthexapod.Position.from_struct(data)
+        self.assert_dataclasses_almost_equal(
+            reported_compensation_offset, compensation_offset
+        )
+
+        desired_compensated_position = uncompensated_position + compensation_offset
+        await self.assert_next_application(
+            desired_position=desired_compensated_position
+        )
+
+    async def check_offset(
+        self, first_uncompensated_position, offset, est_move_duration
+    ):
+        await self.check_move(
+            uncompensated_position=first_uncompensated_position, est_move_duration=1,
+        )
+        offset = mthexapod.Position(50, -100, 135, 0.005, -0.005, 0.01)
+        await self.remote.cmd_offset.set_start(**vars(offset), timeout=STD_TIMEOUT)
+        await self.assert_next_sample(
+            topic=self.remote.evt_controllerState,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
+        )
+        await self.assert_next_sample(
+            topic=self.remote.evt_controllerState,
+            controllerState=ControllerState.ENABLED,
+            enabledSubstate=EnabledSubstate.STATIONARY,
+        )
+
+    def limits_to_min_position(self, limits):
+        """Return the position corresponding to the minimum position limit.
+
+        Parameters
+        ----------
+        limits : `PositionLimits`
+            Position limits
+
+        Returns
+        -------
+        position : `Position`
+            Position at the lower limit.
+        """
+        return mthexapod.Position(
+            x=-limits.maxXY,
+            y=-limits.maxXY,
+            z=limits.minZ,
+            u=-limits.maxUV,
+            v=-limits.maxUV,
+            w=limits.minW,
+        )
+
+    def limits_to_max_position(self, limits):
+        """Return the position corresponding to the maximum position limit.
+
+        Parameters
+        ----------
+        limits : `PositionLimits`
+            Position limits
+
+        Returns
+        -------
+        position : `Position`
+            Position at the upper limit.
+        """
+        return mthexapod.Position(
+            x=limits.maxXY,
+            y=limits.maxXY,
+            z=limits.maxZ,
+            u=limits.maxUV,
+            v=limits.maxUV,
+            w=limits.maxW,
+        )
+
+    async def set_compensation_inputs(
+        self, elevation, azimuth, rotation, temperature, timeout=STD_TIMEOUT
+    ):
+        """Set one or more of the compensation input topics read by the CSC.
+
+        This accepts individual parameters rather than a `CompensationInputs`
+        in order to allow specifying partial inputs.
+        To call with a `CompensationInputs`, call with::
+
+            **vars(compensation_input)
+
+        Parameters
+        ----------
+        elevation : `float` or `None`
+            MTMount target elevation (deg)
+        azimuth : `float` or `None`
+            MTMount target azimuth (deg)
+        rotation : `float` or `None`
+            MTRotator target rotation angle (deg)
+        temperature : `float` or `None`
+            Target temperature (C).
+        timeout : `float`
+            Time limit (sec) for detecting that the CSC has read
+            the new values.
+
+        Warning: the temperature parameter is ignored.
+        TODO DM-28005: write the temperature
+        """
+        if (elevation is None) != (azimuth is None):
+            self.fail(
+                f"elevation={elevation} and azimuth={azimuth} "
+                "must both be numbers, or both be None"
+            )
+        did_something = False
+        if elevation is not None:
+            did_something = True
+            self.mtmount_controller.evt_target.set_put(
+                elevation=elevation, azimuth=azimuth
+            )
+        if rotation is not None:
+            did_something = True
+            self.mtrotator_controller.evt_target.set_put(position=rotation)
+        if not did_something:
+            self.fail("Must specify at least one non-None input")
+
+        t0 = salobj.current_tai()
+        while salobj.current_tai() - t0 < timeout:
+            await asyncio.sleep(0.1)
+            if elevation is not None:
+                mtmount_target = self.csc.mtmount.evt_target.get()
+                if (
+                    mtmount_target is None
+                    or abs(mtmount_target.elevation - elevation) > EPSILON
+                    or abs(mtmount_target.azimuth - azimuth) > EPSILON
+                ):
+                    continue
+            if rotation is not None:
+                mtrotator_target = self.csc.mtrotator.evt_target.get()
+                if (
+                    mtrotator_target is None
+                    or abs(mtrotator_target.position - rotation) > EPSILON
+                ):
+                    continue
+            break
+        else:
+            self.fail(
+                "Timed out waiting for MTMount or MTRotator data to be seen by the CSC"
+            )
 
     def set_speed_factor(self, speed_factor):
         """Multiply the speed of each actuator by a specified factor.
@@ -78,8 +516,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                 mthexapod.HexapodCsc(
                     index=bad_index,
                     initial_state=salobj.State.STANDBY,
-                    simulation_mode=1,
                     config_dir=None,
+                    simulation_mode=1,
                 )
 
         # Bad simulation_mode, initial_state, and config_dir
@@ -92,9 +530,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                 "configureAcceleration",
                 "configureLimits",
                 "move",
-                "moveWithCompensation",
+                "moveToReference",
                 "offset",
-                "pivot",
+                "setCompensationMode",
+                "setPivot",
                 "stop",
             )
             await self.check_standard_state_transitions(
@@ -125,23 +564,22 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                             acceleration=bad_acceleration, timeout=STD_TIMEOUT
                         )
 
+    def assert_dataclasses_almost_equal(self, dataclass1, dataclass2):
+        """Assert two dataclasses or other instances that support vars
+        have the same field names and nearly equal values for each field.
+        """
+        vars1 = vars(dataclass1)
+        vars2 = vars(dataclass2)
+        self.assertEqual(vars1, vars(dataclass1))
+        self.assertEqual(vars1.keys(), vars2.keys())
+        for name in vars1.keys():
+            self.assertAlmostEqual(
+                vars1[name], vars2[name], msg=f"{type(dataclass1).__name__}.{name}"
+            )
+
     async def test_configure_limits(self):
         """Test the configureLimits command.
         """
-
-        def get_limits(data):
-            """Get position limits from a configuration sample
-            as a tuple of 6 values.
-            """
-            return (
-                data.maxXY,
-                data.minZ,
-                data.maxZ,
-                data.maxUV,
-                data.minW,
-                data.maxW,
-            )
-
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
@@ -153,75 +591,62 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             data = await self.remote.evt_configuration.next(
                 flush=False, timeout=STD_TIMEOUT
             )
-            initial_limits = get_limits(data)
+            initial_limits = mthexapod.PositionLimits.from_struct(data)
 
-            new_limits = tuple(lim * 0.1 for lim in initial_limits)
+            # Use small limits for our extreme moves,
+            # so we don't exceed the actuator length limits.
+            new_limits_kwargs = {
+                name: value * 0.1 for name, value in vars(initial_limits).items()
+            }
+            new_limits = mthexapod.PositionLimits(**new_limits_kwargs)
             await self.remote.cmd_configureLimits.set_start(
-                maxXY=new_limits[0],
-                minZ=new_limits[1],
-                maxZ=new_limits[2],
-                maxUV=new_limits[3],
-                minW=new_limits[4],
-                maxW=new_limits[5],
-                timeout=STD_TIMEOUT,
+                **new_limits_kwargs, timeout=STD_TIMEOUT,
             )
             data = await self.remote.evt_configuration.next(
                 flush=False, timeout=STD_TIMEOUT
             )
-            reported_limits = get_limits(data)
-            for i in range(4):
-                self.assertAlmostEqual(new_limits[i], reported_limits[i])
+            reported_limits = mthexapod.PositionLimits.from_struct(data)
+            self.assert_dataclasses_almost_equal(new_limits, reported_limits)
+
+            # Test that we can move to the limits
+            good_min_position = self.limits_to_min_position(new_limits)
+            good_max_position = self.limits_to_max_position(new_limits)
+
+            await self.basic_check_move(
+                uncompensated_position=good_min_position, est_move_duration=2
+            )
+
+            await self.basic_check_move(
+                uncompensated_position=good_max_position, est_move_duration=2
+            )
 
             # Make sure we cannot move to a position outside the new limits
-            good_max_position = self.limits_to_max_position(new_limits)
-            good_min_position = self.limits_to_min_position(new_limits)
+            for name in good_min_position.field_names():
+                bad_min_position = copy.copy(good_min_position)
+                setattr(bad_min_position, name, getattr(bad_min_position, name) * 1.01)
 
-            bad_max_position = tuple(val * 1.01 for val in good_max_position)
-            bad_min_position = tuple(val * 1.01 for val in good_min_position)
-            move_kwargs = self.make_xyzuvw_kwargs(bad_max_position)
-            with salobj.assertRaisesAckError():
-                await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
-            move_kwargs = self.make_xyzuvw_kwargs(bad_min_position)
-            with salobj.assertRaisesAckError():
-                await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
+                bad_max_position = copy.copy(good_max_position)
+                setattr(bad_max_position, name, getattr(bad_max_position, name) * 1.01)
 
-            # Make sure we can move to the new limits
-            await self.basic_check_move(
-                destination=good_max_position, est_move_duration=2, elaztemp=None
-            )
+                with salobj.assertRaisesAckError():
+                    await self.remote.cmd_move.set_start(
+                        **vars(bad_min_position), timeout=STD_TIMEOUT
+                    )
 
-            await self.basic_check_move(
-                destination=good_min_position, est_move_duration=2, elaztemp=None
-            )
+                with salobj.assertRaisesAckError():
+                    await self.remote.cmd_move.set_start(
+                        **vars(bad_max_position), timeout=STD_TIMEOUT
+                    )
 
-            def make_modified_limits(i, value):
-                """Make modified limits from initial_limits,
-                setting one element to a new value.
-                """
-                bad_limits = list(initial_limits)
-                bad_limits[i] = value
-                return tuple(bad_limits)
-
-            for bad_limits in (
-                make_modified_limits(0, 0),
-                make_modified_limits(0, self.csc.xy_max_limit + 0.001),
-                make_modified_limits(1, self.csc.z_min_limit - 0.001),
-                make_modified_limits(2, self.csc.z_max_limit + 0.001),
-                make_modified_limits(3, 0),
-                make_modified_limits(3, self.csc.uv_max_limit + 0.001),
-                make_modified_limits(4, self.csc.w_min_limit - 0.001),
-                make_modified_limits(5, self.csc.w_max_limit + 0.001),
-            ):
-                with self.subTest(bad_limits=bad_limits):
+            # Try setting limits that exceed the allowed values
+            for name, value in vars(self.csc.max_pos_limits).items():
+                bad_limits = copy.copy(self.csc.max_pos_limits)
+                bad_value = value * 1.01
+                setattr(bad_limits, name, bad_value)
+                with self.subTest(name=name, bad_value=bad_value):
                     with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
                         await self.remote.cmd_configureLimits.set_start(
-                            maxXY=bad_limits[0],
-                            minZ=bad_limits[1],
-                            maxZ=bad_limits[2],
-                            maxUV=bad_limits[3],
-                            minW=bad_limits[4],
-                            maxW=bad_limits[5],
-                            timeout=STD_TIMEOUT,
+                            **vars(bad_limits), timeout=STD_TIMEOUT,
                         )
 
     async def test_configure_velocity(self):
@@ -326,261 +751,367 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
                             timeout=STD_TIMEOUT,
                         )
 
-    async def test_move(self):
-        async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
-            await self.check_move(
-                destination=(300, 400, -300, 0.01, 0.02, -0.015),
-                est_move_duration=1,
-                elaztemp=None,
-            )
-
-    async def test_move_with_compensation(self):
+    async def test_move_no_compensation_no_compensation_inputs(self):
+        """Test move with compensation disabled when the CSC has
+        no compensation inputs (which it should allow).
+        """
         async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
             config_dir=local_config_dir,
-            initial_state=salobj.State.STANDBY,
+            settings_to_apply="valid.yaml",
             simulation_mode=1,
         ):
-            await salobj.set_summary_state(
-                remote=self.remote,
-                state=salobj.State.ENABLED,
-                settingsToApply="valid.yaml",
-            )
+            await self.assert_next_application(desired_position=ZERO_POSITION)
             await self.assert_next_sample(
-                topic=self.remote.evt_controllerState,
-                controllerState=ControllerState.STANDBY,
+                topic=self.remote.evt_compensationMode, enabled=False
             )
-            await self.assert_next_sample(
-                topic=self.remote.evt_controllerState,
-                controllerState=ControllerState.DISABLED,
+
+            uncompensated_position = mthexapod.Position(
+                300, 400, -300, 0.01, 0.02, -0.015
             )
             await self.check_move(
-                destination=(500, -300, 200, 0.03, -0.02, 0.03),
-                est_move_duration=1,
-                elaztemp=(32, 44, 15),
+                uncompensated_position=uncompensated_position, est_move_duration=1,
             )
+            await self.assert_next_compensated_position(uncompensated_position)
+            await self.assert_next_application(desired_position=uncompensated_position)
 
-    async def assert_next_position(self, desired_position):
-        """Wait for application telemetry and check the position.
-
-        Parameters
-        ----------
-        desired_position : `List` [`float`]
-            Desired position: x, y, z (µm), rotx, roty, rotz (deg)
+    async def test_move_no_compensation_with_compensation_inputs(self):
+        """Test move with compensation disabled when the CSC has
+        compensation inputs (which it should ignore).
         """
-        data = await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
-        np.testing.assert_allclose(data.demand, desired_position)
-        # Add slop to accommodate jitter added by the mock controller.
-        np.testing.assert_allclose(data.position[:3], desired_position[:3], atol=1)
-        np.testing.assert_allclose(data.position[3:], desired_position[3:], atol=1e-5)
-
-    async def assert_next_target(
-        self, uncompensated_position, compensated_position, elaztemp=None
-    ):
-        """Wait for next target event and check position.
-
-        Parameters
-        ----------
-        uncompensated_position : `List` [`float`]
-            Uncompensated position: x, y, z (µm), rotx, roty, rotz (deg)
-        compensated_position : `List` [`float`]
-            Compensated position: x, y, z (µm), rotx, roty, rotz (deg)
-        elaztemp : `List` [`float`] or `None`
-            Elevation, azimuth (deg) and temperature (C),
-            or None of the move was not compensated.
-        """
-        if elaztemp is None:
-            data = await self.assert_next_sample(
-                self.remote.evt_target,
-                compensated=False,
-                elevation=0,
-                azimuth=0,
-                temperature=0,
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            await self.set_compensation_inputs(
+                elevation=45, azimuth=-50, rotation=88, temperature=23
             )
-            compensated_position = uncompensated_position
-        else:
-            data = await self.assert_next_sample(
-                self.remote.evt_target, compensated=True
-            )
-            self.assertAlmostEqual(data.elevation, elaztemp[0])
-            self.assertAlmostEqual(data.azimuth, elaztemp[1])
-            self.assertAlmostEqual(data.temperature, elaztemp[2])
 
-        for i, name in enumerate(("x", "y", "z", "u", "v", "w")):
-            uncomp_name = "uncompensated" + name.upper()
-            self.assertAlmostEqual(
-                uncompensated_position[i], getattr(data, uncomp_name)
-            )
-            self.assertAlmostEqual(compensated_position[i], getattr(data, name))
-
-    async def check_move(
-        self, destination, est_move_duration, elaztemp, speed_factor=2
-    ):
-        """Test point to point motion using the positionSet and move
-        or moveWithCompensation commands.
-
-        Initially expects to see the following events:
-
-        * controllerState with state ENABLED/STATIONARY
-        * inPosition event with inPosition=False
-        * actuatorInPosition with all axes False.
-
-        Parameters
-        ----------
-        destination : `List` [`float`]
-            Destination x, y, z (µm), rotx, roty, rotz (deg)
-        est_move_duration : `float`
-            Estimated move duration (sec)
-        elaztemp : `List` [`float`] or `None`
-            Elevation, azimuth (deg) and temperature (C)
-            for the moveWithCompensation command.
-            If None then call move instead of moveWithCompensation.
-        speed_factor : `float`
-            Amount by which to scale actuator speeds. Intended to allow
-            speeding up moves so tests run more quickly.
-        """
-        self.assertEqual(len(destination), 6)
-        self.set_speed_factor(speed_factor)
-        await self.assert_next_sample(
-            topic=self.remote.evt_controllerState,
-            controllerState=ControllerState.ENABLED,
-            enabledSubstate=EnabledSubstate.STATIONARY,
-        )
-        await self.assert_next_position(desired_position=(0,) * 6)
-
-        await self.basic_check_move(
-            destination=destination,
-            est_move_duration=est_move_duration,
-            elaztemp=elaztemp,
-        )
-
-    async def basic_check_move(self, destination, est_move_duration, elaztemp):
-        """Test point to point motion using the positionSet and move
-        or moveWithCompensation commands.
-
-        Initially expects to see the following events:
-
-        * inPosition event with inPosition=False
-
-        Parameters
-        ----------
-        destination : `List` [`float`]
-            Destination x, y, z (µm), rotx, roty, rotz (deg)
-        est_move_duration : `float`
-            Estimated move duration (sec)
-        elaztemp : `List` [`float`] or `None`
-            Elevation, azimuth (deg) and temperature (C)
-            for the moveWithCompensation command.
-            If None then call move instead of moveWithCompensation.
-        """
-        t0 = time.time()
-        move_kwargs = self.make_xyzuvw_kwargs(destination)
-        if elaztemp is None:
-            await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
-            compensated_destination = destination
-        else:
-            await self.remote.cmd_moveWithCompensation.set_start(
-                elevation=elaztemp[0],
-                azimuth=elaztemp[1],
-                temperature=elaztemp[2],
-                **move_kwargs,
-                timeout=STD_TIMEOUT,
-            )
-            comp_offsets = self.csc.compensation.get_offsets(
-                elevation=elaztemp[0], azimuth=elaztemp[1], temperature=elaztemp[2],
-            )
-            for i in range(6):
-                self.assertNotEqual(comp_offsets[i], 0)
-            compensated_destination = np.add(destination, comp_offsets)
-        await self.assert_next_sample(
-            topic=self.remote.evt_controllerState,
-            controllerState=ControllerState.ENABLED,
-            enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
-        )
-        try:
+            await self.assert_next_application(desired_position=ZERO_POSITION)
             await self.assert_next_sample(
-                topic=self.remote.evt_controllerState,
-                controllerState=ControllerState.ENABLED,
-                enabledSubstate=EnabledSubstate.STATIONARY,
-                timeout=STD_TIMEOUT + est_move_duration,
-            )
-        except asyncio.TimeoutError:
-            self.fail(
-                f"Move timed out in {STD_TIMEOUT+est_move_duration} seconds; "
-                f"remaining move time {self.csc.mock_ctrl.hexapod.remaining_time():0.2f}"
+                topic=self.remote.evt_compensationMode, enabled=False
             )
 
-        await self.assert_next_sample(self.remote.evt_inPosition, inPosition=False)
-        await self.assert_next_sample(self.remote.evt_inPosition, inPosition=True)
-        data = await self.remote.evt_actuatorInPosition.next(
-            flush=False, timeout=STD_TIMEOUT
-        )
-        self.assertIn(False, data.inPosition)
-        # Check that actuatorInPosition returns all in position;
-        # this should occur within 6 events (fewer if several actuators
-        # finish their move at the same time).
-        for i in range(6):
-            try:
-                data = await self.remote.evt_actuatorInPosition.next(
-                    flush=False, timeout=STD_TIMEOUT
+            uncompensated_position = mthexapod.Position(
+                300, 400, -300, 0.01, 0.02, -0.015
+            )
+            await self.check_move(
+                uncompensated_position=uncompensated_position, est_move_duration=1,
+            )
+            await self.assert_next_compensated_position(uncompensated_position)
+            await self.assert_next_application(desired_position=uncompensated_position)
+
+    async def test_move_with_compensation_with_initial_compensation_inputs(self):
+        """Test move with compensation enabled."""
+        async with self.make_csc(
+            config_dir=local_config_dir,
+            initial_state=salobj.State.ENABLED,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            compensation_inputs_list = (
+                CompensationInputs(
+                    elevation=32, azimuth=44, rotation=-5, temperature=15
+                ),
+                CompensationInputs(
+                    elevation=65, azimuth=44, rotation=-5, temperature=15
+                ),
+                CompensationInputs(
+                    elevation=32, azimuth=190, rotation=-5, temperature=15
+                ),
+                CompensationInputs(
+                    elevation=32, azimuth=44, rotation=20, temperature=15
+                ),
+                CompensationInputs(
+                    elevation=32, azimuth=44, rotation=-5, temperature=-30
+                ),
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+
+            uncompensated_position = mthexapod.Position(
+                500, -300, 200, 0.03, -0.02, 0.03
+            )
+            await self.check_move(
+                uncompensated_position=uncompensated_position, est_move_duration=1,
+            )
+
+            update_inputs = False
+            for compensation_inputs in compensation_inputs_list:
+                await self.check_compensation(
+                    uncompensated_position=uncompensated_position,
+                    compensation_inputs=compensation_inputs,
+                    update_inputs=update_inputs,
                 )
-                self.assertIn(True, data.inPosition)
-                if False not in data.inPosition:
-                    break
-            except asyncio.TimeoutError:
-                self.fail("actuatorInPosition timed out before all True")
-        else:
-            self.fail("actuatorInPosition output 6 times, but not all True")
+                update_inputs = True
 
-        print(f"Move duration: {time.time() - t0:0.2f} seconds")
-        await self.assert_next_target(
-            uncompensated_position=destination,
-            compensated_position=compensated_destination,
-            elaztemp=elaztemp,
-        )
-        await self.assert_next_position(desired_position=compensated_destination)
-
-    async def test_offset(self):
-        first_destination = (100, 200, -300, 0.01, 0.02, -0.015)
-        offset = (50, -100, 135, 0.005, -0.005, 0.01)
-        async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
-            await self.check_offset(
-                first_destination=first_destination, offset=offset, est_move_duration=1,
+            # Test disabling compensation with setCompensationMode
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=False, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
             )
 
-    async def check_offset(self, first_destination, offset, est_move_duration):
-        await self.check_move(
-            destination=first_destination, est_move_duration=1, elaztemp=None
+    async def test_move_with_compensation_no_initial_compensation_inputs(self):
+        """Test move with compensation enabled but no compensation inputs.
+
+        This should act like an uncompensated move.
+        """
+        async with self.make_csc(
+            config_dir=local_config_dir,
+            initial_state=salobj.State.ENABLED,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            uncompensated_position = mthexapod.Position(
+                500, -300, 200, 0.03, -0.02, 0.03
+            )
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.check_move(
+                uncompensated_position=uncompensated_position, est_move_duration=1,
+            )
+            await self.assert_next_application(desired_position=uncompensated_position)
+
+            # Test disabling compensation by sending the CSC
+            # out of the enabled state
+            await self.remote.cmd_disable.set_start(timeout=STD_TIMEOUT)
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+
+    async def test_move_to_reference_no_compensation(self):
+        """Test moveToReference with compensation disabled.
+        """
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+            log_level=10,
+        ):
+            await self.set_compensation_inputs(
+                elevation=45, azimuth=-50, rotation=88, temperature=23
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+
+            index = self.csc.salinfo.index
+            # These values are hard-coded in tests/data/config/valid.yaml.
+            if index == 1:
+                uncompensated_position = mthexapod.Position(
+                    100, 200, 300, 0.004, 0.005, 0.006
+                )
+            else:
+                uncompensated_position = mthexapod.Position(
+                    -100, -200, -300, -0.004, -0.005, -0.006
+                )
+            self.assert_dataclasses_almost_equal(
+                uncompensated_position, self.csc.reference_position
+            )
+            await self.remote.cmd_moveToReference.set_start(timeout=STD_TIMEOUT)
+            await self.check_move(
+                uncompensated_position=uncompensated_position,
+                est_move_duration=1,
+                command_move=False,
+            )
+            await self.assert_next_compensated_position(uncompensated_position)
+            await self.assert_next_application(desired_position=uncompensated_position)
+
+    async def test_move_to_reference_with_compensation(self):
+        """Test moveToReference with compensation disabled.
+        """
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+            log_level=10,
+        ):
+            compensation_inputs_list = (
+                CompensationInputs(
+                    elevation=32, azimuth=44, rotation=-5, temperature=15
+                ),
+                CompensationInputs(
+                    elevation=65, azimuth=44, rotation=-5, temperature=15
+                ),
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            uncompensated_position = self.csc.reference_position
+            await self.remote.cmd_moveToReference.set_start(timeout=STD_TIMEOUT)
+            await self.check_move(
+                uncompensated_position=uncompensated_position,
+                est_move_duration=1,
+                command_move=False,
+            )
+
+            update_inputs = False
+            for compensation_inputs in compensation_inputs_list:
+                await self.check_compensation(
+                    uncompensated_position=uncompensated_position,
+                    compensation_inputs=compensation_inputs,
+                    update_inputs=update_inputs,
+                )
+                update_inputs = True
+
+    async def test_offset_no_compensation(self):
+        """Test offset with compensation disabled.
+        """
+        first_uncompensated_position = mthexapod.Position(
+            100, 200, -300, 0.01, 0.02, -0.015
         )
-        offset = (50, -100, 135, 0.005, -0.005, 0.01)
-        desired_destination = np.add(first_destination, offset)
-        offset_kwargs = self.make_xyzuvw_kwargs(offset)
-        await self.remote.cmd_offset.set_start(**offset_kwargs, timeout=STD_TIMEOUT)
-        await self.assert_next_sample(
-            topic=self.remote.evt_controllerState,
-            controllerState=ControllerState.ENABLED,
-            enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
+        offset = mthexapod.Position(50, -100, 135, 0.005, -0.005, 0.01)
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.check_offset(
+                first_uncompensated_position=first_uncompensated_position,
+                offset=offset,
+                est_move_duration=1,
+            )
+            desired_uncompensated_position = np.add(
+                first_uncompensated_position, offset
+            )
+            await self.assert_next_application(
+                desired_position=desired_uncompensated_position
+            )
+
+    async def test_offset_with_compensation(self):
+        """Test offset with compensation enabled.
+        """
+        first_uncompensated_position = mthexapod.Position(
+            100, 200, -300, 0.01, 0.02, -0.015
         )
-        await self.assert_next_sample(
-            topic=self.remote.evt_controllerState,
-            controllerState=ControllerState.ENABLED,
-            enabledSubstate=EnabledSubstate.STATIONARY,
-        )
-        await self.assert_next_position(desired_position=desired_destination)
+        offset = mthexapod.Position(50, -100, 135, 0.005, -0.005, 0.01)
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            compensation_inputs_list = (
+                CompensationInputs(
+                    elevation=32, azimuth=44, rotation=-5, temperature=15
+                ),
+                CompensationInputs(
+                    elevation=65, azimuth=44, rotation=-5, temperature=15
+                ),
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.check_offset(
+                first_uncompensated_position=first_uncompensated_position,
+                offset=offset,
+                est_move_duration=1,
+            )
+
+            uncompensated_position = np.add(first_uncompensated_position, offset)
+
+            update_inputs = False
+            for compensation_inputs in compensation_inputs_list:
+                await self.check_compensation(
+                    uncompensated_position=uncompensated_position,
+                    compensation_inputs=compensation_inputs,
+                    update_inputs=update_inputs,
+                )
+                update_inputs = True
+
+    async def test_set_pivot(self):
+        """Test the setPivot command.
+        """
+        axis_names = ("x", "y", "z")
+
+        def get_pivot(config):
+            return {
+                name: getattr(config, f"pivot{name.upper()}") for name in axis_names
+            }
+
+        async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
+            initial_config = await self.remote.evt_configuration.next(
+                flush=False, timeout=STD_TIMEOUT
+            )
+            old_pivot = get_pivot(initial_config)
+
+            commanded_pivot = {name: val + 10 for name, val in old_pivot.items()}
+            await self.remote.cmd_setPivot.set_start(
+                **commanded_pivot, timeout=STD_TIMEOUT
+            )
+
+            new_config = await self.remote.evt_configuration.next(
+                flush=False, timeout=STD_TIMEOUT
+            )
+            new_pivot = {
+                name: getattr(new_config, f"pivot{name.upper()}") for name in axis_names
+            }
+            for name in axis_names:
+                self.assertAlmostEqual(new_pivot[name], commanded_pivot[name])
 
     async def test_stop_move(self):
         """Test stopping a point to point move.
         """
         # Command a move that moves all actuators equally
-        destination = (0, 0, 1000, 0, 0, 0)
+        position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
                 controllerState=ControllerState.ENABLED,
                 enabledSubstate=EnabledSubstate.STATIONARY,
             )
-            await self.assert_next_position(desired_position=(0,) * 6)
-            move_kwargs = self.make_xyzuvw_kwargs(destination)
-            await self.remote.cmd_move.set_start(**move_kwargs, timeout=STD_TIMEOUT)
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.remote.cmd_move.set_start(**vars(position), timeout=STD_TIMEOUT)
             cmd_lengths = [
                 actuator.end_position
                 for actuator in self.csc.mock_ctrl.hexapod.actuators
@@ -606,38 +1137,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             ]
             for i in range(6):
                 self.assertNotAlmostEqual(cmd_lengths[i], stopped_lengths[i])
-
-    async def test_pivot(self):
-        """Test the pivot command.
-        """
-        async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
-            pass
-
-    def make_xyzuvw_kwargs(self, data, sync=1):
-        """Make a dict of x,y,z,u,v,w,sync based on from a list of positions.
-
-        Parameters
-        ----------
-        data : `List` [`float`]
-            x, y, z (µm), u, v, w (deg) data
-        sync : `int` (optional)
-            Should this be a synchronized move?
-            Usually doesn't matter because the mock controller ignores it.
-        """
-        self.assertEqual(len(data), 6)
-        return dict(
-            x=data[0], y=data[1], z=data[2], u=data[3], v=data[4], w=data[5], sync=sync
-        )
-
-    def limits_to_max_position(self, limits):
-        """Return the position corresponding to the maximum position limit.
-        """
-        return (limits[0], limits[0], limits[2], limits[3], limits[3], limits[5])
-
-    def limits_to_min_position(self, limits):
-        """Return the position corresponding to the minimum position limit.
-        """
-        return (-limits[0], -limits[0], limits[1], -limits[3], -limits[3], limits[4])
 
 
 if __name__ == "__main__":

@@ -6,6 +6,28 @@
 Version History
 ###############
 
+v0.12.0
+=======
+
+Changes:
+
+* Update for ts_xml 7.1 and ts_hexrotcomm 0.13 (both are required).
+* Overhaul the way compensation is handled.
+* Add the ``setCompensationMode`` command and remove the ``moveWithCompensation`` command.
+* Rename the ``pivot`` command to ``setPivot``, for consistency.
+* Replace the ``target`` event with ``uncompensatedPosition`` and ``compensatedPosition`` events, because ``target`` was ambiguous.
+* Add the ``moveToReference`` command to move to the configured reference position.
+* Add ``compensation_interval`` and ``reference_position`` entries to the configuration.
+  The former is common to both hexapods, the latter is specific each hexapod.
+
+Requires:
+
+* ts_hexrotcomm 0.13
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7
+* MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
+
 v0.11.1
 =======
 
