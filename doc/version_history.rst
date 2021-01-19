@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.12.1
+=======
+
+Changes:
+
+* A fix for tx_xml 7.1 (required): use MTMount XML instead of NewMTMount.
+* Fix the Jenkins build: build MTMount and MTRotator IDL files in addition to MTHexapod.
+
+Requires:
+
+* ts_hexrotcomm 0.13
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.12.0
 =======
 
@@ -25,7 +41,7 @@ Requires:
 * ts_hexrotcomm 0.13
 * ts_salobj 6.1
 * ts_idl 2.2
-* ts_xml 7
+* ts_xml 7.1
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
 v0.11.1
