@@ -89,7 +89,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             log_level=log_level,
             timeout=timeout,
         ), salobj.Controller(
-            name="NewMTMount",
+            name="MTMount",
         ) as self.mtmount_controller, salobj.Controller(
             name="MTRotator",
         ) as self.mtrotator_controller:

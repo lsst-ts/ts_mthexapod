@@ -167,7 +167,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # perhaps something like:
         # self.eas = salobj.Remote(domain=self.domain, name="EAS", include=[?])
         self.mtmount = salobj.Remote(
-            domain=self.domain, name="NewMTMount", include=["target"]
+            domain=self.domain, name="MTMount", include=["target"]
         )
         self.mtrotator = salobj.Remote(
             domain=self.domain, name="MTRotator", include=["target"]
