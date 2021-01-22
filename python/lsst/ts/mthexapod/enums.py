@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["SalIndex", "CommandCode", "FrameId", "SetEnabledSubstateParam"]
+__all__ = ["SalIndex", "CommandCode", "SetEnabledSubstateParam"]
 
 import enum
 
@@ -44,16 +44,6 @@ class CommandCode(enum.IntEnum):
     CONFIG_VEL = 0x800C
     CONFIG_LIMITS = 0x800D
     OFFSET = 0x8010
-
-
-class FrameId(enum.IntEnum):
-    """Frame IDs for Camera and M2 MTHexapod telemetry and configuration.
-    """
-
-    CAM_TELEMETRY = 0x7
-    CAM_CONFIG = 0x1B
-    M2_TELEMETRY = 0x8
-    M2_CONFIG = 0x1C
 
 
 class SetEnabledSubstateParam(enum.IntEnum):

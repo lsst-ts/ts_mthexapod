@@ -53,12 +53,12 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         Logger.
     host : `str` (optional)
         IP address of CSC server.
-    command_port : `int` (optional)
-        Command socket port.  This argument is intended for unit tests;
-        use the default value for normal operation.
-    telemetry_port : `int` (optional)
-        Telemetry socket port. This argument is intended for unit tests;
-        use the default value for normal operation.
+    command_port : `int` or `None` (optional)
+        Command socket port.
+        If `None` then use the default port for this device.
+    telemetry_port : `int` or `None` (optional)
+        Telemetry socket port.
+        If `None` then use the default port for this device.
     initial_state : `lsst.ts.idl.enums.MTHexapod.ControllerState` (optional)
         Initial state of mock controller.
 
@@ -119,12 +119,13 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         index,
         log,
         host=hexrotcomm.LOCAL_HOST,
-        command_port=hexrotcomm.COMMAND_PORT,
-        telemetry_port=hexrotcomm.TELEMETRY_PORT,
+        command_port=None,
+        telemetry_port=None,
         initial_state=ControllerState.OFFLINE,
     ):
         index = enums.SalIndex(index)
         self.max_pos_limits = constants.MAX_POSITION_LIMITS[index]
+
         # Amplitude of jitter in various measured values,
         # to simulate encoder jitter. This add realism
         # and exercises jitter rejection in HexapodCommander.

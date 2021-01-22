@@ -39,34 +39,6 @@ from . import structs
 from . import utils
 
 
-class ControllerConstants:
-    """Constants needed to communicate with an MTHexapod controller.
-    """
-
-    def __init__(self, port, sync_pattern, config_frame_id, telemetry_frame_id):
-        self.port = port
-        self.sync_pattern = sync_pattern
-        self.config_frame_id = config_frame_id
-        self.telemetry_frame_id = telemetry_frame_id
-
-
-# Dict of SalIndex: ControllerConstants
-IndexControllerConstants = {
-    enums.SalIndex.CAMERA_HEXAPOD: ControllerConstants(
-        port=5560,
-        sync_pattern=constants.CAM_SYNC_PATTERN,
-        config_frame_id=enums.FrameId.CAM_CONFIG,
-        telemetry_frame_id=enums.FrameId.CAM_TELEMETRY,
-    ),
-    enums.SalIndex.M2_HEXAPOD: ControllerConstants(
-        port=5550,
-        sync_pattern=constants.M2_SYNC_PATTERN,
-        config_frame_id=enums.FrameId.M2_CONFIG,
-        telemetry_frame_id=enums.FrameId.M2_TELEMETRY,
-    ),
-}
-
-
 class HexapodCsc(hexrotcomm.BaseCsc):
     """MTHexapod CSC.
 
@@ -123,7 +95,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         simulation_mode=0,
     ):
         index = enums.SalIndex(index)
-        controller_constants = IndexControllerConstants[index]
+        controller_constants = constants.IndexControllerConstants[index]
 
         # The maximum position limits configured in the low-level controller.
         # The limits specified by the configureLimits command must be
@@ -234,7 +206,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
     async def configure(self, config):
-        self.port = config.port
         self.compensation_interval = config.compensation_interval
         subconfig_name = {
             enums.SalIndex.CAMERA_HEXAPOD: "camera_config",
