@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.13.0
+=======
+
+Changes:
+
+* Updated to use device-specific TCP/IP ports.
+  This requires ts_hexrotcomm v0.14.
+
+Requires:
+
+* ts_hexrotcomm 0.14
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.12.1
 =======
 

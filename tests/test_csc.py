@@ -1,6 +1,6 @@
 # This file is part of ts_mthexapod.
 #
-# Developed for the LSST Data Management System.
+# Developed for the Rubin Observatory Telescope and Site System.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -78,7 +78,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         settings_to_apply="",
         simulation_mode=1,
         log_level=None,
-        timeout=STD_TIMEOUT,
     ):
         # TODO DM-28005: add a controller for the temperature
         async with super().make_csc(
@@ -87,7 +86,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
             settings_to_apply=settings_to_apply,
             simulation_mode=simulation_mode,
             log_level=log_level,
-            timeout=timeout,
         ), salobj.Controller(
             name="MTMount",
         ) as self.mtmount_controller, salobj.Controller(
