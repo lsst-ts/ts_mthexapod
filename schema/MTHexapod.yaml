@@ -8,16 +8,6 @@ definitions:
     description: Configuration specific to the Camera or M2 MTHexapod.
     type: object
     properties:
-      reference_position:
-        description: >-
-          The reference position for this hexapod in order: x y z (um) u, v, w (deg).
-          This position should be your best guess of the position to produce a collimated beam.
-          The moveToReference command moves to this position.
-        type: array
-        minItems: 6
-        maxItems: 6
-        items:
-          type: number
       elevation_coeffs:
         description: >-
           Elevation compensation coefficients.
@@ -94,7 +84,6 @@ properties:
   camera_config:
     $ref: "#/definitions/instance_specific_config"
     default:
-      reference_position: [0, 0, 0, 0, 0, 0]
       elevation_coeffs:
         - [0]
         - [0]
@@ -128,7 +117,6 @@ properties:
   m2_config:
     $ref: "#/definitions/instance_specific_config"
     default:
-      reference_position: [0, 0, 0, 0, 0, 0]
       elevation_coeffs:
         - [0]
         - [0]
