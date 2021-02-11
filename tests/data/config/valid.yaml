@@ -5,9 +5,6 @@
 # for axes that may not need any compensation (x, v, and w),
 # in order to better test the code.
 camera_config:
-  # Use a large enough reference position that the move time
-  # is long enough to guarantee a telemetry output while moving
-  reference_position: [100, 200, 300, 0.004, 0.005, 0.006]
   elevation_coeffs:
   - [0.111, 0.112]
   - [0.121, 0.122]
@@ -39,7 +36,6 @@ camera_config:
   min_temperature: -20
   max_temperature: 25
 m2_config:
-  reference_position: [-100, -200, -300, -0.004, -0.005, -0.006]
   elevation_coeffs:
   - [-0.111, -0.112]
   - [-0.121, -0.122]

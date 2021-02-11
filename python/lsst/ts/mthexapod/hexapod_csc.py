@@ -106,10 +106,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # but update from configuration reported by the low-level controller.
         self.current_pos_limits = copy.copy(self.max_pos_limits)
 
-        # Reference position (a `Position`) for moveToReference;
-        # None until the CSC is configured.
-        self.reference_position = None
-
         # If the compensation loop starts and there are missing
         # inputs then warn once and set this flag true.
         self.missing_inputs_str = ""
@@ -220,7 +216,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             min_temperature=subconfig.min_temperature,
             max_temperature=subconfig.max_temperature,
         )
-        self.reference_position = base.Position(*subconfig.reference_position)
 
     def connect_callback(self, server):
         super().connect_callback(server)
@@ -410,20 +405,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             ExceptionClass=salobj.ExpectedError,
         )
         self.bump_compensation_loop(wait_first=True)
-        await self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
-
-    async def do_moveToReference(self, data):
-        """Move to the configured reference position.
-        """
-        self.assert_enabled_substate(EnabledSubstate.STATIONARY)
-        uncompensated_pos = self.reference_position
-        utils.check_position(
-            position=uncompensated_pos,
-            limits=self.current_pos_limits,
-            ExceptionClass=salobj.ExpectedError,
-        )
-        self.bump_compensation_loop(wait_first=True)
-        print("do_moveToReference: move to", uncompensated_pos)
         await self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
 
     async def do_offset(self, data):

@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.14.0
+=======
+
+Changes:
+
+* Removed the ``moveToReference`` command.
+  The associated values should be part of the compensation model coefficients.
+
+Requires:
+
+* ts_hexrotcomm 0.13
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.13.0
 =======
 
