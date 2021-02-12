@@ -72,7 +72,7 @@ definitions:
           Maximum temperatures (C) for which the temperature model is valid.
           Above this temperature, terms above the first order are ignored; see RangedPolynomial for details.
         type: number
-    required: [elevation_coeffs, temperature_coeffs, min_temperature, max_temperature]
+    required: [elevation_coeffs, azimuth_coeffs, rotation_coeffs, temperature_coeffs, min_temperature, max_temperature]
     additionalProperties: false
 
 type: object

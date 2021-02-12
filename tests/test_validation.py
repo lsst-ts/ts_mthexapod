@@ -116,6 +116,18 @@ class ValidationTestCase(unittest.TestCase):
                 with self.assertRaises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)
 
+    def test_missing_data(self):
+        """The defaults for a given instance only work if no values
+        are specified for that instance.
+        """
+        defaults = self.validator.validate(None)
+        for instance in self.instance_names:
+            for name in defaults[instance]:
+                data = copy.deepcopy(defaults)
+                del data[instance][name]
+                with self.assertRaises(jsonschema.exceptions.ValidationError):
+                    self.validator.validate(data)
+
 
 if __name__ == "__main__":
     unittest.main()
