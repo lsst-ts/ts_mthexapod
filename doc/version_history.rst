@@ -13,6 +13,9 @@ Changes:
 
 * Removed the ``moveToReference`` command.
   The associated values should be part of the compensation model coefficients.
+* Configuration schema: update to require azimuth and rotation coefficients.
+* `SimpleHexapod`: use a safer way to copy the ``mirror_positions`` argument.
+  This avoids issues in case the user changes the argument after creating the object (an unlikely scenario).
 
 Requires:
 
