@@ -84,7 +84,7 @@ class SimpleHexapod:
         # Information commanded by the `move` command.
         self.cmd_pos = np.zeros(3, dtype=float)
         self.cmd_xyzrot = np.zeros(3, dtype=float)
-        self.cmd_mirror_positions = mirror_positions[:]
+        self.cmd_mirror_positions = [np.array(pos) for pos in mirror_positions]
         self.neutral_actuator_lengths = self.compute_actuator_lengths(
             mirror_positions=mirror_positions, absolute=True
         )
