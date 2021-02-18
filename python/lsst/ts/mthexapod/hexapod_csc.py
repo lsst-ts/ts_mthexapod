@@ -30,6 +30,7 @@ import types
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import EnabledSubstate, ApplicationStatus
+from . import __version__
 from . import base
 from . import compensation
 from . import constants
@@ -85,6 +86,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     """
 
     valid_simulation_modes = [0, 1]
+    version = __version__
 
     def __init__(
         self,

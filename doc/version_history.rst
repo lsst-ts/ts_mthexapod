@@ -11,8 +11,9 @@ v0.14.0
 
 Changes:
 
-* Removed the ``moveToReference`` command.
+* `MTHexapodCsc`: removed the ``moveToReference`` command.
   The associated values should be part of the compensation model coefficients.
+* `MTHexapodCsc`: set class variable ``version``, which sets the ``cscVersion`` field of the ``softwareVersions`` event.
 * Configuration schema: update to require azimuth and rotation coefficients.
 * `SimpleHexapod`: use a safer way to copy the ``mirror_positions`` argument.
   This avoids issues in case the user changes the argument after creating the object (an unlikely scenario).
