@@ -1000,6 +1000,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
         position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             await self.assert_next_sample(
+                topic=self.remote.evt_softwareVersions,
+                cscVersion=mthexapod.__version__,
+                subsystemVersions="",
+            )
+            await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
                 controllerState=ControllerState.ENABLED,
                 enabledSubstate=EnabledSubstate.STATIONARY,
