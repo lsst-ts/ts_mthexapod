@@ -17,6 +17,7 @@ Changes:
 * Configuration schema: update to require azimuth and rotation coefficients.
 * `SimpleHexapod`: use a safer way to copy the ``mirror_positions`` argument.
   This avoids issues in case the user changes the argument after creating the object (an unlikely scenario).
+* Modernize ``doc/conf.py`` for documenteer 0.6.
 
 Requires:
 
