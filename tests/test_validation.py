@@ -47,7 +47,6 @@ class ValidationTestCase(unittest.TestCase):
         result = self.validator.validate(None)
         self.assertEqual(result["compensation_interval"], 0.2)
         for instance in self.instance_names:
-            self.assertEqual(len(result[instance]["reference_position"]), 6)
             self.assertEqual(len(result[instance]["elevation_coeffs"]), 6)
             self.assertEqual(len(result[instance]["azimuth_coeffs"]), 6)
             self.assertEqual(len(result[instance]["rotation_coeffs"]), 6)
@@ -64,27 +63,6 @@ class ValidationTestCase(unittest.TestCase):
                 data[instance][name] = value
                 result = self.validator.validate(data)
                 self.assertAlmostEqual(result[instance][name], value)
-
-    def test_reference_position_specified(self):
-        name = "reference_position"
-        defaults = self.validator.validate(None)
-
-        for instance in self.instance_names:
-            data = copy.deepcopy(defaults)
-            value = [1, 2, 3, 4, 5, 6]
-            data[instance][name] = value
-            result = self.validator.validate(data)
-            self.assertAlmostEqual(result[instance][name], value)
-
-            for bad_value in (
-                [1, 2, 3, 4, 5],  # Too few values
-                [1, 2, 3, 4, 5, 6, 7],  # Too many values
-                [1, 2, 3, 4, 5, "not a number"],
-            ):
-                data = copy.deepcopy(defaults)
-                data[instance][name] = bad_value
-                with self.assertRaises(jsonschema.exceptions.ValidationError):
-                    self.validator.validate(data)
 
     def test_coeffs_specified(self):
         defaults = self.validator.validate(None)
@@ -135,6 +113,18 @@ class ValidationTestCase(unittest.TestCase):
                 data = copy.deepcopy(defaults)
                 name = f"{short_name}_coeffs"
                 data[instance][name] = bad_coeffs
+                with self.assertRaises(jsonschema.exceptions.ValidationError):
+                    self.validator.validate(data)
+
+    def test_missing_data(self):
+        """The defaults for a given instance only work if no values
+        are specified for that instance.
+        """
+        defaults = self.validator.validate(None)
+        for instance in self.instance_names:
+            for name in defaults[instance]:
+                data = copy.deepcopy(defaults)
+                del data[instance][name]
                 with self.assertRaises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)
 

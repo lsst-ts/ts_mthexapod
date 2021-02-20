@@ -6,6 +6,27 @@
 Version History
 ###############
 
+v0.14.0
+=======
+
+Changes:
+
+* `MTHexapodCsc`: removed the ``moveToReference`` command.
+  The associated values should be part of the compensation model coefficients.
+* `MTHexapodCsc`: set class variable ``version``, which sets the ``cscVersion`` field of the ``softwareVersions`` event.
+* Configuration schema: update to require azimuth and rotation coefficients.
+* `SimpleHexapod`: use a safer way to copy the ``mirror_positions`` argument.
+  This avoids issues in case the user changes the argument after creating the object (an unlikely scenario).
+* Modernize ``doc/conf.py`` for documenteer 0.6.
+
+Requires:
+
+* ts_hexrotcomm 0.13
+* ts_salobj 6.1
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.13.0
 =======
 

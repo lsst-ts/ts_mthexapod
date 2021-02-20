@@ -19,6 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+try:
+    from .version import *
+except ImportError:
+    __version__ = "?"
+
 from .base import *
 from .constants import *
 from .enums import *
@@ -31,8 +36,3 @@ from .hexapod_commander import *
 from .simple_hexapod import *
 from .mock_controller import *
 from .hexapod_csc import *
-
-try:
-    from .version import *
-except ImportError:
-    __version__ = "?"

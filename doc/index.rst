@@ -47,7 +47,7 @@ To use a hexapod for observing:
 * Check that the CSC has control of the low-level controller, as just described.
 * Enable the CSC.
 * Enable :ref:`compensation mode<lsst.ts.mthexapod.compensation_mode>` with the ``setCompensationMode`` command.
-* Move to the reference position specified in the CSC's :ref:`configuration <lsst.ts.mthexapod.configuration>` with the ``moveToReference`` command.
+* Move to x=0, y=0, z=0, u=0, v=0, w=0 with the ``move`` command.
 * Apply offsets, as required, to improve collimation with the ``offset`` command (or specify absolute position with the ``move`` command).
 
 .. _lsst.ts.mthexapod.compensation_mode:
@@ -101,7 +101,6 @@ Configuration
 Configuration is specified in `ts_config_mttcs <https://github.com/lsst-ts/ts_config_mttcs>`_ following `this schema <https://github.com/lsst-ts/ts_mthexapod/blob/develop/schema/MTHexapod.yaml>`_.
 The most important settings are:
 
-* A reference position, which should move the hexapod to approximately the correct position for a collimated beam.
 * Coefficients for the :ref:`compensation<lsst.ts.mthexapod.compensation_mode>` model.
 
 Notes
