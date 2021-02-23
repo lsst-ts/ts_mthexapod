@@ -25,6 +25,7 @@ except ImportError:
     __version__ = "?"
 
 from .base import *
+from .config_schema import *
 from .constants import *
 from .enums import *
 from .fourier_series import *
