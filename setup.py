@@ -1,6 +1,3 @@
-import os
-import sys
-import pathlib
 import setuptools
 
 install_requires = []
@@ -11,9 +8,6 @@ __all__ = ["__version__"]
 
 __version__ = "{version}"
 """
-tools_path = pathlib.PurePosixPath(setuptools.__path__[0])
-base_prefix = pathlib.PurePosixPath(sys.base_prefix)
-data_files_path = tools_path.relative_to(base_prefix).parents[1]
 
 setuptools.setup(
     name="ts_mthexapod",
@@ -28,7 +22,6 @@ setuptools.setup(
     packages=setuptools.find_namespace_packages(where="python"),
     package_data={"": ["*.rst", "*.yaml"]},
     scripts=["bin/run_mthexapod.py", "bin/command_mthexapod.py"],
-    data_files=[(os.path.join(data_files_path, "schema"), ["schema/MTHexapod.yaml"])],
     tests_require=tests_require,
     extras_require={"dev": dev_requires},
     license="GPL",
