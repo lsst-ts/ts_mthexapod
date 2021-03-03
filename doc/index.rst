@@ -38,9 +38,9 @@ Then check that the CSC has control of the low-level controller, as follows:
   This should happen quickly; if it does not then check that the low-level controller is fully booted up and configured to use the correct IP address for the CSC.
 * Check the ``controllerState`` event.
   If it is ``state=Offline, offline_substate=PublishOnly``, which is the state the low-level controller wakes up in,
-  then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mtrotator.enable_with_eui>`.
+  then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
 * Check the ``commandableByDDS`` event.
-  If ``state=False`` then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mtrotator.enable_with_eui>`.
+  If ``state=False`` then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
 
 To use a hexapod for observing:
 
