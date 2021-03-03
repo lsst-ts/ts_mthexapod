@@ -22,24 +22,19 @@
 import copy
 import itertools
 import unittest
-import pathlib
 
 import numpy as np
 import jsonschema
-import yaml
 
 from lsst.ts import salobj
+from lsst.ts import mthexapod
 
 
 class ValidationTestCase(unittest.TestCase):
     """Test validation of the config schema."""
 
     def setUp(self):
-        schemaname = "MTHexapod.yaml"
-        schemapath = pathlib.Path(__file__).parents[1].joinpath("schema", schemaname)
-        with open(schemapath, "r") as f:
-            rawschema = f.read()
-        self.schema = yaml.safe_load(rawschema)
+        self.schema = mthexapod.CONFIG_SCHEMA
         self.validator = salobj.DefaultingValidator(schema=self.schema)
         self.instance_names = ("camera_config", "m2_config")
 
