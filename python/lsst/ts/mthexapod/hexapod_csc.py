@@ -24,13 +24,13 @@ __all__ = ["HexapodCsc"]
 import asyncio
 import copy
 import dataclasses
-import pathlib
 import types
 
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import EnabledSubstate, ApplicationStatus
 from . import __version__
+from .config_schema import CONFIG_SCHEMA
 from . import base
 from . import compensation
 from . import constants
@@ -121,7 +121,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
 
-        schema_path = pathlib.Path(__file__).parents[4] / "schema" / "MTHexapod.yaml"
         super().__init__(
             name="MTHexapod",
             index=index,
@@ -130,7 +129,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             CommandCode=enums.CommandCode,
             ConfigClass=structs.Config,
             TelemetryClass=structs.Telemetry,
-            schema_path=schema_path,
+            config_schema=CONFIG_SCHEMA,
             config_dir=config_dir,
             initial_state=initial_state,
             settings_to_apply=settings_to_apply,

@@ -38,9 +38,9 @@ Then check that the CSC has control of the low-level controller, as follows:
   This should happen quickly; if it does not then check that the low-level controller is fully booted up and configured to use the correct IP address for the CSC.
 * Check the ``controllerState`` event.
   If it is ``state=Offline, offline_substate=PublishOnly``, which is the state the low-level controller wakes up in,
-  then you must :ref:`use the EUI <lsst.ts.mthexapod.enable_with_eui>` to change the state.
+  then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
 * Check the ``commandableByDDS`` event.
-  If ``state=False`` then you must :ref:`use the EUI <lsst.ts.mthexapod.enable_with_eui>` to change the control mode.
+  If ``state=False`` then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
 
 To use a hexapod for observing:
 
@@ -137,17 +137,18 @@ The CSC includes a simulation mode. To run using CSC's internal simulator:
 Enable With the EUI
 -------------------
 
-Use the Engineering User Interface (EUI) as follows to enable CSC control of the low-level controller:
+The control mode must be ``DDS`` in order for the CSC to control the low-level controller.
+If the control mode is ``GUI`` then you can use the EUI (aka GUI) to change it to ``DDS`` as follows:
 
-    * State must be ``state=Offline, offline_substate=Available`` or any more enabled state.
-      The low-level controller wakes up in ``state=Offline, offline_substate=PublishOnly``,
-      and you must change this before the CSC can control the low-level controller.
-      Change the state on the main panel of the EUI.
-    * Control mode must be ``DDS``.
-      The low-level controller wakes up in control mode ``GUI``,
-      and you must change this before the CSC can control the low-level controller.
-      To change the control mode use the ``Parameters`` panel;
-      note that the EUI *shows* the control mode on the main panel, but that display is read-only.
+* In the main panel: change the state to ``state=Offline, offline_substate=Available``.
+* Go to the ``Parameters`` panel to change the control mode to ``DDS``.
+
+Notes:
+
+* The EUI *shows* the control mode on the main panel, but that display is read-only.
+  You must use the ``Parameters`` panel to change the control mode.
+* If you issue any hexapod command in the EUI, control mode will switch back to ``GUI``.
+  So if you want the CSC to retain control, please be careful what you touch when using the GUI.
 
 Developer Guide
 ===============

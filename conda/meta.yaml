@@ -30,7 +30,6 @@ test:
     - bin
     - tests
     - setup.cfg
-    - schema
   commands:
     - py.test
 

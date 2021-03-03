@@ -6,8 +6,26 @@
 Version History
 ###############
 
+v0.15.0
+-------
+
+Changes:
+
+* `RotatorCsc`: save the configuration schema in code instead of a separate .yaml file.
+  This requires ts_salobj 6.3 and ts_hexrotcomm 0.16.
+* Delete obsolete file ``schema/MTRotator.yaml``.
+* Users's Guide: improve the information for switching from GUI to DDS mode.
+
+Requires:
+
+* ts_hexrotcomm 0.16
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.14.0
-=======
+-------
 
 Changes:
 
@@ -28,7 +46,7 @@ Requires:
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
 v0.13.0
-=======
+-------
 
 Changes:
 
@@ -44,7 +62,7 @@ Requires:
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
 v0.12.1
-=======
+-------
 
 Changes:
 
@@ -60,7 +78,7 @@ Requires:
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
 v0.12.0
-=======
+-------
 
 Changes:
 
@@ -82,7 +100,7 @@ Requires:
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
 v0.11.1
-=======
+-------
 
 Changes:
 
@@ -98,7 +116,7 @@ Requires:
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
 v0.11.0
-=======
+-------
 
 Changes:
 
@@ -115,7 +133,7 @@ Requires:
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
 v0.10.0
-=======
+-------
 
 Changes:
 
@@ -134,7 +152,7 @@ Requires:
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
 v0.9.0
-======
+------
 
 Changes:
 
@@ -154,7 +172,7 @@ Requires:
 * ts_simactuators 2
 
 v0.8.0
-======
+------
 
 Major Changes:
 
@@ -181,7 +199,7 @@ Requires:
 * ts_simactuators 2
 
 v0.7.0
-======
+------
 
 Changes:
 
@@ -197,7 +215,7 @@ Requires:
 * ts_simactuators 2
 
 v0.6.0
-======
+------
 
 Changes:
 
@@ -213,7 +231,7 @@ Requires:
 * ts_simactuators 2
 
 v0.5.4
-======
+------
 
 Changes:
 
@@ -229,7 +247,7 @@ Requires:
 * ts_simactuators
 
 v0.5.3
-======
+------
 
 Changes:
 
@@ -247,7 +265,7 @@ Requires:
 * ts_simactuators
 
 v0.5.2
-======
+------
 
 * Fix flake8 violations.
 * Add Jenkinsfile for CI job.
@@ -262,7 +280,7 @@ Requires:
 * ts_simactuators
 
 v0.5.1
-======
+------
 
 * Include conda package build configuration.
 * Added a Jenkinsfile to support continuous integration and to build conda packages.
@@ -277,7 +295,7 @@ Requires:
 * ts_simactuators
 
 v0.5.0
-======
+------
 
 Use `lsst.ts.simactuators.PointToPointActuator` instead of an internal copy.
 
@@ -291,7 +309,7 @@ Requires:
 * ts_simactuators
 
 v0.4.0
-======
+------
 
 Major changes:
 
@@ -309,7 +327,7 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
 v0.3.1
-======
+------
 
 Version 0.3.1
 
@@ -325,7 +343,7 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
 v0.3.0
-======
+------
 
 Update for changes to the XML.
 
@@ -338,7 +356,7 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
 v0.2.2
-======
+------
 
 The first version we tested against the real hexapod controller!
 

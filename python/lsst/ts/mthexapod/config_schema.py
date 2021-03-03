@@ -1,5 +1,35 @@
+# This file is part of ts_mthexapod.
+#
+# Developed for the Rubin Observatory Telescope and Site System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+__all__ = [
+    "CONFIG_SCHEMA",
+]
+
+import yaml
+
+# Schema for HexapodCsc configuration
+CONFIG_SCHEMA = yaml.safe_load(
+    """
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://github.com/lsst-ts/ts_mthexapod/tree/schema/MTHexapod.yaml
+$id: https://github.com/lsst-ts/ts_mthexapod/blob/master/python/lsst/ts/mthexapod/config_schema.py
 title: MTHexapod v1
 description: Configuration for the MTHexapod CSCs
 
@@ -72,7 +102,13 @@ definitions:
           Maximum temperatures (C) for which the temperature model is valid.
           Above this temperature, terms above the first order are ignored; see RangedPolynomial for details.
         type: number
-    required: [elevation_coeffs, azimuth_coeffs, rotation_coeffs, temperature_coeffs, min_temperature, max_temperature]
+    required:
+      - elevation_coeffs
+      - azimuth_coeffs
+      - rotation_coeffs
+      - temperature_coeffs
+      - min_temperature
+      - max_temperature
     additionalProperties: false
 
 type: object
@@ -149,3 +185,5 @@ properties:
       max_temperature: 30
 required: [camera_config, m2_config]
 additionalProperties: false
+"""
+)
