@@ -28,7 +28,6 @@ import pathlib
 import unittest
 import time
 
-import asynctest
 import numpy as np
 
 from lsst.ts import salobj
@@ -58,7 +57,7 @@ class CompensationInputs:
         self.temperature = temperature
 
 
-class TestHexapodCsc(hexrotcomm.BaseCscTestCase, asynctest.TestCase):
+class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self, initial_state, config_dir=None, settings_to_apply="", simulation_mode=1
     ):
