@@ -43,7 +43,12 @@ class BaseTestCase(unittest.TestCase):
             self.assertAlmostEqual(instance_data[name], data_dict[name])
 
     def test_compensation_inputs(self):
-        base_data = dict(elevation=11, azimuth=22, rotation=-33, temperature=-44,)
+        base_data = dict(
+            elevation=11,
+            azimuth=22,
+            rotation=-33,
+            temperature=-44,
+        )
 
         # Test elevations in range.
         for good_elevation in (0, 45, 90):

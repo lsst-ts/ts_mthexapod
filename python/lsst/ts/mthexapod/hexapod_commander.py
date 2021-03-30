@@ -60,7 +60,9 @@ class HexapodCommander(salobj.CscCommander):
     def __init__(self, index, enable):
         index = enums.SalIndex(index)
         super().__init__(
-            name="MTHexapod", index=index, enable=enable,
+            name="MTHexapod",
+            index=index,
+            enable=enable,
         )
         for command_to_ignore in ("abort", "setValue"):
             del self.command_dict[command_to_ignore]

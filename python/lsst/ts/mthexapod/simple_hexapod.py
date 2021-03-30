@@ -212,8 +212,7 @@ class SimpleHexapod:
         return max_duration
 
     def stop(self):
-        """Stop all actuators.
-        """
+        """Stop all actuators."""
         for actuator in self.actuators:
             actuator.stop()
 

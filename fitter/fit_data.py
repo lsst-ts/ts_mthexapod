@@ -238,7 +238,8 @@ model_names = sorted(model_dict.keys())
 def main():
     parser = argparse.ArgumentParser("fit MTHexapod compensation coefficients")
     parser.add_argument(
-        "datafile", help="Path to data file.",
+        "datafile",
+        help="Path to data file.",
     )
     parser.add_argument(
         "cause", help="Cause being compensated for.", choices=CAUSE_NAMES
