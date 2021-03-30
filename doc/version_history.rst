@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.15.1
+-------
+
+Changes:
+
+* Use `unittest.IsolatedAsyncioTestCase` instead of the abandoned asynctest package.
+* Format the code with black 20.8b1.
+
+Requires:
+
+* ts_hexrotcomm 0.16
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.15.0
 -------
 

@@ -444,8 +444,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 await self._move(uncompensated_pos=uncompensated_pos, sync=1)
 
     async def do_setPivot(self, data):
-        """Set the coordinates of the pivot point.
-        """
+        """Set the coordinates of the pivot point."""
         self.assert_enabled_substate(EnabledSubstate.STATIONARY)
         await self.run_command(
             code=enums.CommandCode.SET_PIVOTPOINT,
@@ -455,8 +454,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
     async def do_stop(self, data):
-        """Halt tracking or any other motion.
-        """
+        """Halt tracking or any other motion."""
         if self.summary_state != salobj.State.ENABLED:
             raise salobj.ExpectedError("Not enabled")
         await self.run_command(

@@ -23,7 +23,6 @@ import asyncio
 import math
 import unittest
 
-import asynctest
 import astropy.units as u
 import numpy as np
 
@@ -31,7 +30,7 @@ from lsst.ts import salobj
 from lsst.ts import mthexapod
 
 
-class SimpleHexapodTestCase(asynctest.TestCase):
+class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         np.random.seed(47)
 

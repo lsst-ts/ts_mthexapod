@@ -153,7 +153,10 @@ class CompensationTestCase(unittest.TestCase):
         for bad_elevation in (-0.001, 90.001):
             with self.assertRaises(ValueError):
                 mthexapod.CompensationInputs(
-                    elevation=bad_elevation, azimuth=25, rotation=5, temperature=0,
+                    elevation=bad_elevation,
+                    azimuth=25,
+                    rotation=5,
+                    temperature=0,
                 )
 
 

@@ -40,10 +40,20 @@ MAX_ANGULAR_VEL_LIMIT = 0.1146
 # Position limits for the two hexapods
 MAX_POSITION_LIMITS = {
     enums.SalIndex.CAMERA_HEXAPOD: base.PositionLimits(
-        maxXY=11400, minZ=-13100, maxZ=13100, maxUV=0.36, minW=-0.10, maxW=0.10,
+        maxXY=11400,
+        minZ=-13100,
+        maxZ=13100,
+        maxUV=0.36,
+        minW=-0.10,
+        maxW=0.10,
     ),
     enums.SalIndex.M2_HEXAPOD: base.PositionLimits(
-        maxXY=10500, minZ=-8900, maxZ=8900, maxUV=0.175, minW=-0.05, maxW=0.05,
+        maxXY=10500,
+        minZ=-8900,
+        maxZ=8900,
+        maxUV=0.175,
+        minW=-0.05,
+        maxW=0.05,
     ),
 }
 
@@ -74,9 +84,15 @@ class ControllerConstants:
 # Dict of SalIndex: ControllerConstants
 IndexControllerConstants = {
     enums.SalIndex.CAMERA_HEXAPOD: ControllerConstants(
-        port=5560, sync_pattern=0x6666, config_frame_id=0x1B, telemetry_frame_id=0x7,
+        port=5560,
+        sync_pattern=0x6666,
+        config_frame_id=0x1B,
+        telemetry_frame_id=0x7,
     ),
     enums.SalIndex.M2_HEXAPOD: ControllerConstants(
-        port=5550, sync_pattern=0xB4B4, config_frame_id=0x1C, telemetry_frame_id=0x8,
+        port=5550,
+        sync_pattern=0xB4B4,
+        config_frame_id=0x1C,
+        telemetry_frame_id=0x8,
     ),
 }
