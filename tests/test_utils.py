@@ -29,8 +29,7 @@ from lsst.ts import mthexapod
 
 class UtilsTestCase(unittest.TestCase):
     def xyiter(self):
-        """Return a list of xypos, angle (deg), desired rotated xypos.
-        """
+        """Return a list of xypos, angle (deg), desired rotated xypos."""
         return (
             ((1, 0), 0, (1, 0)),
             ((1, 0), 30, (0.5 * math.sqrt(3), 0.5)),

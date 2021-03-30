@@ -47,8 +47,7 @@ class CommandCode(enum.IntEnum):
 
 
 class SetEnabledSubstateParam(enum.IntEnum):
-    """Substates for the ENABLED state.
-    """
+    """Substates for the ENABLED state."""
 
     ENABLED_INVALID = 0
     MOVE_POINT_TO_POINT = enum.auto()
