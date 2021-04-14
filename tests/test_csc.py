@@ -199,7 +199,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         uncompensated_position : `Position`
             Uncompensated position.
         est_move_duration : `float`
-            Estimated move duration (sec)
+            Rough estimate of move duration (sec); used for timeouts,
+            so it is much better to make it too big than too small.
         speed_factor : `float`
             Amount by which to scale actuator speeds. Intended to allow
             speeding up moves so tests run more quickly.
@@ -231,7 +232,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         uncompensated_position : `Position`
             Desired position.
         est_move_duration : `float`
-            Estimated move duration (sec)
+            Rough estimate of move duration (sec); used for timeouts,
+            so it is much better to make it too big than too small.
         """
         t0 = time.time()
         await self.remote.cmd_move.set_start(
@@ -327,12 +329,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             ]
             self.assertIn(True, nonzero)
 
-        self.assertAlmostEqual(data.elevation, compensation_inputs.elevation)
-        self.assertAlmostEqual(data.azimuth, compensation_inputs.azimuth)
-        self.assertAlmostEqual(data.rotation, compensation_inputs.rotation)
-        # TODO DM-28005: check specified temperature
-        self.assertAlmostEqual(data.temperature, 0)
-
         reported_compensation_offset = mthexapod.Position.from_struct(data)
         self.assert_dataclasses_almost_equal(
             reported_compensation_offset, compensation_offset
@@ -346,11 +342,22 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
     async def check_offset(
         self, first_uncompensated_position, offset, est_move_duration
     ):
+        """Check an offset.
+
+        Parameters
+        ----------
+        first_uncompensated_position : `Position`
+            Initial position (uncompensated)
+        offset : `Position`
+            Desired offset (uncompensated)
+        est_move_duration : `float`
+            Rough estimate of move duration (sec); used for timeouts,
+            so it is much better to make it too big than too small.
+        """
         await self.check_move(
             uncompensated_position=first_uncompensated_position,
             est_move_duration=1,
         )
-        offset = mthexapod.Position(50, -100, 135, 0.005, -0.005, 0.01)
         await self.remote.cmd_offset.set_start(**vars(offset), timeout=STD_TIMEOUT)
         await self.assert_next_sample(
             topic=self.remote.evt_controllerState,
@@ -416,7 +423,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         in order to allow specifying partial inputs.
         To call with a `CompensationInputs`, call with::
 
-            **vars(compensation_input)
+            **vars(compensation_inputs)
 
         Parameters
         ----------
