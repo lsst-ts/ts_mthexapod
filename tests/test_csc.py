@@ -127,8 +127,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
 
         # Add slop to accommodate jitter added by the mock controller.
-        np.testing.assert_allclose(data.position[:3], desired_pos_tuple[:3], atol=1)
-        np.testing.assert_allclose(data.position[3:], desired_pos_tuple[3:], atol=1e-5)
+        self.assert_positions_close(
+            data.position, desired_position, pos_atol=1, ang_atol=1e-5
+        )
 
     async def assert_next_compensation(self, compensation_inputs, offset):
         """Wait for and check the next compensation event.
@@ -175,6 +176,37 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         read_position = mthexapod.Position.from_struct(data)
 
         self.assert_dataclasses_almost_equal(position, read_position)
+
+    def assert_positions_close(
+        self, position1, position2, pos_atol=1e-2, ang_atol=1e-7
+    ):
+        """Assert that two positions are close.
+
+        Parameters
+        ----------
+        position1 : `Position` or `List` [`float`]
+            First position to check.
+        position1 : `Position` or `List` [`float`]
+            Second position to check.
+        pos_atol : `float`, optional
+            Absolute tolerance for x, y, z (um)
+        ang_atol : `float`, optional
+            Absolute tolerance for u, v, w (deg)
+        """
+        if isinstance(position1, mthexapod.Position):
+            position1_tuple = dataclasses.astuple(position1)
+        else:
+            position1_tuple = position1
+        if isinstance(position2, mthexapod.Position):
+            position2_tuple = dataclasses.astuple(position2)
+        else:
+            position2_tuple = position2
+        np.testing.assert_allclose(
+            position1_tuple[:3], position2_tuple[:3], atol=pos_atol
+        )
+        np.testing.assert_allclose(
+            position1_tuple[3:], position2_tuple[3:], atol=ang_atol
+        )
 
     async def check_move(
         self,
@@ -892,11 +924,71 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_application(desired_position=uncompensated_position)
 
             # Test disabling compensation by sending the CSC
-            # out of the enabled state
+            # out of the enabled state.
             await self.remote.cmd_disable.set_start(timeout=STD_TIMEOUT)
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
+
+    async def test_move_interrupt_move(self):
+        """Test that one move can interrupt another."""
+        positions_data = (
+            (100, 200, -300, 0.01, 0.02, -0.015),
+            (-100, 200, 400, -0.02, -0.01, 0.015),
+            (200, -100, -400, 0.02, 0.01, -0.03),
+        )
+        positions = [mthexapod.Position(*data) for data in positions_data]
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            for position in positions:
+                print("command a move")
+                await self.remote.cmd_move.set_start(
+                    **vars(position), timeout=STD_TIMEOUT
+                )
+                await self.assert_next_uncompensated_position(position)
+
+            # Make sure the commanded position is indeed the last position.
+            desired_position = positions[-1]
+            self.assert_positions_close(
+                self.csc.mock_ctrl.telemetry.commanded_pos, desired_position
+            )
+
+            # Flush any stops and starts
+            self.remote.evt_controllerState.flush()
+
+            # Wait for the last move to finish and check that we are at the
+            # desired position.
+            while True:
+                data = await self.assert_next_sample(
+                    self.remote.evt_controllerState,
+                    controllerState=ControllerState.ENABLED,
+                )
+                if data.enabledSubstate == EnabledSubstate.STATIONARY:
+                    break
+                if data.enabledSubstate not in (
+                    EnabledSubstate.CONTROLLED_STOPPING,
+                    EnabledSubstate.MOVING_POINT_TO_POINT,
+                ):
+                    self.fail(f"Unexpected enabledSubstate={data.enabledSubstate}")
+            data = await self.remote.tel_application.next(
+                flush=True, timeout=STD_TIMEOUT
+            )
+            self.assert_positions_close(data.demand, desired_position)
 
     async def test_offset_no_compensation(self):
         """Test offset with compensation disabled."""

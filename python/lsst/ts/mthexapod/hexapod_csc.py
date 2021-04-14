@@ -28,7 +28,11 @@ import types
 
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
-from lsst.ts.idl.enums.MTHexapod import EnabledSubstate, ApplicationStatus
+from lsst.ts.idl.enums.MTHexapod import (
+    ControllerState,
+    EnabledSubstate,
+    ApplicationStatus,
+)
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
 from . import base
@@ -38,6 +42,46 @@ from . import enums
 from . import mock_controller
 from . import structs
 from . import utils
+
+
+class CompensationInfo:
+    """Information about a possibly compensated move
+
+    Parameters
+    ----------
+    uncompensated_pos : `dict` [`str`, `float`]
+        Target position (without compensation applied)
+        as a dict of axis name: position
+        keys are x, y, z (um), u, v, w (deg).
+    compensation_offset : `dict` [`str`, `float`] or `None`
+        Position with compensation applied, if relevant,
+        as a dict of axis name: position
+        keys are x, y, z (um), u, v, w (deg).
+    compensation_inputs : `CompensationInputs` or `None`
+        The compensation inputs, if compensating and all inputs
+        are available, else `None`.
+
+    Attributes
+    ----------
+    compensated_pos : `dict` [`str`, `float`]
+        Compensated position: uncompensated_pos + compensation_offset
+        if compensation_offset is not None, else uncompensated_pos.
+        A dict of axis name: position
+        keys are x, y, z (um), u, v, w (deg).
+
+    Notes
+    -----
+    All the parameters are also attributes.
+    """
+
+    def __init__(self, uncompensated_pos, compensation_inputs, compensation_offset):
+        self.uncompensated_pos = uncompensated_pos
+        self.compensation_inputs = compensation_inputs
+        self.compensation_offset = compensation_offset
+        if compensation_offset is None:
+            self.compensated_pos = uncompensated_pos
+        else:
+            self.compensated_pos = uncompensated_pos + compensation_offset
 
 
 class HexapodCsc(hexrotcomm.BaseCsc):
@@ -108,15 +152,37 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # but update from configuration reported by the low-level controller.
         self.current_pos_limits = copy.copy(self.max_pos_limits)
 
+        # The move command that is currently running, or None.
+        self.move_command = None
+
+        # Task for the current move, if one is being commanded.
+        self.move_task = salobj.make_done_future()
+
         # If the compensation loop starts and there are missing
         # inputs then warn once and set this flag true.
         self.missing_inputs_str = ""
 
         # Interval between compensation updates.
-        # Set in `configure`, but we need something now.
+        # Set in `configure`, but we need an initial value.
         self.compensation_interval = 0.2
 
+        # Maximum time for the longest possible move (sec) with some buffer.
+        # Set in `config_callback` but we need an initial value.
+        # 61.74 is the value for the mock controller as of 2021-04-15.
+        self.max_move_duration = 65
+
+        # The part of the compensation loop that is always safe to cancel.
         self.compensation_wait_task = salobj.make_done_future()
+
+        # The whole compensation loop; to safely cancel this use::
+        #
+        #     async with self.write_lock:
+        #        self.compensation_loop_task.cancel()
+        self.compensation_loop_task = salobj.make_done_future()
+
+        # Event set when a telemetry message is received from
+        # the low-level controller, after it has been parsed.
+        self.telemetry_event = asyncio.Event()
 
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
@@ -150,21 +216,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     def compensation_mode(self):
         """Return True if moves are compensated, False otherwise."""
         return self.evt_compensationMode.data.enabled
-
-    def bump_compensation_loop(self, wait_first):
-        """Stop and, if appropriate, restart the compensation loop.
-
-        Parameters
-        ----------
-        wait_first : `bool`
-            If True then wait_first to apply the first compensation correction.
-            This is appropriate for do_move and do_offset
-            (since they perform a compensated move, if appropriate),
-            but not for do_setCompensationMode.
-        """
-        self.compensation_wait_task.cancel()
-        if self.compensation_mode:
-            asyncio.create_task(self.compensation_loop(wait_first=wait_first))
 
     def config_callback(self, server):
         """Called when the low-level controller outputs configuration.
@@ -202,6 +253,42 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.evt_configuration.data
         )
 
+        # Compute a simplistic model for the maximum duration of a move (sec).
+        # Ignore the distance over which the strut accelerates
+        # and decelerates, when estimating the time spent at maximum velocity,
+        # as that should be negligible.
+        # Note that max_displacement_strut is a half distance (+/- from 0).
+        if server.config.max_displacement_strut <= 0:
+            self.log.warning(
+                f"Reported max_displacement_strut {server.config.max_displacement_strut} <= 0; "
+                f"using existing max_move_duration {self.max_move_duration} sec"
+            )
+            return
+        if server.config.max_velocity_strut <= 0:
+            self.log.warning(
+                f"Reported max_velocity_strut {server.config.acceleration_strut} <= 0; "
+                f"using existing max_move_duration {self.max_move_duration} sec"
+            )
+            return
+        if server.config.acceleration_strut <= 0:
+            self.log.warning(
+                f"Reported strut acceleration {server.config.acceleration_strut} <= 0; "
+                f"using existing max_move_duration {self.max_move_duration} sec"
+            )
+            return
+
+        telemetry_interval = 0.2
+        accel_duration = (
+            server.config.max_velocity_strut / server.config.acceleration_strut
+        )
+        vel_duration = (
+            server.config.max_displacement_strut / server.config.max_velocity_strut
+        )
+        self.max_move_duration = 2.1 * (
+            telemetry_interval + accel_duration + vel_duration
+        )
+        self.log.info(f"max_move_duration={self.max_move_duration}")
+
     async def configure(self, config):
         self.compensation_interval = config.compensation_interval
         subconfig_name = {
@@ -221,56 +308,34 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     def connect_callback(self, server):
         super().connect_callback(server)
         if not self.server.connected:
-            self.stop_compensation()
+            self.disable_compensation()
 
-    async def compensation_loop(self, wait_first):
+    async def compensation_loop(self):
         """Apply compensation at regular intervals.
 
-        Parameters
-        ----------
-        wait_first : `bool`
-            Wait for the first iteration?
-            Set True if called by the move or offset command,
-            set False if called by the setCompensationMode command.
+        The algorithm is to repeat the following sequence:
 
-        Notes
-        -----
-        The interval between compensation updates is a configuration parameter.
+        * Wait until it is time to apply compensation
+          (see `compensation_wait` for details).
+        * Apply the compensation offset.
 
-        This will skip a compensation update if the hexapod is moving
-        (and log a debug-level message). That will be common after
-        a large move.
+        If a compensation update fails then compensation is disabled.
         """
-        self.compensation_wait_task.cancel()
-        do_wait = wait_first
-        while self.summary_state == salobj.State.ENABLED:
-            if do_wait:
-                self.compensation_wait_task = asyncio.create_task(
-                    asyncio.sleep(self.compensation_interval)
-                )
-                await self.compensation_wait_task
-                if self.summary_state != salobj.State.ENABLED:
-                    return
-            else:
-                do_wait = True
+        if not self._has_uncompensated_position():
+            self.log.error("Compensation failed; no position has been commanded")
+            return
 
-            # Apply a compensation move, if movement is allowed.
-            if self.server.telemetry.enabled_substate != EnabledSubstate.STATIONARY:
-                # Cast the float value for nicer output
-                enabled_substate = EnabledSubstate(
-                    self.server.telemetry.enabled_substate
-                )
-                self.log.debug(
-                    f"Skip compensation; enabled_substate={enabled_substate!r}"
-                )
-                continue
-            if not self._has_uncompensated_position():
-                self.log.error("Compensation failed; no position has been commanded")
-                return
+        while self.summary_state == salobj.State.ENABLED:
+            self.compensation_wait_task = asyncio.create_task(self.compensation_wait())
+            await self.compensation_wait_task
             try:
                 self.log.debug("Apply compensation")
                 uncompensated_pos = self._get_uncompensated_position()
-                await self._move(uncompensated_pos=uncompensated_pos, sync=1)
+                await self._move(
+                    uncompensated_pos=uncompensated_pos,
+                    sync=1,
+                    start_compensation=False,
+                )
             except asyncio.CancelledError:
                 # Normal termination. This may be temporary (e.g.
                 # when starting a move or offset command) so do not
@@ -280,6 +345,87 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.log.exception("Compensation failed; turning off compensation mode")
                 self.evt_compensationMode.set_put(enabled=False)
                 return
+
+    async def compensation_wait(self):
+        """Wait until it is time to apply the next compensation update.
+
+        Wait for motion to stop, then wait for self.compensation_interval
+        seconds (a configuration parameter).
+        Warn and repeat if the axes are moving again (very unlikely).
+
+        Raises
+        ------
+        asyncio.CancelledError
+            If the CSC is no longer enabled.
+        asyncio.TimeoutError
+            If waiting for motion to stop takes longer than
+            ``self.max_move_duration``.
+        """
+        while True:
+            await asyncio.wait_for(self.wait_stopped(), timeout=self.max_move_duration)
+
+            await asyncio.sleep(self.compensation_interval)
+            if self.summary_state != salobj.State.ENABLED:
+                raise asyncio.CancelledError()
+
+            if self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
+                # Axes are still halted; we're done!
+                return
+            else:
+                # This should never happen, because any new move cancels
+                # the compensation loop. But just in case...
+                self.log.warning(
+                    "Found the hexapod moving after waiting the "
+                    "compensation interval; waiting again."
+                )
+
+    def compute_compensation(self, uncompensated_pos):
+        """Check uncompensated and, if relevant, compensated position
+        and return compensation information.
+
+        Parameters
+        ----------
+        uncompensated_pos : `dict` [`str`, `float`]
+            Target position (without compensation applied)
+            as a dict of axis name: position
+            keys are x, y, z (um), u, v, w (deg).
+
+        Returns
+        -------
+        compensation_info : `CompensationInfo`
+            Compensation information.
+
+        Raises
+        ------
+        salobj.ExpectedError
+            If uncompensated or compensated position is out of bounds.
+        """
+        utils.check_position(
+            position=uncompensated_pos,
+            limits=self.current_pos_limits,
+            ExceptionClass=salobj.ExpectedError,
+        )
+
+        compensation_inputs = None
+        compensation_offset = None
+        compensated_pos = None
+
+        if self.compensation_mode:
+            compensation_inputs = self.get_compensation_inputs()
+            if compensation_inputs is not None:
+                compensation_offset = self.compensation.get_offset(compensation_inputs)
+                compensated_pos = uncompensated_pos + compensation_offset
+                utils.check_position(
+                    position=compensated_pos,
+                    limits=self.current_pos_limits,
+                    ExceptionClass=salobj.ExpectedError,
+                )
+
+        return CompensationInfo(
+            uncompensated_pos=uncompensated_pos,
+            compensation_inputs=compensation_inputs,
+            compensation_offset=compensation_offset,
+        )
 
     def get_compensation_inputs(self):
         """Return the current compensation inputs, or None if not available.
@@ -400,13 +546,20 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         self.assert_enabled_substate(EnabledSubstate.STATIONARY)
         uncompensated_pos = base.Position.from_struct(data)
-        utils.check_position(
-            position=uncompensated_pos,
-            limits=self.current_pos_limits,
-            ExceptionClass=salobj.ExpectedError,
+
+        # Check the new position _before_ cancelling the current move (if any)
+        # and starting a new move.
+        self.compute_compensation(uncompensated_pos)
+        async with self.write_lock:
+            self.move_task.cancel()
+            self.compensation_loop_task.cancel()
+        self.move_task = asyncio.create_task(
+            self._move(
+                uncompensated_pos=uncompensated_pos,
+                sync=data.sync,
+                start_compensation=True,
+            )
         )
-        self.bump_compensation_loop(wait_first=True)
-        await self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
 
     async def do_offset(self, data):
         """Move by a specified offset in position and orientation.
@@ -417,31 +570,52 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         curr_uncompensated_pos = self._get_uncompensated_position()
         offset = base.Position.from_struct(data)
         uncompensated_pos = curr_uncompensated_pos + offset
-        utils.check_position(
-            position=uncompensated_pos,
-            limits=self.current_pos_limits,
-            ExceptionClass=salobj.ExpectedError,
+
+        # Check the new position _before_ cancelling the current move (if any)
+        # and starting a new move.
+        self.compute_compensation(uncompensated_pos)
+        async with self.write_lock:
+            self.move_task.cancel()
+            self.compensation_loop_task.cancel()
+        self.move_task = asyncio.create_task(
+            self._move(
+                uncompensated_pos=uncompensated_pos,
+                sync=data.sync,
+                start_compensation=True,
+            )
         )
-        self.bump_compensation_loop(wait_first=True)
-        await self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
 
     async def do_setCompensationMode(self, data):
         self.assert_enabled()
         self.evt_compensationMode.set_put(enabled=data.enable)
+        async with self.write_lock:
+            self.compensation_loop_task.cancel()
+            self.move_task.cancel()
+        if not self._has_uncompensated_position():
+            if data.enable:
+                self.log.info(
+                    "No position as been commanded since this CSC started, "
+                    "so compensation will begin once you command a move."
+                )
+            else:
+                self.log.info(
+                    "No position as been commanded since this CSC started, "
+                    "so there is no compensation offset to remove."
+                )
+            return
+
+        uncompensated_pos = self._get_uncompensated_position()
         if data.enable:
-            if self._has_uncompensated_position():
-                self.bump_compensation_loop(wait_first=False)
-            else:
-                self.compensation_wait_task.cancel()
+            self.log.info("Applying compensation to the current target position")
         else:
-            self.stop_compensation()
-            try:
-                uncompensated_pos = self._get_uncompensated_position()
-            except salobj.ExpectedError:
-                self.log.info("There is no compensation offset to remove")
-            else:
-                self.log.info("Removing the current compensation offset")
-                await self._move(uncompensated_pos=uncompensated_pos, sync=1)
+            self.log.info("Removing compensation from the current target position")
+        self.move_task = asyncio.create_task(
+            self._move(
+                uncompensated_pos=uncompensated_pos,
+                sync=1,
+                start_compensation=data.enable,
+            )
+        )
 
     async def do_setPivot(self, data):
         """Set the coordinates of the pivot point."""
@@ -477,7 +651,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         did_change = self.evt_summaryState.set_put(summaryState=self.summary_state)
         if did_change and self.summary_state != salobj.State.ENABLED:
-            self.stop_compensation()
+            self.disable_compensation()
 
         # Strangely telemetry.state, offline_substate and enabled_substate
         # are all floats from the controller. But they should only have
@@ -528,6 +702,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             detail="Engaged" if safety_interlock else "Disengaged"
         )
 
+        self.telemetry_event.set()
+
     def make_mock_controller(self, initial_ctrl_state):
         return mock_controller.MockMTHexapodController(
             log=self.log,
@@ -537,10 +713,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             telemetry_port=self.server.telemetry_port,
         )
 
-    def stop_compensation(self):
-        """Stop the compensation loop."""
+    def disable_compensation(self):
+        """Cancel compensation and report compensationMode.enabled=False."""
+        # Since this is a synchronous method, it is not safe to cancel the
+        # compensation loop (there is no way to obtain the write lock).
+        # So cancel the compensation wait task, instead.
         self.compensation_wait_task.cancel()
-        self.compensate_position = False
         self.evt_compensationMode.set_put(enabled=False)
 
     def _make_position_set_command(self, position):
@@ -586,7 +764,67 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             raise salobj.ExpectedError("No uncompensated position to offset from")
         return base.Position.from_struct(uncompensated_data)
 
-    async def _move(self, uncompensated_pos, sync):
+    async def stop_motion(self):
+        """Stop motion and wait for it to stop.
+
+        Wait for 2 telemetry messages before issuing a stop command,
+        in case the motion to be stopped has just been started.
+
+        Raises:
+            asyncio.CancelledError if not in enabled state.
+        """
+        if self.server.telemetry.state != ControllerState.ENABLED:
+            raise asyncio.CancelledError("Not enabled")
+
+        for i in range(2):
+            self.telemetry_event.clear()
+            await self.telemetry_event.wait()
+            if self.server.telemetry.state != ControllerState.ENABLED:
+                raise asyncio.CancelledError("Not enabled")
+
+        if self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
+            return
+
+        # Stop the current motion, unless it is already being stopped.
+        if (
+            self.server.telemetry.enabled_substate
+            != EnabledSubstate.CONTROLLED_STOPPING
+        ):
+            await self.run_command(
+                code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+                param1=enums.SetEnabledSubstateParam.STOP,
+            )
+
+        # Wait for stop.
+        await self.wait_stopped()
+
+    async def wait_stopped(self):
+        """Wait for the current motion, if any, to stop.
+
+        Always waits for at least 2 status before returning,
+        if in enabled state.
+
+        Raises:
+            asyncio.CancelledError if not in enabled state.
+        """
+        if self.server.telemetry.state != ControllerState.ENABLED:
+            raise asyncio.CancelledError()
+
+        nstatus = 0
+        while True:
+            self.telemetry_event.clear()
+            await self.telemetry_event.wait()
+            nstatus += 1
+
+            if self.server.telemetry.state != ControllerState.ENABLED:
+                raise asyncio.CancelledError()
+            elif (
+                nstatus >= 2
+                and self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY
+            ):
+                return
+
+    async def _move(self, uncompensated_pos, sync, start_compensation):
         """Command a move and output appropriate events.
 
         Parameters
@@ -597,33 +835,49 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             keys are x, y, z (um), u, v, w (deg).
         sync : `bool`
             Should this be a synchronized move? Usually True.
+        start_compensation : `bool`
+            If True and if compensation mode is enabled,
+            then start the compensation loop at the end
+            (on success or failure, but not if cancelled).
+            Ignored if compensation mode is disabled.
         """
-        compensation_offset = None
-        if self.compensation_mode:
-            compensation_input = self.get_compensation_inputs()
-            if compensation_input is not None:
-                compensation_offset = self.compensation.get_offset(compensation_input)
+        try:
+            compensation_info = self.compute_compensation(uncompensated_pos)
 
-        if compensation_offset is not None:
-            compensated_pos = uncompensated_pos + compensation_offset
-        else:
-            compensated_pos = uncompensated_pos
+            # Stop the current motion, if any, and wait for it to stop.
+            await self.stop_motion()
 
-        cmd1 = self._make_position_set_command(compensated_pos)
-        cmd2 = self.make_command(
-            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-            param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-            param2=sync,
-        )
-        await self.run_multiple_commands(cmd1, cmd2)
-
-        self.evt_uncompensatedPosition.set_put(**vars(uncompensated_pos))
-        self.evt_compensatedPosition.set_put(**vars(compensated_pos))
-        if compensation_offset is not None:
-            self.evt_compensationOffset.set_put(
-                elevation=compensation_input.elevation,
-                azimuth=compensation_input.azimuth,
-                rotation=compensation_input.rotation,
-                temperature=compensation_input.temperature,
-                **vars(compensation_offset),
+            # Command the new motion.
+            cmd1 = self._make_position_set_command(compensation_info.compensated_pos)
+            cmd2 = self.make_command(
+                code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+                param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
+                param2=sync,
             )
+            await self.run_multiple_commands(cmd1, cmd2)
+
+            self.evt_uncompensatedPosition.set_put(**vars(uncompensated_pos))
+            self.evt_compensatedPosition.set_put(
+                **vars(compensation_info.compensated_pos)
+            )
+            if compensation_info.compensation_offset is not None:
+                self.evt_compensationOffset.set_put(
+                    elevation=compensation_info.compensation_inputs.elevation,
+                    azimuth=compensation_info.compensation_inputs.azimuth,
+                    rotation=compensation_info.compensation_inputs.rotation,
+                    temperature=compensation_info.compensation_inputs.temperature,
+                    **vars(compensation_info.compensation_offset),
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # This move failed; restart the compensation loop anyway,
+            # if it is wanted.
+            if start_compensation and self.compensation_mode:
+                self.compensation_loop_task = asyncio.create_task(
+                    self.compensation_loop()
+                )
+            raise
+
+        if start_compensation and self.compensation_mode:
+            self.compensation_loop_task = asyncio.create_task(self.compensation_loop())
