@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.16.0
+-------
+
+Changes:
+
+* Make moves and offsets more reliable: if the hexapod is moving, stop it before issuing the new move command.
+  This change requires ts_hexrotcomm v0.18.
+
+Requires:
+
+* ts_hexrotcomm 0.18
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.15.1
 -------
 
