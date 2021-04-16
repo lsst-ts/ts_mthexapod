@@ -266,6 +266,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.move_commanded = False
 
     async def do_move_point_to_point(self, command):
+        self.assert_stationary()
         if self.set_position is None:
             raise RuntimeError(
                 "Must call POSITION_SET before calling MOVE_POINT_TO_POINT"
