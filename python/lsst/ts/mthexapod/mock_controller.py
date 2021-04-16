@@ -302,10 +302,10 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
                 self.move_commanded and not actuator.moving(curr_tai)
                 for actuator in self.hexapod.actuators
             ]
-            self.telemetry.application_status = tuple(
+            in_position = all(axes_in_position)
+            self.telemetry.application_status = (
                 int(in_position) * ApplicationStatus.HEX_MOVE_COMPLETE_MASK
                 | ApplicationStatus.DDS_COMMAND_SOURCE
-                for in_position in axes_in_position
             )
             self.telemetry.input_pin_states = (0,) * 3
 
