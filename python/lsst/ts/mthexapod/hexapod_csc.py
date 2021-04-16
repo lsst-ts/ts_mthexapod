@@ -666,7 +666,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             controllerState=int(server.telemetry.state),
             offlineSubstate=int(server.telemetry.offline_substate),
             enabledSubstate=int(server.telemetry.enabled_substate),
-            applicationStatus=server.telemetry.application_status,
+            applicationStatus=[server.telemetry.application_status, 0, 0, 0, 0, 0],
         )
 
         pos_error = [
@@ -687,22 +687,21 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
         )
 
-        actuator_in_position = tuple(
-            status & ApplicationStatus.HEX_MOVE_COMPLETE_MASK
-            for status in server.telemetry.application_status
+        in_position = (
+            server.telemetry.application_status
+            & ApplicationStatus.HEX_MOVE_COMPLETE_MASK
         )
-        self.evt_actuatorInPosition.set_put(inPosition=actuator_in_position)
-        self.evt_inPosition.set_put(inPosition=all(actuator_in_position))
+        self.evt_inPosition.set_put(inPosition=in_position)
 
         self.evt_commandableByDDS.set_put(
             state=bool(
-                server.telemetry.application_status[0]
+                server.telemetry.application_status
                 & ApplicationStatus.DDS_COMMAND_SOURCE
             )
         )
 
         safety_interlock = (
-            server.telemetry.application_status[0] & ApplicationStatus.SAFETY_INTERLOCK
+            server.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
         )
         self.evt_interlock.set_put(
             detail="Engaged" if safety_interlock else "Disengaged"
