@@ -6,6 +6,29 @@
 Version History
 ###############
 
+v0.17.0
+-------
+
+Deprecations:
+
+* The actuatorInPosition event is deprecated (because the CSC does not receive the necessary information)
+  and is no longer published.
+
+Changes:
+
+* Fix the inPosition event.
+  The code now expects a single value for application_status from the low-level controller
+  and ignores the unused 5 extra values. These unused values will go away in a later update
+  (which requires a corresponding update to the low-level controller).
+
+Requires:
+
+* ts_hexrotcomm 0.18
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.16.0
 -------
 
