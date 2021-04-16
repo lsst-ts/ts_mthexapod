@@ -43,6 +43,12 @@ from . import mock_controller
 from . import structs
 from . import utils
 
+# Maximum time to stop axes (seconds).
+# The minimum needed is time to acquire the write lock,
+# issue the command, and wait for motion to stop.
+# However, it is fine to be generous.
+MAXIMUM_STOP_TIME = 10
+
 
 class CompensationInfo:
     """Information about a possibly compensated move
@@ -845,7 +851,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             compensation_info = self.compute_compensation(uncompensated_pos)
 
             # Stop the current motion, if any, and wait for it to stop.
-            await self.stop_motion()
+            await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
 
             # Command the new motion.
             cmd1 = self._make_position_set_command(compensation_info.compensated_pos)
