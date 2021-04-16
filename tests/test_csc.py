@@ -220,7 +220,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
         * controllerState with state ENABLED/STATIONARY
         * inPosition event with inPosition=False
-        * actuatorInPosition with all axes False.
 
         Checks inPosition and uncompensatedPosition events.
         Does not check compensatedPosition or application telemetry,
@@ -291,25 +290,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
         await self.assert_next_sample(self.remote.evt_inPosition, inPosition=False)
         await self.assert_next_sample(self.remote.evt_inPosition, inPosition=True)
-        data = await self.remote.evt_actuatorInPosition.next(
-            flush=False, timeout=STD_TIMEOUT
-        )
-        self.assertIn(False, data.inPosition)
-        # Check that actuatorInPosition returns all in position;
-        # this should occur within 6 events (fewer if several actuators
-        # finish their move at the same time).
-        for i in range(6):
-            try:
-                data = await self.remote.evt_actuatorInPosition.next(
-                    flush=False, timeout=STD_TIMEOUT
-                )
-                self.assertIn(True, data.inPosition)
-                if False not in data.inPosition:
-                    break
-            except asyncio.TimeoutError:
-                self.fail("actuatorInPosition timed out before all True")
-        else:
-            self.fail("actuatorInPosition output 6 times, but not all True")
 
         print(f"Move duration: {time.time() - t0:0.2f} seconds")
         await self.assert_next_uncompensated_position(position=uncompensated_position)
