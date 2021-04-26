@@ -38,7 +38,7 @@ def as_bool(value):
     No other values are valid.
     """
     return {"0": False, "f": False, "false": False, "1": True, "t": True, "true": True}[
-        value
+        value.lower()
     ]
 
 
@@ -66,6 +66,16 @@ class HexapodCommander(salobj.CscCommander):
         )
         for command_to_ignore in ("abort", "setValue"):
             del self.command_dict[command_to_ignore]
+
+    async def do_setCompensationMode(self, args):
+        """Override to work around a bug in salobj.CscCommander.
+
+        salobj.CscCommander v6.3.5 mishandles bool arguments: DM-29902
+        """
+        if len(args) != 1:
+            raise ValueError("setCompensationMode requires one argument: enable")
+        enable = as_bool(args[0])
+        await self.remote.cmd_setCompensationMode.set_start(enable=enable)
 
     def positions_close(self, position1, position2):
         """Return True if two positions are nearly equal.
