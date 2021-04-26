@@ -49,6 +49,10 @@ from . import utils
 # However, it is fine to be generous.
 MAXIMUM_STOP_TIME = 10
 
+# Maximum value of the n_telemetry counter.
+# Sets the maximum number of telemetry messages one can wait for.
+MAX_N_TELEMETRY = 10
+
 
 class CompensationInfo:
     """Information about a possibly compensated move
@@ -189,6 +193,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Event set when a telemetry message is received from
         # the low-level controller, after it has been parsed.
         self.telemetry_event = asyncio.Event()
+
+        # Count of number of telemetry samples read
+        # since issuing a low-level command.
+        # Maxes out at MAX_N_TELEMETRY.
+        self.n_telemetry = 0
 
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
@@ -566,6 +575,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 start_compensation=True,
             )
         )
+        await self.move_task
 
     async def do_offset(self, data):
         """Move by a specified offset in position and orientation.
@@ -590,6 +600,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 start_compensation=True,
             )
         )
+        await self.move_task
 
     async def do_setCompensationMode(self, data):
         self.assert_enabled()
@@ -636,10 +647,26 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_stop(self, data):
         """Halt tracking or any other motion."""
         self.assert_enabled()
-        await self.run_command(
-            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-            param1=enums.SetEnabledSubstateParam.STOP,
+        async with self.write_lock:
+            self.move_task.cancel()
+            self.compensation_loop_task.cancel()
+        # This seems to be necessary for the low-level controller
+        # to reliably respond to the stop command when issued
+        # shortly after issuing a move command.
+        # I would much rather just issue the stop command!
+        await self.stop_motion()
+
+    async def basic_run_command(self, command):
+        # Overload of lsst.ts.hexrotcomm.BaseCsc's version
+        # that resets the n_telemetry attribute.
+        self.n_telemetry = 0
+        self.log.debug(
+            f"send low-level command {enums.CommandCode(command.code)!r}; "
+            f"params={command.param1}, {command.param2}, {command.param3}, "
+            f"{command.param4}, {command.param5}, {command.param6}"
         )
+        await super().basic_run_command(command)
+        self.n_telemetry = 0
 
     async def start(self):
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
@@ -706,6 +733,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             detail="Engaged" if safety_interlock else "Disengaged"
         )
 
+        if self.n_telemetry < MAX_N_TELEMETRY:
+            self.n_telemetry += 1
         self.telemetry_event.set()
 
     def make_mock_controller(self, initial_ctrl_state):
@@ -771,62 +800,93 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def stop_motion(self):
         """Stop motion and wait for it to stop.
 
-        Wait for 2 telemetry messages before issuing a stop command,
-        in case the motion to be stopped has just been started.
-
         Raises:
             asyncio.CancelledError if not in enabled state.
         """
         if self.server.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError("Not enabled")
 
-        for i in range(2):
-            self.telemetry_event.clear()
-            await self.telemetry_event.wait()
-            if self.server.telemetry.state != ControllerState.ENABLED:
-                raise asyncio.CancelledError("Not enabled")
-
+        # TODO: once DM-29975 is fixed remove this code block
+        # and just run the STOP command. For now it appears to be
+        # necessary to give the low-level controller some time
+        # to process the previous command before it can be stopped.
+        await self.wait_n_telemetry()
         if self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
             return
 
-        # Stop the current motion, unless it is already being stopped.
-        if (
-            self.server.telemetry.enabled_substate
-            != EnabledSubstate.CONTROLLED_STOPPING
-        ):
-            await self.run_command(
-                code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                param1=enums.SetEnabledSubstateParam.STOP,
-            )
+        await self.run_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.STOP,
+        )
 
-        # Wait for stop.
         await self.wait_stopped()
 
-    async def wait_stopped(self):
+    async def wait_n_telemetry(self, n_telemetry=4):
+        """Wait for n_telemetry telemetry messages since the most recent
+        low-level command.
+
+        Parameters
+        ----------
+        n_telemetry : `int`, optional
+            Minimum number of telemetry messages since the most recent
+            low-level command. Must be positive. A value of 3 is necessary
+            to reliably allow stop or move to interrupt another move.
+
+        Raises
+        ------
+        asyncio.CancelledError
+            If the system goes out of enabled state.
+        """
+        if n_telemetry < 0 or n_telemetry > MAX_N_TELEMETRY:
+            raise ValueError(
+                f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
+            )
+
+        if self.n_telemetry >= n_telemetry:
+            return
+
+        while self.n_telemetry < n_telemetry:
+            self.telemetry_event.clear()
+            await self.telemetry_event.wait()
+            if self.server.telemetry.state != ControllerState.ENABLED:
+                raise asyncio.CancelledError()
+
+    async def wait_stopped(self, n_telemetry=4):
         """Wait for the current motion, if any, to stop.
 
-        Always waits for at least 2 status before returning,
-        if in enabled state.
+        Parameters
+        ----------
+        n_telemetry : `int`, optional
+            Minimum number of telemetry messages since the most recent
+            low-level command. Must be positive. A value of 3 is necessary
+            to reliably allow stop or move to interrupt another move.
+
+        Returns
+        -------
+        is_stopped : `bool`
+            Is motion stopped? Always True unless max_nstatus is not None.
 
         Raises:
             asyncio.CancelledError if not in enabled state.
         """
+        if n_telemetry < 0 or n_telemetry > MAX_N_TELEMETRY:
+            raise ValueError(
+                f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
+            )
+
         if self.server.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError()
 
-        nstatus = 0
-        while True:
+        while (
+            self.n_telemetry < n_telemetry
+            or self.server.telemetry.enabled_substate != EnabledSubstate.STATIONARY
+        ):
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
-            nstatus += 1
-
             if self.server.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
-            elif (
-                nstatus >= 2
-                and self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY
-            ):
-                return
+
+        return True
 
     async def _move(self, uncompensated_pos, sync, start_compensation):
         """Command a move and output appropriate events.
