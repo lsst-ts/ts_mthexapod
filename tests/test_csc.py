@@ -913,9 +913,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
     async def test_move_interrupt_move(self):
         """Test that one move can interrupt another."""
         positions_data = (
-            (100, 200, -300, 0.01, 0.02, -0.015),
-            (-100, 200, 400, -0.02, -0.01, 0.015),
-            (200, -100, -400, 0.02, 0.01, -0.03),
+            (0, 0, -1000, 0, 0, 0),
+            (0, 0, 1000, 0, 0, 0),
+            (0, 0, -400, 0, 0, 0),
         )
         positions = [mthexapod.Position(*data) for data in positions_data]
         async with self.make_csc(
@@ -927,20 +927,35 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
-            await self.remote.cmd_setCompensationMode.set_start(
-                enable=True, timeout=STD_TIMEOUT
-            )
-            await self.assert_next_sample(
-                topic=self.remote.evt_compensationMode, enabled=True
-            )
 
             await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+            isfirst = True
             for position in positions:
                 print("command a move")
                 await self.remote.cmd_move.set_start(
                     **vars(position), timeout=STD_TIMEOUT
                 )
                 await self.assert_next_uncompensated_position(position)
+                if isfirst:
+                    isfirst = False
+                else:
+                    # The new move should halt the old move
+                    await self.assert_next_sample(
+                        self.remote.evt_controllerState,
+                        controllerState=ControllerState.ENABLED,
+                        enabledSubstate=EnabledSubstate.STATIONARY,
+                    )
+                # Wait for the new move to begin
+                await self.assert_next_sample(
+                    self.remote.evt_controllerState,
+                    controllerState=ControllerState.ENABLED,
+                    enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
+                )
 
             # Make sure the commanded position is indeed the last position.
             desired_position = positions[-1]
@@ -948,23 +963,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 self.csc.mock_ctrl.telemetry.commanded_pos, desired_position
             )
 
-            # Flush any stops and starts
-            self.remote.evt_controllerState.flush()
-
             # Wait for the last move to finish and check that we are at the
             # desired position.
-            while True:
-                data = await self.assert_next_sample(
-                    self.remote.evt_controllerState,
-                    controllerState=ControllerState.ENABLED,
-                )
-                if data.enabledSubstate == EnabledSubstate.STATIONARY:
-                    break
-                if data.enabledSubstate not in (
-                    EnabledSubstate.CONTROLLED_STOPPING,
-                    EnabledSubstate.MOVING_POINT_TO_POINT,
-                ):
-                    self.fail(f"Unexpected enabledSubstate={data.enabledSubstate}")
+            await self.assert_next_sample(
+                self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
             data = await self.remote.tel_application.next(
                 flush=True, timeout=STD_TIMEOUT
             )

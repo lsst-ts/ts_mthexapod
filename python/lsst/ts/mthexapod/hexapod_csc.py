@@ -550,7 +550,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         If compensation mode is off we do not test compensated position,
         as it allows running with invalid compensation coefficients or inputs.
         """
-        self.assert_enabled_substate(EnabledSubstate.STATIONARY)
+        self.assert_enabled()
         uncompensated_pos = base.Position.from_struct(data)
 
         # Check the new position _before_ cancelling the current move (if any)
@@ -572,7 +572,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         See note for do_move regarding checking the target position.
         """
-        self.assert_enabled_substate(EnabledSubstate.STATIONARY)
+        self.assert_enabled()
         curr_uncompensated_pos = self._get_uncompensated_position()
         offset = base.Position.from_struct(data)
         uncompensated_pos = curr_uncompensated_pos + offset
@@ -635,8 +635,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_stop(self, data):
         """Halt tracking or any other motion."""
-        if self.summary_state != salobj.State.ENABLED:
-            raise salobj.ExpectedError("Not enabled")
+        self.assert_enabled()
         await self.run_command(
             code=enums.CommandCode.SET_ENABLED_SUBSTATE,
             param1=enums.SetEnabledSubstateParam.STOP,
