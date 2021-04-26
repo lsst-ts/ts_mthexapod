@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.17.1
+-------
+
+Changes:
+
+* This version requires ts_hexrotcomm 0.18.
+* `CscHexapod` bug fix: the ``move`` and ``offset`` commands were rejected if actuators were moving.
+* `CscHexapod` bug fix: ``stop``, ``move``, and ``offset`` still did not reliably interrupt a move.
+
+Requires:
+
+* ts_hexrotcomm 0.18
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.17.0
 -------
 
