@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.17.1
+-------
+
+Changes:
+
+* `CscHexapod` bug fix: the ``move`` and ``offset`` commands were rejected if actuators were moving.
+* `HexapodCommander`: work around salobj bug DM-29902 to fix the ``setCompensationMode`` command.
+
+Requires:
+
+* ts_hexrotcomm 0.18
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.17.0
 -------
 
