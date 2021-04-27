@@ -575,6 +575,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 start_compensation=True,
             )
         )
+        await self.move_task
 
     async def do_offset(self, data):
         """Move by a specified offset in position and orientation.
@@ -599,6 +600,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 start_compensation=True,
             )
         )
+        await self.move_task
 
     async def do_setCompensationMode(self, data):
         self.assert_enabled()
@@ -645,6 +647,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_stop(self, data):
         """Halt tracking or any other motion."""
         self.assert_enabled()
+        async with self.write_lock:
+            self.move_task.cancel()
+            self.compensation_loop_task.cancel()
         await self.run_command(
             code=enums.CommandCode.SET_ENABLED_SUBSTATE,
             param1=enums.SetEnabledSubstateParam.STOP,
