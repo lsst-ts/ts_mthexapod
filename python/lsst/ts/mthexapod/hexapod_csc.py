@@ -655,21 +655,16 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             param1=enums.SetEnabledSubstateParam.STOP,
         )
 
-    async def run_command(
-        self, code, param1=0, param2=0, param3=0, param4=0, param5=0, param6=0
-    ):
-        # Overload of lsst.ts.hexrotcomm.BaseCsc.run_command
-        # that resets nstopped.
+    async def basic_run_command(self, command):
+        # Overload of lsst.ts.hexrotcomm.BaseCsc's version
+        # that resets the nstopped attribute.
         self.nstopped = 0
-        await super().run_command(
-            code=code,
-            param1=param1,
-            param2=param2,
-            param3=param3,
-            param4=param4,
-            param5=param5,
-            param6=param6,
+        self.log.debug(
+            f"send low-level command {enums.CommandCode(command.code)!r}; "
+            f"params={command.param1}, {command.param2}, {command.param3}, "
+            f"{command.param4}, {command.param5}, {command.param6}"
         )
+        await super().basic_run_command(command)
         self.nstopped = 0
 
     async def start(self):
