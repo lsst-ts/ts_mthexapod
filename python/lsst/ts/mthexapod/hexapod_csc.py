@@ -813,7 +813,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         # If already stopped then we are done, but give the current command
         # (if any) time to influence telemetry before deciding.
-        is_stopped = await self.wait_stopped(max_ntelem=2)
+        is_stopped = await self.wait_stopped(max_ntelem=3)
         if is_stopped:
             return
 
@@ -830,7 +830,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Wait for stop.
         await self.wait_stopped()
 
-    async def wait_stopped(self, min_nstopped=2, max_ntelem=None):
+    async def wait_stopped(self, min_nstopped=3, max_ntelem=None):
         """Wait for the current motion, if any, to stop.
 
         Parameters
