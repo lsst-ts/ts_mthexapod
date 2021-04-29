@@ -49,9 +49,9 @@ from . import utils
 # However, it is fine to be generous.
 MAXIMUM_STOP_TIME = 10
 
-# Maximum number of consecutive enabled/stationary states
-# one can wait for. Sets the maximum value of nstopped
-MAXIMUM_WAIT_STOPPED = 10
+# Maximum value of the n_telemetry counter.
+# Sets the maximum number of telemetry messages one can wait for.
+MAX_N_TELEMETRY = 10
 
 
 class CompensationInfo:
@@ -194,10 +194,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # the low-level controller, after it has been parsed.
         self.telemetry_event = asyncio.Event()
 
-        # Count of number of consecutive enabled/stationary states,
-        # up to a maximum value of MAX_WAIT_STOPPED.
-        # Reset to 0 when disabled or any command begins.
-        self.nstopped = 0
+        # Count of number of telemetry samples read
+        # since issuing a low-level command.
+        # Maxes out at MAX_N_TELEMETRY.
+        self.n_telemetry = 0
 
         structs.Config.FRAME_ID = controller_constants.config_frame_id
         structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
@@ -650,6 +650,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         async with self.write_lock:
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
+        # This seems to be necessary for the low-level controller
+        # to reliably respond to the stop command when issued
+        # shortly after issuing a move command.
+        await self.wait_n_telemetry()
         await self.run_command(
             code=enums.CommandCode.SET_ENABLED_SUBSTATE,
             param1=enums.SetEnabledSubstateParam.STOP,
@@ -657,15 +661,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def basic_run_command(self, command):
         # Overload of lsst.ts.hexrotcomm.BaseCsc's version
-        # that resets the nstopped attribute.
-        self.nstopped = 0
+        # that resets the n_telemetry attribute.
+        self.n_telemetry = 0
         self.log.debug(
             f"send low-level command {enums.CommandCode(command.code)!r}; "
             f"params={command.param1}, {command.param2}, {command.param3}, "
             f"{command.param4}, {command.param5}, {command.param6}"
         )
         await super().basic_run_command(command)
-        self.nstopped = 0
+        self.n_telemetry = 0
 
     async def start(self):
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
@@ -732,14 +736,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             detail="Engaged" if safety_interlock else "Disengaged"
         )
 
-        if (
-            self.evt_controllerState.data.controllerState != ControllerState.ENABLED
-            or self.evt_controllerState.data.enabledSubstate
-            != EnabledSubstate.STATIONARY
-        ):
-            self.nstopped = 0
-        elif self.nstopped < MAXIMUM_WAIT_STOPPED:
-            self.nstopped += 1
+        if self.n_telemetry < MAX_N_TELEMETRY:
+            self.n_telemetry += 1
         self.telemetry_event.set()
 
     def make_mock_controller(self, initial_ctrl_state):
@@ -813,8 +811,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         # If already stopped then we are done, but give the current command
         # (if any) time to influence telemetry before deciding.
-        is_stopped = await self.wait_stopped(max_ntelem=3)
-        if is_stopped:
+        await self.wait_n_telemetry()
+        if self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
             return
 
         # Stop the current motion, unless it is already being stopped.
@@ -830,18 +828,45 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Wait for stop.
         await self.wait_stopped()
 
-    async def wait_stopped(self, min_nstopped=3, max_ntelem=None):
+    async def wait_n_telemetry(self, n_telemetry=3):
+        """Wait for n_telemetry telemetry messages since the most recent
+        low-level command.
+
+        Parameters
+        ----------
+        n_telemetry : `int`, optional
+            Minimum number of telemetry messages since the most recent
+            low-level command. Must be positive. A value of 3 is necessary
+            to reliably allow stop or move to interrupt another move.
+
+        Raises
+        ------
+        asyncio.CancelledError
+            If the system goes out of enabled state.
+        """
+        if n_telemetry < 0 or n_telemetry > MAX_N_TELEMETRY:
+            raise ValueError(
+                f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
+            )
+
+        if self.n_telemetry >= n_telemetry:
+            return
+
+        while self.n_telemetry < n_telemetry:
+            self.telemetry_event.clear()
+            await self.telemetry_event.wait()
+            if self.server.telemetry.state != ControllerState.ENABLED:
+                raise asyncio.CancelledError()
+
+    async def wait_stopped(self, n_telemetry=3):
         """Wait for the current motion, if any, to stop.
 
         Parameters
         ----------
-        min_nstopped : `int`, optional
-            Minimum number of consecutive stopped states.
-            Must be positive and should probably be at least 2, so that
-            any command you started has a chance to affect telemetry.
-        max_ntelem : `int` or `None`, optional
-            The maximum number of telemetry messages to wait for.
-            If None then no limit and this method always returns True.
+        n_telemetry : `int`, optional
+            Minimum number of telemetry messages since the most recent
+            low-level command. Must be positive. A value of 3 is necessary
+            to reliably allow stop or move to interrupt another move.
 
         Returns
         -------
@@ -851,23 +876,22 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         Raises:
             asyncio.CancelledError if not in enabled state.
         """
-        if min_nstopped < 1:
-            raise ValueError(f"min_nstopped={min_nstopped} must be positive")
-        if max_ntelem is not None and max_ntelem < 1:
-            raise ValueError(f"max_ntelem={max_ntelem} must be positive or None")
+        if n_telemetry < 0 or n_telemetry > MAX_N_TELEMETRY:
+            raise ValueError(
+                f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
+            )
 
         if self.server.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError()
 
-        ntelem = 0
-        while self.nstopped < min_nstopped:
+        while (
+            self.n_telemetry < n_telemetry
+            or self.server.telemetry.enabled_substate != EnabledSubstate.STATIONARY
+        ):
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
             if self.server.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
-            ntelem += 1
-            if max_ntelem is not None and ntelem > max_ntelem:
-                return False
 
         return True
 
