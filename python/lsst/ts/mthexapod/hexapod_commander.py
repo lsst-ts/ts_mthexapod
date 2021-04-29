@@ -21,6 +21,8 @@
 
 __all__ = ["HexapodCommander"]
 
+import asyncio
+
 import numpy as np
 
 from lsst.ts import salobj
@@ -66,6 +68,12 @@ class HexapodCommander(salobj.CscCommander):
         )
         for command_to_ignore in ("abort", "setValue"):
             del self.command_dict[command_to_ignore]
+        self.help_dict[
+            "movestop"
+        ] = "delay=0  # start a move and immediately try to stop it"
+        self.help_dict[
+            "movemove"
+        ] = "delay=0  # start a move, pause, start another move, etc., 4 moves in all"
 
     async def do_setCompensationMode(self, args):
         """Override to work around a bug in salobj.CscCommander.
@@ -90,6 +98,32 @@ class HexapodCommander(salobj.CscCommander):
         return np.allclose(position1[:3], position2[:3], atol=1) and np.allclose(
             position1[3:], position2[3:], atol=1e-5
         )
+
+    async def do_movestop(self, args):
+        if len(args) > 1:
+            raise ValueError("Too many arguments")
+        if args:
+            delay = float(args[0])
+        else:
+            delay = 0
+        await self.remote.cmd_move.set_start(x=0, y=0, z=500, u=0, v=0, w=0)
+        await asyncio.sleep(delay)
+        await self.remote.cmd_stop.start()
+
+    async def do_movemove(self, args):
+        if len(args) > 1:
+            raise ValueError("Too many arguments")
+        if args:
+            delay = float(args[0])
+        else:
+            delay = 0
+        await self.remote.cmd_move.set_start(x=0, y=0, z=500, u=0, v=0, w=0)
+        await asyncio.sleep(delay)
+        await self.remote.cmd_move.set_start(x=0, y=0, z=-500, u=0, v=0, w=0)
+        await asyncio.sleep(delay)
+        await self.remote.cmd_move.set_start(x=0, y=0, z=500, u=0, v=0, w=0)
+        await asyncio.sleep(delay)
+        await self.remote.cmd_move.set_start(x=0, y=0, z=-500, u=0, v=0, w=0)
 
     async def tel_actuators_callback(self, data):
         """Callback for actuators telemetry.
