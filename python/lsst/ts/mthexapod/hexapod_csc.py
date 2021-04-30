@@ -653,11 +653,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # This seems to be necessary for the low-level controller
         # to reliably respond to the stop command when issued
         # shortly after issuing a move command.
-        await self.wait_n_telemetry()
-        await self.run_command(
-            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-            param1=enums.SetEnabledSubstateParam.STOP,
-        )
+        # I would much rather just issue the stop command!
+        await self.stop_motion()
 
     async def basic_run_command(self, command):
         # Overload of lsst.ts.hexrotcomm.BaseCsc's version
@@ -816,19 +813,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             return
 
         # Stop the current motion, unless it is already being stopped.
-        if (
-            self.server.telemetry.enabled_substate
-            != EnabledSubstate.CONTROLLED_STOPPING
-        ):
-            await self.run_command(
-                code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                param1=enums.SetEnabledSubstateParam.STOP,
-            )
+        await self.run_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.STOP,
+        )
 
         # Wait for stop.
         await self.wait_stopped()
 
-    async def wait_n_telemetry(self, n_telemetry=3):
+    async def wait_n_telemetry(self, n_telemetry=4):
         """Wait for n_telemetry telemetry messages since the most recent
         low-level command.
 
@@ -858,7 +851,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             if self.server.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
 
-    async def wait_stopped(self, n_telemetry=3):
+    async def wait_stopped(self, n_telemetry=4):
         """Wait for the current motion, if any, to stop.
 
         Parameters
