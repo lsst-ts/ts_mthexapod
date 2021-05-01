@@ -910,12 +910,14 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 topic=self.remote.evt_compensationMode, enabled=False
             )
 
-    async def test_move_interrupt_move(self):
-        """Test that one move can interrupt another."""
+    async def test_move_interrupt_move_after_delay(self):
+        """Test that one move can interrupt another
+        after the first move is reported to have begun.
+        """
         positions_data = (
-            (100, 200, -300, 0.01, 0.02, -0.015),
-            (-100, 200, 400, -0.02, -0.01, 0.015),
-            (200, -100, -400, 0.02, 0.01, -0.03),
+            (0, 0, -1000, 0, 0, 0),
+            (0, 0, 1000, 0, 0, 0),
+            (0, 0, -400, 0, 0, 0),
         )
         positions = [mthexapod.Position(*data) for data in positions_data]
         async with self.make_csc(
@@ -927,20 +929,35 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
-            await self.remote.cmd_setCompensationMode.set_start(
-                enable=True, timeout=STD_TIMEOUT
-            )
-            await self.assert_next_sample(
-                topic=self.remote.evt_compensationMode, enabled=True
-            )
 
             await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+            isfirst = True
             for position in positions:
                 print("command a move")
                 await self.remote.cmd_move.set_start(
                     **vars(position), timeout=STD_TIMEOUT
                 )
                 await self.assert_next_uncompensated_position(position)
+                if isfirst:
+                    isfirst = False
+                else:
+                    # The new move should halt the old move
+                    await self.assert_next_sample(
+                        self.remote.evt_controllerState,
+                        controllerState=ControllerState.ENABLED,
+                        enabledSubstate=EnabledSubstate.STATIONARY,
+                    )
+                # Wait for the new move to begin
+                await self.assert_next_sample(
+                    self.remote.evt_controllerState,
+                    controllerState=ControllerState.ENABLED,
+                    enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
+                )
 
             # Make sure the commanded position is indeed the last position.
             desired_position = positions[-1]
@@ -948,27 +965,75 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 self.csc.mock_ctrl.telemetry.commanded_pos, desired_position
             )
 
-            # Flush any stops and starts
-            self.remote.evt_controllerState.flush()
-
             # Wait for the last move to finish and check that we are at the
             # desired position.
-            while True:
-                data = await self.assert_next_sample(
-                    self.remote.evt_controllerState,
-                    controllerState=ControllerState.ENABLED,
-                )
-                if data.enabledSubstate == EnabledSubstate.STATIONARY:
-                    break
-                if data.enabledSubstate not in (
-                    EnabledSubstate.CONTROLLED_STOPPING,
-                    EnabledSubstate.MOVING_POINT_TO_POINT,
-                ):
-                    self.fail(f"Unexpected enabledSubstate={data.enabledSubstate}")
+            await self.assert_next_sample(
+                self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
             data = await self.remote.tel_application.next(
                 flush=True, timeout=STD_TIMEOUT
             )
             self.assert_positions_close(data.demand, desired_position)
+
+    async def test_move_interrupt_move_immediately(self):
+        """Test that one move can interrupt another right away."""
+        positions_data = (
+            (0, 0, -1000, 0, 0, 0),
+            (0, 0, 1000, 0, 0, 0),
+            (0, 0, -400, 0, 0, 0),
+        )
+        positions = [mthexapod.Position(*data) for data in positions_data]
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+            move_tasks = []
+            for position in positions:
+                print("command a move")
+                move_tasks.append(
+                    asyncio.create_task(
+                        self.remote.cmd_move.set_start(
+                            **vars(position), timeout=STD_TIMEOUT
+                        )
+                    )
+                )
+                # Give the CSC a chance to start processing the command
+                await asyncio.sleep(0)
+
+            # Wait for the final move task to finish
+            await move_tasks[-1]
+            # The other move tasks should also be done
+            # (if I was quick enough then they should have raised an AckError,
+            # but it's hard to run the test fast enough for that)
+            for task in move_tasks[0:-1]:
+                assert task.done()
+
+            # Give the mock controller telemetry loop some time
+            await asyncio.sleep(self.csc.mock_ctrl.telemetry_interval * 3)
+
+            # Make sure the commanded position is indeed the last position.
+            desired_position = positions[-1]
+            self.assert_positions_close(
+                self.csc.mock_ctrl.telemetry.commanded_pos, desired_position
+            )
+
+            # Do not test the controllerState event because it is
+            # uncertain how many transitions will have occurred
+            # during the consecutive moves.
 
     async def test_offset_no_compensation(self):
         """Test offset with compensation disabled."""
@@ -1074,8 +1139,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             for name in axis_names:
                 self.assertAlmostEqual(new_pivot[name], commanded_pivot[name])
 
-    async def test_stop_move(self):
-        """Test stopping a point to point move."""
+    async def test_stop_move_after_delay(self):
+        """Test stopping a move after giving it time to start."""
         # Command a move that moves all actuators equally
         position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
@@ -1116,6 +1181,61 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             ]
             for i in range(6):
                 self.assertNotAlmostEqual(cmd_lengths[i], stopped_lengths[i])
+
+    async def test_stop_move_immediately(self):
+        """Test that stop can interrupt a move right away."""
+        position = copy.copy(ZERO_POSITION)
+        position.z = 1000
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            self.csc.log.level = 10
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+            move_task = asyncio.create_task(
+                self.remote.cmd_move.set_start(**vars(position), timeout=STD_TIMEOUT)
+            )
+
+            # Give the CSC a chance to start processing the command
+            await asyncio.sleep(0.1)
+
+            await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
+            await asyncio.sleep(0)
+            self.assertTrue(move_task.done())
+
+            # Give the mock controller telemetry loop some time
+            await asyncio.sleep(self.csc.mock_ctrl.telemetry_interval * 3)
+
+            # Make sure the commanded position is indeed the last position
+            # (in other words: that the move command was actually sent
+            # to the low-level controller).
+            self.assert_positions_close(
+                self.csc.mock_ctrl.telemetry.commanded_pos, position
+            )
+
+            # Make sure the controller is stopped
+            self.assertEqual(
+                self.csc.mock_ctrl.telemetry.state,
+                ControllerState.ENABLED,
+            )
+            self.assertEqual(
+                self.csc.mock_ctrl.telemetry.enabled_substate,
+                EnabledSubstate.STATIONARY,
+            )
+
+            # Do not test the controllerState event because it is
+            # uncertain how many transitions will have occurred.
 
 
 if __name__ == "__main__":

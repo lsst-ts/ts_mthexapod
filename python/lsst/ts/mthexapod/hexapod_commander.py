@@ -30,18 +30,6 @@ from . import enums
 STD_TIMEOUT = 5  # timeout for command ack
 
 
-def as_bool(value):
-    """Return a string cast to a bool.
-
-    The following are false: 0, f, false
-    The following are true: 1, t, true
-    No other values are valid.
-    """
-    return {"0": False, "f": False, "false": False, "1": True, "t": True, "true": True}[
-        value
-    ]
-
-
 class HexapodCommander(salobj.CscCommander):
     """Command the MTHexapod CSC from the command line.
 
