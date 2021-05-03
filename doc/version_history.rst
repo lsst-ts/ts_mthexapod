@@ -6,6 +6,27 @@
 Version History
 ###############
 
+v0.18.0
+-------
+
+Changes:
+
+* This version requires ts_hexrotcomm 0.19, because it handles another change
+  to the low-level controller TCP/IP interface that was made at the same time
+  (removing the two MJD fields from message headers).
+* Update for changes to the low-level controller TCP/IP interface:
+
+    * `Config`: remove LUT entries
+    * `Telemetry`: remove 5 unused fields.
+
+Requires:
+
+* ts_hexrotcomm 0.19
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.17.1
 -------
 
