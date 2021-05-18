@@ -59,25 +59,19 @@ class CompensationInfo:
 
     Parameters
     ----------
-    uncompensated_pos : `dict` [`str`, `float`]
-        Target position (without compensation applied)
-        as a dict of axis name: position
-        keys are x, y, z (um), u, v, w (deg).
-    compensation_offset : `dict` [`str`, `float`] or `None`
-        Position with compensation applied, if relevant,
-        as a dict of axis name: position
-        keys are x, y, z (um), u, v, w (deg).
+    uncompensated_pos : `Position`
+        Target position (without compensation applied).
+    compensation_offset : `Position` or None.
+        Amount of compensation, if relevant, else None.
     compensation_inputs : `CompensationInputs` or `None`
         The compensation inputs, if compensating and all inputs
         are available, else `None`.
 
     Attributes
     ----------
-    compensated_pos : `dict` [`str`, `float`]
+    compensated_pos : `Position`
         Compensated position: uncompensated_pos + compensation_offset
         if compensation_offset is not None, else uncompensated_pos.
-        A dict of axis name: position
-        keys are x, y, z (um), u, v, w (deg).
 
     Notes
     -----
@@ -400,10 +394,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         Parameters
         ----------
-        uncompensated_pos : `dict` [`str`, `float`]
-            Target position (without compensation applied)
-            as a dict of axis name: position
-            keys are x, y, z (um), u, v, w (deg).
+        uncompensated_pos : `Position`
+            Target position (without compensation applied).
 
         Returns
         -------
@@ -893,10 +885,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         Parameters
         ----------
-        uncompensated_pos : `dict` [`str`, `float`]
-            Target position (without compensation applied)
-            as a dict of axis name: position
-            keys are x, y, z (um), u, v, w (deg).
+        uncompensated_pos : `Position`
+            Target position (without compensation applied).
         sync : `bool`
             Should this be a synchronized move? Usually True.
         start_compensation : `bool`
