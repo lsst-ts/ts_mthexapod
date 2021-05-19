@@ -47,16 +47,6 @@ index_gen = salobj.index_generator(imin=1, imax=2)
 local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
 
-class CompensationInputs:
-    """Inputs for the compensation model."""
-
-    def __init__(self, elevation, azimuth, rotation, temperature):
-        self.elevation = elevation
-        self.azimuth = azimuth
-        self.rotation = rotation
-        self.temperature = temperature
-
-
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self, initial_state, config_dir=None, settings_to_apply="", simulation_mode=1
@@ -817,19 +807,19 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             compensation_inputs_list = (
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=65, azimuth=44, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=190, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=20, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=-30
                 ),
             )
@@ -1073,10 +1063,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             compensation_inputs_list = (
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=65, azimuth=44, rotation=-5, temperature=15
                 ),
             )
