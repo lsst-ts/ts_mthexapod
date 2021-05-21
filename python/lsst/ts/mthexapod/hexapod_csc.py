@@ -26,6 +26,8 @@ import copy
 import dataclasses
 import types
 
+import numpy as np
+
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import (
@@ -59,25 +61,19 @@ class CompensationInfo:
 
     Parameters
     ----------
-    uncompensated_pos : `dict` [`str`, `float`]
-        Target position (without compensation applied)
-        as a dict of axis name: position
-        keys are x, y, z (um), u, v, w (deg).
-    compensation_offset : `dict` [`str`, `float`] or `None`
-        Position with compensation applied, if relevant,
-        as a dict of axis name: position
-        keys are x, y, z (um), u, v, w (deg).
+    uncompensated_pos : `Position`
+        Target position (without compensation applied).
+    compensation_offset : `Position` or None.
+        Amount of compensation, if relevant, else None.
     compensation_inputs : `CompensationInputs` or `None`
         The compensation inputs, if compensating and all inputs
         are available, else `None`.
 
     Attributes
     ----------
-    compensated_pos : `dict` [`str`, `float`]
+    compensated_pos : `Position`
         Compensated position: uncompensated_pos + compensation_offset
         if compensation_offset is not None, else uncompensated_pos.
-        A dict of axis name: position
-        keys are x, y, z (um), u, v, w (deg).
 
     Notes
     -----
@@ -168,8 +164,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Task for the current move, if one is being commanded.
         self.move_task = salobj.make_done_future()
 
-        # If the compensation loop starts and there are missing
-        # inputs then warn once and set this flag true.
+        # Record missing compensation inputs we have warned about,
+        # to avoid duplicate warnings.
         self.missing_inputs_str = ""
 
         # Interval between compensation updates.
@@ -311,6 +307,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             enums.SalIndex.M2_HEXAPOD: "m2_config",
         }[self.salinfo.index]
         subconfig = types.SimpleNamespace(**getattr(config, subconfig_name))
+        self.min_compensation_adjustment = np.array(
+            subconfig.min_compensation_adjustment, dtype=float
+        )
         self.compensation = compensation.Compensation(
             elevation_coeffs=subconfig.elevation_coeffs,
             azimuth_coeffs=subconfig.azimuth_coeffs,
@@ -332,7 +331,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         * Wait until it is time to apply compensation
           (see `compensation_wait` for details).
-        * Apply the compensation offset.
+        * Compute the compensation offset and apply it if large enough.
 
         If a compensation update fails then compensation is disabled.
         """
@@ -348,8 +347,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 uncompensated_pos = self._get_uncompensated_position()
                 await self._move(
                     uncompensated_pos=uncompensated_pos,
-                    sync=1,
-                    start_compensation=False,
+                    sync=True,
+                    is_compensation_loop=True,
                 )
             except asyncio.CancelledError:
                 # Normal termination. This may be temporary (e.g.
@@ -400,10 +399,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         Parameters
         ----------
-        uncompensated_pos : `dict` [`str`, `float`]
-            Target position (without compensation applied)
-            as a dict of axis name: position
-            keys are x, y, z (um), u, v, w (deg).
+        uncompensated_pos : `Position`
+            Target position (without compensation applied).
 
         Returns
         -------
@@ -569,11 +566,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
         self.move_task = asyncio.create_task(
-            self._move(
-                uncompensated_pos=uncompensated_pos,
-                sync=data.sync,
-                start_compensation=True,
-            )
+            self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
         )
         await self.move_task
 
@@ -594,11 +587,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
         self.move_task = asyncio.create_task(
-            self._move(
-                uncompensated_pos=uncompensated_pos,
-                sync=data.sync,
-                start_compensation=True,
-            )
+            self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
         )
         await self.move_task
 
@@ -627,11 +616,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         else:
             self.log.info("Removing compensation from the current target position")
         self.move_task = asyncio.create_task(
-            self._move(
-                uncompensated_pos=uncompensated_pos,
-                sync=1,
-                start_compensation=data.enable,
-            )
+            self._move(uncompensated_pos=uncompensated_pos, sync=True)
         )
 
     async def do_setPivot(self, data):
@@ -888,25 +873,43 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         return True
 
-    async def _move(self, uncompensated_pos, sync, start_compensation):
+    async def _move(self, uncompensated_pos, sync, is_compensation_loop=False):
         """Command a move and output appropriate events.
 
         Parameters
         ----------
-        uncompensated_pos : `dict` [`str`, `float`]
-            Target position (without compensation applied)
-            as a dict of axis name: position
-            keys are x, y, z (um), u, v, w (deg).
+        uncompensated_pos : `Position`
+            Target position (without compensation applied).
         sync : `bool`
             Should this be a synchronized move? Usually True.
-        start_compensation : `bool`
-            If True and if compensation mode is enabled,
-            then start the compensation loop at the end
-            (on success or failure, but not if cancelled).
-            Ignored if compensation mode is disabled.
+        is_compensation_loop : `bool`, optional
+            If True then this is being called by the background
+            compensation loop, in which case:
+
+            * Check the amount of compensation and only move if at least one
+              axis has changed by at least self.min_compensation_adjustment.
+            * Do not restart the compensation loop.
         """
         try:
             compensation_info = self.compute_compensation(uncompensated_pos)
+
+            if is_compensation_loop:
+                if compensation_info.compensation_offset is None:
+                    return
+                names = base.Position.field_names()
+                compensation_offset_list = [
+                    getattr(compensation_info.compensation_offset, name)
+                    for name in names
+                ]
+                prior_compensation_offset_list = [
+                    getattr(self.evt_compensationOffset.data, name) for name in names
+                ]
+                delta = np.subtract(
+                    compensation_offset_list, prior_compensation_offset_list
+                )
+                if np.all(np.abs(delta) < self.min_compensation_adjustment):
+                    self.log.debug("Compensation offset too small to apply: %s", delta)
+                    return
 
             # Stop the current motion, if any, and wait for it to stop.
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
@@ -916,7 +919,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             cmd2 = self.make_command(
                 code=enums.CommandCode.SET_ENABLED_SUBSTATE,
                 param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-                param2=sync,
+                param2=int(sync),
             )
             await self.run_multiple_commands(cmd1, cmd2)
 
@@ -937,11 +940,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         except Exception:
             # This move failed; restart the compensation loop anyway,
             # if it is wanted.
-            if start_compensation and self.compensation_mode:
+            if self.compensation_mode and not is_compensation_loop:
                 self.compensation_loop_task = asyncio.create_task(
                     self.compensation_loop()
                 )
             raise
 
-        if start_compensation and self.compensation_mode:
+        if self.compensation_mode and not is_compensation_loop:
             self.compensation_loop_task = asyncio.create_task(self.compensation_loop())

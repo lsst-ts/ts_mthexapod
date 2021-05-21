@@ -47,16 +47,6 @@ index_gen = salobj.index_generator(imin=1, imax=2)
 local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
 
-class CompensationInputs:
-    """Inputs for the compensation model."""
-
-    def __init__(self, elevation, azimuth, rotation, temperature):
-        self.elevation = elevation
-        self.azimuth = azimuth
-        self.rotation = rotation
-        self.temperature = temperature
-
-
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self, initial_state, config_dir=None, settings_to_apply="", simulation_mode=1
@@ -381,6 +371,16 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             controllerState=ControllerState.ENABLED,
             enabledSubstate=EnabledSubstate.STATIONARY,
         )
+
+    def get_compensation_timestamps(self):
+        """Get private_sndStamp of most recent compensationOffset and
+        compensatedPosition events.
+        """
+        offset_data = self.remote.evt_compensationOffset.get()
+        self.assertIsNotNone(offset_data)
+        comp_pos_data = self.remote.evt_compensatedPosition.get()
+        self.assertIsNotNone(comp_pos_data)
+        return (offset_data.private_sndStamp, comp_pos_data.private_sndStamp)
 
     def limits_to_min_position(self, limits):
         """Return the position corresponding to the minimum position limit.
@@ -817,19 +817,19 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             compensation_inputs_list = (
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=65, azimuth=44, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=190, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=20, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=-30
                 ),
             )
@@ -1073,10 +1073,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             compensation_inputs_list = (
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=15
                 ),
-                CompensationInputs(
+                mthexapod.CompensationInputs(
                     elevation=65, azimuth=44, rotation=-5, temperature=15
                 ),
             )
@@ -1109,6 +1109,17 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                     update_inputs=update_inputs,
                 )
                 update_inputs = True
+
+            # Make a tiny change to compensation inputs -- not enough
+            # to trigger a compensation offset.
+            old_comp_times = self.get_compensation_timestamps()
+            new_compensation_inputs = copy.copy(compensation_inputs)
+            new_compensation_inputs.elevation += 1e-7
+            await self.set_compensation_inputs(**vars(new_compensation_inputs))
+            sleep_time = self.csc.mock_ctrl.telemetry_interval * 5
+            await asyncio.sleep(sleep_time)
+            new_comp_times = self.get_compensation_timestamps()
+            self.assertEqual(old_comp_times, new_comp_times)
 
     async def test_set_pivot(self):
         """Test the setPivot command."""

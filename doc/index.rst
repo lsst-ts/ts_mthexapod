@@ -80,6 +80,13 @@ The compensated (aka corrected) position is the position sent to the low-level c
 If compensation is enabled but the CSC does not yet have all the inputs it needs for the compensation model (e.g. telescope target position or rotator target position), it will issue one warning ``logMessage`` event and keep trying.
 When all compensation inputs are available, compensation corrections will begin.
 
+The compensation will continue to be updated in the background for changes in elevation, temperature, etc.
+In order to reduce heat generation in the hexapod, the configuration parameter ``min_compensation_adjustment`` specifies the smallest compensation offset the background compensation task will command.
+Compensation is only updated if ``abs(new_compensation_offset - current_compensation_offset) >= min_compensation_adjustment`` in any axis.
+Note that ``min_compensation_adjustment`` does not affect the ``move``, ``offset``, and ``setCompensationMode`` commands;
+these commands always apply compensation if compensation mode is enabled.
+Thus you can force a compensation update by issuing an ``offset`` command with x, y, z, u, v, and w all zero.
+
 Relevant events:
 
 * ``uncompensatedPosition``: the position commanded by the user.
