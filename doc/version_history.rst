@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.19.0
+-------
+
+Changes:
+
+* Add ``min_compensation_adjustment`` CSC configuration parameter.
+  See the config schema and User Guide for details.
+
+Requires:
+
+* ts_hexrotcomm 0.19
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.18.0
 -------
 

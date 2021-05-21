@@ -24,6 +24,7 @@ import itertools
 import unittest
 
 import numpy as np
+from numpy.testing import assert_allclose
 import jsonschema
 
 from lsst.ts import salobj
@@ -41,30 +42,34 @@ class ValidationTestCase(unittest.TestCase):
     def test_default(self):
         result = self.validator.validate(None)
         self.assertEqual(result["compensation_interval"], 0.2)
-        for instance in self.instance_names:
-            self.assertEqual(len(result[instance]["elevation_coeffs"]), 6)
-            self.assertEqual(len(result[instance]["azimuth_coeffs"]), 6)
-            self.assertEqual(len(result[instance]["rotation_coeffs"]), 6)
-            self.assertEqual(len(result[instance]["temperature_coeffs"]), 6)
-            self.assertLessEqual(result[instance]["min_temperature"], 0)
-            self.assertGreaterEqual(result[instance]["max_temperature"], 20)
+        for instance_name in self.instance_names:
+            instance = result[instance_name]
+            for coeffs_prefix in ("elevation", "azimuth", "rotation", "temperature"):
+                coeffs_name = f"{coeffs_prefix}_coeffs"
+                self.assertEqual(len(instance[coeffs_name]), 6)
+                self.assertEqual(instance[coeffs_name], [[0], [0], [0], [0], [0], [0]])
+            assert_allclose(
+                instance["min_compensation_adjustment"], [1, 1, 1, 1e-4, 1e-4, 1e-4]
+            )
+            self.assertLessEqual(instance["min_temperature"], 0)
+            self.assertGreaterEqual(instance["max_temperature"], 20)
 
     def test_minmax_temperature_specified(self):
         defaults = self.validator.validate(None)
-        for instance in self.instance_names:
+        for instance_name in self.instance_names:
             for name, delta in (("min_temperature", -1.5), ("max_temperature", 3.1)):
                 data = copy.deepcopy(defaults)
-                value = data[instance][name] + delta
-                data[instance][name] = value
+                new_value = data[instance_name][name] + delta
+                data[instance_name][name] = new_value
                 result = self.validator.validate(data)
-                self.assertAlmostEqual(result[instance][name], value)
+                self.assertAlmostEqual(result[instance_name][name], new_value)
 
     def test_coeffs_specified(self):
         defaults = self.validator.validate(None)
         # Test validating a dict that only has data for one instance,
         # and with a dict that has data for all instances.
         for just_one_instance in (False, True):
-            for instance in self.instance_names:
+            for instance_name in self.instance_names:
                 for short_name, coeffs in itertools.product(
                     ("elevation", "azimuth", "rotation", "temperature"),
                     (
@@ -80,18 +85,20 @@ class ValidationTestCase(unittest.TestCase):
                     ),
                 ):
                     if just_one_instance:
-                        data = {instance: copy.deepcopy(defaults[instance])}
+                        data = {instance_name: copy.deepcopy(defaults[instance_name])}
                     else:
                         data = copy.deepcopy(defaults)
                     name = f"{short_name}_coeffs"
-                    data[instance][name] = coeffs
+                    data[instance_name][name] = coeffs
                     result = self.validator.validate(data)
                     for i in range(6):
-                        np.testing.assert_allclose(result[instance][name][i], coeffs[i])
+                        np.testing.assert_allclose(
+                            result[instance_name][name][i], coeffs[i]
+                        )
 
     def test_bad_coeffs(self):
         defaults = self.validator.validate(None)
-        for instance in self.instance_names:
+        for instance_name in self.instance_names:
             for short_name, bad_coeffs in itertools.product(
                 ("elevation", "temperature"),
                 (
@@ -107,7 +114,7 @@ class ValidationTestCase(unittest.TestCase):
             ):
                 data = copy.deepcopy(defaults)
                 name = f"{short_name}_coeffs"
-                data[instance][name] = bad_coeffs
+                data[instance_name][name] = bad_coeffs
                 with self.assertRaises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)
 
@@ -116,10 +123,10 @@ class ValidationTestCase(unittest.TestCase):
         are specified for that instance.
         """
         defaults = self.validator.validate(None)
-        for instance in self.instance_names:
-            for name in defaults[instance]:
+        for instance_name in self.instance_names:
+            for name in defaults[instance_name]:
                 data = copy.deepcopy(defaults)
-                del data[instance][name]
+                del data[instance_name][name]
                 with self.assertRaises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)
 
