@@ -754,6 +754,58 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                             timeout=STD_TIMEOUT,
                         )
 
+    async def test_electrical_telemetry(self):
+        """Test motor current and velocity with a simple move.
+
+        Note that the mock controller always reports
+        copleyStatusWordDrive and copleyLatchingFaultStatus as zero.
+        """
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=local_config_dir,
+            settings_to_apply="valid.yaml",
+            simulation_mode=1,
+        ):
+            # TODO DM-30686: remove this test once ts_xml 9.1 is used
+            # everywhere.
+            if not hasattr(self.remote.tel_electrical.DataType(), "motorCurrent"):
+                raise unittest.SkipTest(
+                    "electrical.motorCurrent not available; this test requires ts_xml 9.1"
+                )
+            await self.assert_next_sample(
+                topic=self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            data = await self.remote.tel_electrical.next(
+                flush=True, timeout=STD_TIMEOUT
+            )
+            np.testing.assert_allclose(data.motorCurrent, [0] * 6)
+            np.testing.assert_allclose(data.motorVoltage, [0] * 6)
+
+            uncompensated_position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
+            await self.remote.cmd_move.set_start(
+                **vars(uncompensated_position), timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.MOVING_POINT_TO_POINT,
+            )
+            data = await self.remote.tel_electrical.next(
+                flush=True, timeout=STD_TIMEOUT
+            )
+            np.testing.assert_allclose(
+                data.motorCurrent, [mthexapod.mock_controller.AMPS_PER_FRAC_SPEED] * 6
+            )
+            np.testing.assert_allclose(
+                data.motorVoltage, [mthexapod.mock_controller.VOLTS_PER_FRAC_SPEED] * 6
+            )
+
     async def test_move_no_compensation_no_compensation_inputs(self):
         """Test move with compensation disabled when the CSC has
         no compensation inputs (which it should allow).
