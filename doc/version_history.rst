@@ -6,6 +6,24 @@
 Version History
 ###############
 
+v0.20.0
+-------
+
+Changes:
+
+* Read motor current and voltage from the low-level controller;
+  this requires low-level controller version 1.1.1.
+* Report ``motorCurrent`` and ``motorVoltage`` in the ``electrical`` telemetry topic, if those fields are present.
+  Those fields will be added in ts_xml 9.1.
+
+Requires:
+
+* ts_hexrotcomm 0.19
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.19.0
 -------
 

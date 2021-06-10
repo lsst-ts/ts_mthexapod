@@ -213,6 +213,17 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             simulation_mode=simulation_mode,
         )
 
+        # TODO DM-30686: remove this attribute and the code that uses it
+        # once ts_xml 9.1 is used everywhere.
+        self._electrical_has_motor_fields = hasattr(
+            self.tel_electrical.DataType(), "motorCurrent"
+        )
+        if not self._electrical_has_motor_fields:
+            self.log.warning(
+                "Using xml < 9.1; motorCurrent and motorVoltage "
+                "are not available in the 'electrical' telemetry topic"
+            )
+
         # TODO DM-28005: add a suitable Remote from which to get temperature;
         # perhaps something like:
         # self.eas = salobj.Remote(domain=self.domain, name="EAS", include=[?])
@@ -693,10 +704,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             position=server.telemetry.measured_pos,
             error=pos_error,
         )
-        self.tel_electrical.set_put(
-            copleyStatusWordDrive=server.telemetry.status_word,
-            copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
-        )
+        if self._electrical_has_motor_fields:
+            self.tel_electrical.set_put(
+                copleyStatusWordDrive=server.telemetry.status_word,
+                copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+                motorCurrent=server.telemetry.motor_current,
+                motorVoltage=server.telemetry.motor_voltage,
+            )
+        else:
+            self.tel_electrical.set_put(
+                copleyStatusWordDrive=server.telemetry.status_word,
+                copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+            )
 
         in_position = (
             server.telemetry.application_status
