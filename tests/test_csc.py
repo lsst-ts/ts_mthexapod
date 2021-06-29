@@ -27,6 +27,7 @@ import logging
 import pathlib
 import unittest
 import time
+import warnings
 
 import numpy as np
 
@@ -759,6 +760,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
         Note that the mock controller always reports
         copleyStatusWordDrive and copleyLatchingFaultStatus as zero.
+
+        Also test the timestamp field of the actuator telemetry topic.
         """
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
@@ -766,12 +769,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             settings_to_apply="valid.yaml",
             simulation_mode=1,
         ):
-            # TODO DM-30686: remove this test once ts_xml 9.1 is used
-            # everywhere.
-            if not hasattr(self.remote.tel_electrical.DataType(), "motorCurrent"):
-                raise unittest.SkipTest(
-                    "electrical.motorCurrent not available; this test requires ts_xml 9.1"
-                )
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
                 controllerState=ControllerState.ENABLED,
@@ -781,6 +778,17 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
+
+            data = await self.remote.tel_actuators.next(flush=True, timeout=STD_TIMEOUT)
+            # TODO DM-30952: remove this hasattr test
+            # once ts_xml 9.2 is used everywhere.
+            if hasattr(data, "timestamp"):
+                tai = salobj.current_tai()
+                # No need to be picky; it just needs to be close.
+                self.assertAlmostEqual(data.timestamp, tai, delta=0.5)
+            else:
+                warnings.warn("actuators topic does not have a timestamp field")
+
             data = await self.remote.tel_electrical.next(
                 flush=True, timeout=STD_TIMEOUT
             )
