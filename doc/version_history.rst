@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.21.0
+-------
+
+* Set the ``timestamp`` field in ``encoders`` telemetry topic, if the field is present.
+  This field will be added in ts_xml 9.2.
+* Require the ``motorCurrent`` and ``motorVoltage`` fields to be present in the ``electrical`` telemetry topic.
+  Thus require ts_xml 9.1.
+
+Requires:
+
+* ts_hexrotcomm 0.19
+* ts_salobj 6.3
+* ts_idl 2.2
+* ts_xml 9.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.20.0
 -------
 
