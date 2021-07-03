@@ -213,15 +213,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             simulation_mode=simulation_mode,
         )
 
-        # TODO DM-30686: remove this attribute and the code that uses it
-        # once ts_xml 9.1 is used everywhere.
-        self._electrical_has_motor_fields = hasattr(
-            self.tel_electrical.DataType(), "motorCurrent"
+        # TODO DM-30952: remove this attribute and the code that uses it
+        # once ts_xml 9.2 is used everywhere.
+        self._actuators_has_timestamp_field = hasattr(
+            self.tel_actuators.DataType(), "timestamp"
         )
-        if not self._electrical_has_motor_fields:
+        if not self._actuators_has_timestamp_field:
             self.log.warning(
-                "Using xml < 9.1; motorCurrent and motorVoltage "
-                "are not available in the 'electrical' telemetry topic"
+                "Using xml < 9.2; timestamp is not available "
+                "in the 'actuators' telemetry topic"
             )
 
         # TODO DM-28005: add a suitable Remote from which to get temperature;
@@ -677,6 +677,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
             TCP/IP server.
         """
+        tai_unix = server.header.tai_sec + server.header.tai_nsec / 1e9
         did_change = self.evt_summaryState.set_put(summaryState=self.summary_state)
         if did_change and self.summary_state != salobj.State.ENABLED:
             self.disable_compensation()
@@ -695,31 +696,31 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             server.telemetry.measured_pos[i] - server.telemetry.commanded_pos[i]
             for i in range(6)
         ]
-        self.tel_actuators.set_put(
-            calibrated=server.telemetry.strut_encoder_microns,
-            raw=server.telemetry.strut_encoder_raw,
-        )
+        if self._actuators_has_timestamp_field:
+            self.tel_actuators.set_put(
+                calibrated=server.telemetry.strut_encoder_microns,
+                raw=server.telemetry.strut_encoder_raw,
+                timestamp=tai_unix,
+            )
+        else:
+            self.tel_actuators.set_put(
+                calibrated=server.telemetry.strut_encoder_microns,
+                raw=server.telemetry.strut_encoder_raw,
+            )
         self.tel_application.set_put(
             demand=server.telemetry.commanded_pos,
             position=server.telemetry.measured_pos,
             error=pos_error,
         )
-        if self._electrical_has_motor_fields:
-            self.tel_electrical.set_put(
-                copleyStatusWordDrive=server.telemetry.status_word,
-                copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
-                motorCurrent=server.telemetry.motor_current,
-                motorVoltage=server.telemetry.motor_voltage,
-            )
-        else:
-            self.tel_electrical.set_put(
-                copleyStatusWordDrive=server.telemetry.status_word,
-                copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
-            )
+        self.tel_electrical.set_put(
+            copleyStatusWordDrive=server.telemetry.status_word,
+            copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+            motorCurrent=server.telemetry.motor_current,
+            motorVoltage=server.telemetry.motor_voltage,
+        )
 
         in_position = (
-            server.telemetry.application_status
-            & ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+            server.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         )
         self.evt_inPosition.set_put(inPosition=in_position)
 

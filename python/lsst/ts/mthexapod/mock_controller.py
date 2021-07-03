@@ -308,7 +308,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             ]
             in_position = all(axes_in_position)
             self.telemetry.application_status = (
-                int(in_position) * ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+                int(in_position) * ApplicationStatus.MOVE_COMPLETE
                 | ApplicationStatus.DDS_COMMAND_SOURCE
             )
             self.telemetry.input_pin_states = (0,) * 3
