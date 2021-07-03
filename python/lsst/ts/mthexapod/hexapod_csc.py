@@ -718,8 +718,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
 
         in_position = (
-            server.telemetry.application_status
-            & ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+            server.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         )
         self.evt_inPosition.set_put(inPosition=in_position)
 
