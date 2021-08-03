@@ -149,7 +149,6 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             constants.MAX_ANGULAR_VEL_LIMIT,
         )
         # Order: x, y, z, u, w, v
-        config.initial_pos = (0, 0, 0, 0, 0, 0)
         config.pivot = self.pivot
         config.max_displacement_strut = self.actuator_max_length
         config.max_velocity_strut = self.actuator_speed

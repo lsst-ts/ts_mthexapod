@@ -44,14 +44,12 @@ class Config(ctypes.Structure):
     _pack_ = 1
     _fields_ = [
         ("acceleration_strut", ctypes.c_double),
-        # Order: max xy, min z, max z, max uv, min w, max w
-        ("pos_limits", ctypes.c_double * 6),
         # Order: xy, uv, z, w
         ("vel_limits", ctypes.c_double * 4),
-        ("initial_pos", ctypes.c_double * 6),
-        ("pivot", ctypes.c_double * 3),
         ("max_displacement_strut", ctypes.c_double),
         ("max_velocity_strut", ctypes.c_double),
+        ("pos_limits", ctypes.c_double * 6),
+        ("pivot", ctypes.c_double * 3),
     ]
     # Set the frame ID when constructing the CSC
     FRAME_ID = None
