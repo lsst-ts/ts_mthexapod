@@ -71,8 +71,10 @@ class Telemetry(ctypes.Structure):
         ("copley_fault_status_register", ctypes.c_uint32 * 6),
         ("application_status", ctypes.c_uint32),
         ("input_pin_states", ctypes.c_uint32 * 3),
-        ("motor_current", ctypes.c_double * 6),
-        ("motor_voltage", ctypes.c_double * 6),
+        # TODO DM-31290: uncomment these lines and move them
+        # to the correct location when the data is available
+        # ("motor_current", ctypes.c_double * 6),
+        # ("motor_voltage", ctypes.c_double * 6),
         # simulink telemetry
         ("state", ctypes.c_double),
         ("enabled_substate", ctypes.c_double),

@@ -715,8 +715,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.tel_electrical.set_put(
             copleyStatusWordDrive=server.telemetry.status_word,
             copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
-            motorCurrent=server.telemetry.motor_current,
-            motorVoltage=server.telemetry.motor_voltage,
+            # motorCurrent=server.telemetry.motor_current,
+            # motorVoltage=server.telemetry.motor_voltage,
         )
 
         in_position = (

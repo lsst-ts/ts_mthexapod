@@ -313,17 +313,18 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             )
             self.telemetry.input_pin_states = (0,) * 3
 
+            # TODO DM-31290: uncomment these lines when the data is available
             # Model current and volage as proportional to fractional velocity
-            axes_frac_velocity = [
-                actuator.velocity(tai=curr_tai) / actuator.speed
-                for actuator in self.hexapod.actuators
-            ]
-            self.telemetry.motor_current[:] = np.multiply(
-                axes_frac_velocity, AMPS_PER_FRAC_SPEED
-            )
-            self.telemetry.motor_voltage[:] = np.multiply(
-                axes_frac_velocity, VOLTS_PER_FRAC_SPEED
-            )
+            # axes_frac_velocity = [
+            #     actuator.velocity(tai=curr_tai) / actuator.speed
+            #     for actuator in self.hexapod.actuators
+            # ]
+            # self.telemetry.motor_current[:] = np.multiply(
+            #     axes_frac_velocity, AMPS_PER_FRAC_SPEED
+            # )
+            # self.telemetry.motor_voltage[:] = np.multiply(
+            #     axes_frac_velocity, VOLTS_PER_FRAC_SPEED
+            # )
 
             # state, enabled_substate and offline_substate
             # are all set by set_state
