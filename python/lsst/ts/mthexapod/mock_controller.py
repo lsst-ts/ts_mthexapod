@@ -337,20 +337,22 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             self.telemetry.strut_encoder_raw = tuple(
                 pos * self.actuator_encoder_resolution for pos in current_lengths
             )
-            self.telemetry.strut_encoder_microns = tuple(current_lengths)
+            self.telemetry.strut_measured_pos_um = tuple(current_lengths)
 
             # self.telemetry.commanded_pos and commanded_length are both set
             # by MOVE and MOVE_LUT.
-            # self.telemetry.measured_pos should be based on current position,
-            # but SimpleHexapod does not yet support determining orientation
-            # from actuator length.
-            measured_pos = np.copy(self.telemetry.commanded_pos)
+            # self.telemetry.measured_xyz and uvw should be based on
+            # current position, but SimpleHexapod does not yet support
+            # determining orientation from actuator length.
+            measured_xyz = np.copy(self.telemetry.commanded_pos[:3])
+            measured_uvw = np.copy(self.telemetry.commanded_pos[3:])
             if self.telemetry.state == ControllerState.ENABLED:
                 # Add ~0.1 micron jitter to the current positions and
                 # ~0.003 arcsec jitter to the current rotations for realism.
-                measured_pos[:3] += self.xyz_jitter * (np.random.random(3) - 0.5)
-                measured_pos[3:] += self.uvw_jitter * (np.random.random(3) - 0.5)
-            self.telemetry.measured_pos = tuple(measured_pos)
+                measured_xyz += self.xyz_jitter * (np.random.random(3) - 0.5)
+                measured_uvw += self.uvw_jitter * (np.random.random(3) - 0.5)
+            self.telemetry.measured_xyz = tuple(measured_xyz)
+            self.telemetry.measured_uvw = tuple(measured_uvw)
             if (
                 self.telemetry.state == ControllerState.ENABLED
                 and self.telemetry.enabled_substate
