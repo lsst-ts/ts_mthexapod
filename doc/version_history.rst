@@ -6,31 +6,12 @@
 Version History
 ###############
 
-v0.21.0
--------
-
-* Set the ``timestamp`` field in ``encoders`` telemetry topic, if the field is present.
-  This field will be added in ts_xml 9.2.
-* Require the ``motorCurrent`` and ``motorVoltage`` fields to be present in the ``electrical`` telemetry topic.
-  Thus require ts_xml 9.1.
-
-Requires:
-
-* ts_hexrotcomm 0.19
-* ts_salobj 6.3
-* ts_idl 2.2
-* ts_xml 9.1
-* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
-
 v0.20.0
 -------
 
-Changes:
-
-* Read motor current and voltage from the low-level controller;
-  this requires low-level controller version 1.1.1.
-* Report ``motorCurrent`` and ``motorVoltage`` in the ``electrical`` telemetry topic, if those fields are present.
-  Those fields will be added in ts_xml 9.1.
+* Handle updated configuration and telemetry messages from low-level controller v1.1.7, which is required.
+* Set the ``timestamp`` field in ``encoders`` telemetry topic, if the field is present.
+  This field will be added in ts_xml 9.2.
 
 Requires:
 

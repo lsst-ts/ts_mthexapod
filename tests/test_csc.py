@@ -755,6 +755,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                             timeout=STD_TIMEOUT,
                         )
 
+    @unittest.skip(
+        "TODO DM-31290: enable this test when current and voltage is available"
+    )
     async def test_electrical_telemetry(self):
         """Test motor current and velocity with a simple move.
 
