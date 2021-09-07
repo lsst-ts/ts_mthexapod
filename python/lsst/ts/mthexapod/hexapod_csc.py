@@ -195,9 +195,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Maxes out at MAX_N_TELEMETRY.
         self.n_telemetry = 0
 
-        structs.Config.FRAME_ID = controller_constants.config_frame_id
-        structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
-
         super().__init__(
             name="MTHexapod",
             index=index,
