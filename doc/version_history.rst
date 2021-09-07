@@ -9,13 +9,15 @@ Version History
 v0.20.0
 -------
 
-* Handle updated configuration and telemetry messages from low-level controller v1.1.7, which is required.
+* Handle updated configuration and telemetry messages from low-level controller 1.1.8, which is required.
 * Set the ``timestamp`` field in ``encoders`` telemetry topic, if the field is present.
-  This field will be added in ts_xml 9.2.
+  This field will be added in ts_xml 10.0.
+  This change requires ts_hexrotcomm 0.20 (the time in low-level message headers is TAI) for correct values.
 
 Requires:
 
-* ts_hexrotcomm 0.19
+* ts_hexapod_controller 1.1.8
+* ts_hexrotcomm 0.20
 * ts_salobj 6.3
 * ts_idl 2.2
 * ts_xml 7.1
