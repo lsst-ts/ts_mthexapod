@@ -51,8 +51,7 @@ class Config(ctypes.Structure):
         ("pos_limits", ctypes.c_double * 6),
         ("pivot", ctypes.c_double * 3),
     ]
-    # Set the frame ID when constructing the CSC
-    FRAME_ID = None
+    FRAME_ID = 0x2
 
 
 class PosVel(ctypes.Structure):
@@ -133,5 +132,4 @@ class Telemetry(ctypes.Structure):
         # ("motor_current", ctypes.c_double * 6),
         # ("motor_voltage", ctypes.c_double * 6),
     ]
-    # Set the frame ID when constructing the CSC
-    FRAME_ID = None
+    FRAME_ID = 0x0
