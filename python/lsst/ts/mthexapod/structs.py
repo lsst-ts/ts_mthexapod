@@ -130,6 +130,6 @@ class Telemetry(ctypes.Structure):
         # TODO DM-31290: uncomment these lines and move them
         # to the correct location when the data is available
         # ("motor_current", ctypes.c_double * 6),
-        # ("motor_voltage", ctypes.c_double * 6),
+        # ("bus_voltage", ctypes.c_double * 3),
     ]
     FRAME_ID = 0x0

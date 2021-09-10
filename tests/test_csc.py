@@ -792,11 +792,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             else:
                 warnings.warn("actuators topic does not have a timestamp field")
 
+            expected_bus_voltage = [mthexapod.mock_controller.BUS_VOLTAGE] * 3
             data = await self.remote.tel_electrical.next(
                 flush=True, timeout=STD_TIMEOUT
             )
             np.testing.assert_allclose(data.motorCurrent, [0] * 6)
-            np.testing.assert_allclose(data.motorVoltage, [0] * 6)
+            np.testing.assert_allclose(data.motorVoltage, expected_bus_voltage)
 
             uncompensated_position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
             await self.remote.cmd_move.set_start(
@@ -810,12 +811,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             data = await self.remote.tel_electrical.next(
                 flush=True, timeout=STD_TIMEOUT
             )
-            np.testing.assert_allclose(
-                data.motorCurrent, [mthexapod.mock_controller.AMPS_PER_FRAC_SPEED] * 6
-            )
-            np.testing.assert_allclose(
-                data.motorVoltage, [mthexapod.mock_controller.VOLTS_PER_FRAC_SPEED] * 6
-            )
+            np.testing.assert_array_less([0] * 6, data.motorCurrent)
+            np.testing.assert_allclose(data.motorVoltage, expected_bus_voltage)
 
     async def test_move_no_compensation_no_compensation_inputs(self):
         """Test move with compensation disabled when the CSC has

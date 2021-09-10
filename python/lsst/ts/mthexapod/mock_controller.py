@@ -41,9 +41,10 @@ from . import simple_hexapod
 # The real controller may use 0.15
 TRACK_TIMEOUT = 1
 
-# Model motor current and voltage as proportional to fractional velocity.
+# Model motor current as proportional to fractional velocity
+# and bus voltage as constant
 AMPS_PER_FRAC_SPEED = 1
-VOLTS_PER_FRAC_SPEED = 10
+BUS_VOLTAGE = 100
 
 
 class MockMTHexapodController(hexrotcomm.BaseMockController):
@@ -321,9 +322,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # self.telemetry.motor_current[:] = np.multiply(
             #     axes_frac_velocity, AMPS_PER_FRAC_SPEED
             # )
-            # self.telemetry.motor_voltage[:] = np.multiply(
-            #     axes_frac_velocity, VOLTS_PER_FRAC_SPEED
-            # )
+            # self.telemetry.bus_voltage[:] = BUS_VOLTAGE
 
             # state, enabled_substate and offline_substate
             # are all set by set_state
