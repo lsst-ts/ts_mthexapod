@@ -195,9 +195,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Maxes out at MAX_N_TELEMETRY.
         self.n_telemetry = 0
 
-        structs.Config.FRAME_ID = controller_constants.config_frame_id
-        structs.Telemetry.FRAME_ID = controller_constants.telemetry_frame_id
-
         super().__init__(
             name="MTHexapod",
             index=index,
@@ -212,6 +209,17 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             settings_to_apply=settings_to_apply,
             simulation_mode=simulation_mode,
         )
+
+        # TODO DM-30952: remove this attribute and the code that uses it
+        # once ts_xml 9.2 is used everywhere.
+        self._actuators_has_timestamp_field = hasattr(
+            self.tel_actuators.DataType(), "timestamp"
+        )
+        if not self._actuators_has_timestamp_field:
+            self.log.warning(
+                "Using xml < 9.2; timestamp is not available "
+                "in the 'actuators' telemetry topic"
+            )
 
         # TODO DM-28005: add a suitable Remote from which to get temperature;
         # perhaps something like:
@@ -247,12 +255,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             maxVelocityUV=server.config.vel_limits[1],
             maxVelocityZ=server.config.vel_limits[2],
             maxVelocityW=server.config.vel_limits[3],
-            initialX=server.config.initial_pos[0],
-            initialY=server.config.initial_pos[1],
-            initialZ=server.config.initial_pos[2],
-            initialU=server.config.initial_pos[3],
-            initialV=server.config.initial_pos[4],
-            initialW=server.config.initial_pos[5],
             pivotX=server.config.pivot[0],
             pivotY=server.config.pivot[1],
             pivotZ=server.config.pivot[2],
@@ -666,6 +668,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
             TCP/IP server.
         """
+        tai_unix = server.header.tai_sec + server.header.tai_nsec / 1e9
         did_change = self.evt_summaryState.set_put(summaryState=self.summary_state)
         if did_change and self.summary_state != salobj.State.ENABLED:
             self.disable_compensation()
@@ -681,26 +684,39 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
         pos_error = [
-            server.telemetry.measured_pos[i] - server.telemetry.commanded_pos[i]
-            for i in range(6)
+            server.telemetry.measured_xyz[i] - server.telemetry.commanded_pos[i]
+            for i in range(3)
+        ] + [
+            server.telemetry.measured_uvw[i] - server.telemetry.commanded_pos[i + 3]
+            for i in range(3)
         ]
-        self.tel_actuators.set_put(
-            calibrated=server.telemetry.strut_encoder_microns,
-            raw=server.telemetry.strut_encoder_raw,
-        )
+        if self._actuators_has_timestamp_field:
+            self.tel_actuators.set_put(
+                calibrated=server.telemetry.strut_measured_pos_um,
+                raw=server.telemetry.strut_measured_pos_raw,
+                timestamp=tai_unix,
+            )
+        else:
+            self.tel_actuators.set_put(
+                calibrated=server.telemetry.strut_measured_pos_um,
+                raw=server.telemetry.strut_measured_pos_raw,
+            )
         self.tel_application.set_put(
             demand=server.telemetry.commanded_pos,
-            position=server.telemetry.measured_pos,
+            position=list(server.telemetry.measured_xyz)
+            + list(server.telemetry.measured_uvw),
             error=pos_error,
         )
         self.tel_electrical.set_put(
             copleyStatusWordDrive=server.telemetry.status_word,
             copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+            # TODO DM-31290: uncomment these lines when the data is available
+            # motorCurrent=server.telemetry.motor_current,
+            # motorVoltage=server.telemetry.motor_voltage,
         )
 
         in_position = (
-            server.telemetry.application_status
-            & ApplicationStatus.HEX_MOVE_COMPLETE_MASK
+            server.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         )
         self.evt_inPosition.set_put(inPosition=in_position)
 

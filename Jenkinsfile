@@ -89,6 +89,18 @@ pipeline {
                 }
             }
         }
+        stage("Setup tcpip") {
+            steps {
+                script {
+                    sh "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && cd /home/saluser/repos/ && " +
+                    "git clone https://github.com/lsst-ts/ts_tcpip.git && " +
+                    "cd ts_tcpip && " +
+                    "/home/saluser/.checkout_repo.sh \${work_branches} && " +
+                    "eups declare -r . -t saluser\""
+                }
+            }
+        }
         stage("Setup hexrotcomm") {
             steps {
                 script {

@@ -68,17 +68,11 @@ class ControllerConstants:
         The command port is one larger than this value.
     sync_pattern : `int`
         Sync pattern for commands to the low-level controller.
-    config_frame_id : `int`
-        Frame ID for configuration messages from the low-level controller.
-    telemetry_frame_id : `int`
-        Frame ID for telemetry messages from the low-level controller.
     """
 
-    def __init__(self, port, sync_pattern, config_frame_id, telemetry_frame_id):
+    def __init__(self, port, sync_pattern):
         self.port = port
         self.sync_pattern = sync_pattern
-        self.config_frame_id = config_frame_id
-        self.telemetry_frame_id = telemetry_frame_id
 
 
 # Dict of SalIndex: ControllerConstants
@@ -86,13 +80,9 @@ IndexControllerConstants = {
     enums.SalIndex.CAMERA_HEXAPOD: ControllerConstants(
         port=5560,
         sync_pattern=0x6666,
-        config_frame_id=0x1B,
-        telemetry_frame_id=0x7,
     ),
     enums.SalIndex.M2_HEXAPOD: ControllerConstants(
         port=5550,
         sync_pattern=0xB4B4,
-        config_frame_id=0x1C,
-        telemetry_frame_id=0x8,
     ),
 }
