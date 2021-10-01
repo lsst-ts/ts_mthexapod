@@ -28,6 +28,7 @@ import types
 
 import numpy as np
 
+from lsst.ts.utils import make_done_future
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import (
@@ -162,7 +163,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.move_command = None
 
         # Task for the current move, if one is being commanded.
-        self.move_task = salobj.make_done_future()
+        self.move_task = make_done_future()
 
         # Record missing compensation inputs we have warned about,
         # to avoid duplicate warnings.
@@ -178,13 +179,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.max_move_duration = 65
 
         # The part of the compensation loop that is always safe to cancel.
-        self.compensation_wait_task = salobj.make_done_future()
+        self.compensation_wait_task = make_done_future()
 
         # The whole compensation loop; to safely cancel this use::
         #
         #     async with self.write_lock:
         #        self.compensation_loop_task.cancel()
-        self.compensation_loop_task = salobj.make_done_future()
+        self.compensation_loop_task = make_done_future()
 
         # Event set when a telemetry message is received from
         # the low-level controller, after it has been parsed.

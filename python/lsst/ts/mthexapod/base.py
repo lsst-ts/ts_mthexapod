@@ -26,7 +26,7 @@ __all__ = [
 
 import dataclasses
 
-from lsst.ts import salobj
+from lsst.ts import utils
 
 
 @dataclasses.dataclass
@@ -60,8 +60,8 @@ class CompensationInputs:
     def __post_init__(self):
         if self.elevation < 0 or self.elevation > 90:
             raise ValueError(f"elevation={self.elevation} must be in range [0, 90]")
-        self.azimuth = salobj.angle_wrap_nonnegative(self.azimuth).deg
-        self.rotation = salobj.angle_wrap_center(self.rotation).deg
+        self.azimuth = utils.angle_wrap_nonnegative(self.azimuth).deg
+        self.rotation = utils.angle_wrap_center(self.rotation).deg
 
     @classmethod
     def field_names(cls):
