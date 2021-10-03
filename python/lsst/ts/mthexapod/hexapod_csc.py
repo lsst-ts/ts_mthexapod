@@ -345,11 +345,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     sync=True,
                     is_compensation_loop=True,
                 )
-            except asyncio.CancelledError:
-                # Normal termination. This may be temporary (e.g.
-                # when starting a move or offset command) so do not
-                # report compensation mode disabled.
-                return
             except Exception:
                 self.log.exception("Compensation failed; turning off compensation mode")
                 self.evt_compensationMode.set_put(enabled=False)
@@ -940,8 +935,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     temperature=compensation_info.compensation_inputs.temperature,
                     **vars(compensation_info.compensation_offset),
                 )
-        except asyncio.CancelledError:
-            raise
         except Exception:
             # This move failed; restart the compensation loop anyway,
             # if it is wanted.
