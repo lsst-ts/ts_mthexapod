@@ -125,8 +125,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     -----
     **Error Codes**
 
-    * 1: The low-level controller went to fault state.
-    * 2: Lost connection to the low-level controller.
+    See `lsst.ts.idl.enums.MTHexapod.ErrorCode`
     """
 
     valid_simulation_modes = [0, 1]
