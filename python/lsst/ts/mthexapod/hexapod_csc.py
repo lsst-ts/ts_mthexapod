@@ -28,6 +28,7 @@ import types
 
 import numpy as np
 
+from lsst.ts.utils import make_done_future
 from lsst.ts import salobj
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import (
@@ -103,7 +104,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         This is provided for unit testing.
     initial_state : `lsst.ts.salobj.State` or `int` (optional)
         The initial state of the CSC.
-        Must be `lsst.ts.salobj.State.OFFLINE` unless simulating
+        Must be `lsst.ts.salobj.State.STANDBY` unless simulating
         (``simulation_mode != 0``).
     settings_to_apply : `str`, optional
         Settings to apply if ``initial_state`` is `State.DISABLED`
@@ -117,22 +118,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     Raises
     ------
     ValueError
-        If ``initial_state != lsst.ts.salobj.State.OFFLINE``
+        If ``initial_state != lsst.ts.salobj.State.STANDBY``
         and not simulating (``simulation_mode = 0``).
 
     Notes
     -----
     **Error Codes**
 
-    * 1: invalid data read on the telemetry socket
-
-    This CSC is unusual in several respect:
-
-    * It acts as a server (not a client) for a low level controller
-      (because that is how the low level controller is written).
-    * The low level controller maintains the summary state and detailed state
-      (that's why this code inherits from Controller instead of BaseCsc).
-    * The simulation mode can only be set at construction time.
+    See `lsst.ts.idl.enums.MTHexapod.ErrorCode`
     """
 
     valid_simulation_modes = [0, 1]
@@ -142,12 +135,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self,
         index,
         config_dir=None,
-        initial_state=salobj.State.OFFLINE,
+        initial_state=salobj.State.STANDBY,
         settings_to_apply="",
         simulation_mode=0,
     ):
         index = enums.SalIndex(index)
         controller_constants = constants.IndexControllerConstants[index]
+        self.subconfig_name = controller_constants.subconfig_name
 
         # The maximum position limits configured in the low-level controller.
         # The limits specified by the configureLimits command must be
@@ -161,8 +155,17 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # The move command that is currently running, or None.
         self.move_command = None
 
-        # Task for the current move, if one is being commanded.
-        self.move_task = salobj.make_done_future()
+        # Task for the current move. To cancel safely::
+        #
+        #     async with self.write_lock:
+        #        self.compensation_loop_task.cancel()
+        self.move_task = make_done_future()
+
+        # Compensation loop task. To cancel safely::
+        #
+        #     async with self.write_lock:
+        #        self.compensation_loop_task.cancel()
+        self.compensation_loop_task = make_done_future()
 
         # Record missing compensation inputs we have warned about,
         # to avoid duplicate warnings.
@@ -177,15 +180,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # 61.74 is the value for the mock controller as of 2021-04-15.
         self.max_move_duration = 65
 
-        # The part of the compensation loop that is always safe to cancel.
-        self.compensation_wait_task = salobj.make_done_future()
-
-        # The whole compensation loop; to safely cancel this use::
-        #
-        #     async with self.write_lock:
-        #        self.compensation_loop_task.cancel()
-        self.compensation_loop_task = salobj.make_done_future()
-
         # Event set when a telemetry message is received from
         # the low-level controller, after it has been parsed.
         self.telemetry_event = asyncio.Event()
@@ -198,7 +192,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         super().__init__(
             name="MTHexapod",
             index=index,
-            port=controller_constants.port,
             sync_pattern=controller_constants.sync_pattern,
             CommandCode=enums.CommandCode,
             ConfigClass=structs.Config,
@@ -232,35 +225,43 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
     @property
+    def host(self):
+        return getattr(self.config, self.subconfig_name)["host"]
+
+    @property
+    def port(self):
+        return getattr(self.config, self.subconfig_name)["port"]
+
+    @property
     def compensation_mode(self):
         """Return True if moves are compensated, False otherwise."""
         return self.evt_compensationMode.data.enabled
 
-    def config_callback(self, server):
+    def config_callback(self, client):
         """Called when the low-level controller outputs configuration.
 
         Parameters
         ----------
-        server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
-            TCP/IP server.
+        client : `lsst.ts.hexrotcomm.CommandTelemetryClient`
+            TCP/IP client.
         """
         self.evt_configuration.set_put(
-            maxXY=server.config.pos_limits[0],
-            minZ=server.config.pos_limits[1],
-            maxZ=server.config.pos_limits[2],
-            maxUV=server.config.pos_limits[3],
-            minW=server.config.pos_limits[4],
-            maxW=server.config.pos_limits[5],
-            maxVelocityXY=server.config.vel_limits[0],
-            maxVelocityUV=server.config.vel_limits[1],
-            maxVelocityZ=server.config.vel_limits[2],
-            maxVelocityW=server.config.vel_limits[3],
-            pivotX=server.config.pivot[0],
-            pivotY=server.config.pivot[1],
-            pivotZ=server.config.pivot[2],
-            maxDisplacementStrut=server.config.max_displacement_strut,
-            maxVelocityStrut=server.config.max_velocity_strut,
-            accelerationStrut=server.config.acceleration_strut,
+            maxXY=client.config.pos_limits[0],
+            minZ=client.config.pos_limits[1],
+            maxZ=client.config.pos_limits[2],
+            maxUV=client.config.pos_limits[3],
+            minW=client.config.pos_limits[4],
+            maxW=client.config.pos_limits[5],
+            maxVelocityXY=client.config.vel_limits[0],
+            maxVelocityUV=client.config.vel_limits[1],
+            maxVelocityZ=client.config.vel_limits[2],
+            maxVelocityW=client.config.vel_limits[3],
+            pivotX=client.config.pivot[0],
+            pivotY=client.config.pivot[1],
+            pivotZ=client.config.pivot[2],
+            maxDisplacementStrut=client.config.max_displacement_strut,
+            maxVelocityStrut=client.config.max_velocity_strut,
+            accelerationStrut=client.config.acceleration_strut,
         )
         self.current_pos_limits = base.PositionLimits.from_struct(
             self.evt_configuration.data
@@ -271,31 +272,31 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # and decelerates, when estimating the time spent at maximum velocity,
         # as that should be negligible.
         # Note that max_displacement_strut is a half distance (+/- from 0).
-        if server.config.max_displacement_strut <= 0:
+        if client.config.max_displacement_strut <= 0:
             self.log.warning(
-                f"Reported max_displacement_strut {server.config.max_displacement_strut} <= 0; "
+                f"Reported max_displacement_strut {client.config.max_displacement_strut} <= 0; "
                 f"using existing max_move_duration {self.max_move_duration} sec"
             )
             return
-        if server.config.max_velocity_strut <= 0:
+        if client.config.max_velocity_strut <= 0:
             self.log.warning(
-                f"Reported max_velocity_strut {server.config.acceleration_strut} <= 0; "
+                f"Reported max_velocity_strut {client.config.acceleration_strut} <= 0; "
                 f"using existing max_move_duration {self.max_move_duration} sec"
             )
             return
-        if server.config.acceleration_strut <= 0:
+        if client.config.acceleration_strut <= 0:
             self.log.warning(
-                f"Reported strut acceleration {server.config.acceleration_strut} <= 0; "
+                f"Reported strut acceleration {client.config.acceleration_strut} <= 0; "
                 f"using existing max_move_duration {self.max_move_duration} sec"
             )
             return
 
         telemetry_interval = 0.2
         accel_duration = (
-            server.config.max_velocity_strut / server.config.acceleration_strut
+            client.config.max_velocity_strut / client.config.acceleration_strut
         )
         vel_duration = (
-            server.config.max_displacement_strut / server.config.max_velocity_strut
+            client.config.max_displacement_strut / client.config.max_velocity_strut
         )
         self.max_move_duration = 2.1 * (
             telemetry_interval + accel_duration + vel_duration
@@ -303,12 +304,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.log.info(f"max_move_duration={self.max_move_duration}")
 
     async def configure(self, config):
+        await super().configure(config)
         self.compensation_interval = config.compensation_interval
-        subconfig_name = {
-            enums.SalIndex.CAMERA_HEXAPOD: "camera_config",
-            enums.SalIndex.M2_HEXAPOD: "m2_config",
-        }[self.salinfo.index]
-        subconfig = types.SimpleNamespace(**getattr(config, subconfig_name))
+        subconfig = types.SimpleNamespace(**getattr(config, self.subconfig_name))
         self.min_compensation_adjustment = np.array(
             subconfig.min_compensation_adjustment, dtype=float
         )
@@ -320,11 +318,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             min_temperature=subconfig.min_temperature,
             max_temperature=subconfig.max_temperature,
         )
-
-    def connect_callback(self, server):
-        super().connect_callback(server)
-        if not self.server.connected:
-            self.disable_compensation()
 
     async def compensation_loop(self):
         """Apply compensation at regular intervals.
@@ -342,9 +335,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             return
 
         while self.summary_state == salobj.State.ENABLED:
-            self.compensation_wait_task = asyncio.create_task(self.compensation_wait())
-            await self.compensation_wait_task
             try:
+                await self.compensation_wait()
                 self.log.debug("Apply compensation")
                 uncompensated_pos = self._get_uncompensated_position()
                 await self._move(
@@ -352,11 +344,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     sync=True,
                     is_compensation_loop=True,
                 )
-            except asyncio.CancelledError:
-                # Normal termination. This may be temporary (e.g.
-                # when starting a move or offset command) so do not
-                # report compensation mode disabled.
-                return
             except Exception:
                 self.log.exception("Compensation failed; turning off compensation mode")
                 self.evt_compensationMode.set_put(enabled=False)
@@ -384,7 +371,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             if self.summary_state != salobj.State.ENABLED:
                 raise asyncio.CancelledError()
 
-            if self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
+            if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
                 # Axes are still halted; we're done!
                 return
             else:
@@ -597,8 +584,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.assert_enabled()
         self.evt_compensationMode.set_put(enabled=data.enable)
         async with self.write_lock:
-            self.compensation_loop_task.cancel()
             self.move_task.cancel()
+            self.compensation_loop_task.cancel()
         if not self._has_uncompensated_position():
             if data.enable:
                 self.log.info(
@@ -655,80 +642,85 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await super().basic_run_command(command)
         self.n_telemetry = 0
 
+    async def handle_summary_state(self):
+        await super().handle_summary_state()
+        if self.summary_state != salobj.State.ENABLED:
+            async with self.write_lock:
+                self.move_task.cancel()
+                self.compensation_loop_task.cancel()
+            self.evt_compensationMode.set_put(enabled=False)
+
     async def start(self):
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
         self.evt_compensationMode.set_put(enabled=False)
         await super().start()
 
-    def telemetry_callback(self, server):
+    def telemetry_callback(self, client):
         """Called when the low-level controller outputs telemetry.
 
         Parameters
         ----------
-        server : `lsst.ts.hexrotcomm.CommandTelemetryServer`
-            TCP/IP server.
+        client : `lsst.ts.hexrotcomm.CommandTelemetryClient`
+            TCP/IP client.
         """
-        tai_unix = server.header.tai_sec + server.header.tai_nsec / 1e9
-        did_change = self.evt_summaryState.set_put(summaryState=self.summary_state)
-        if did_change and self.summary_state != salobj.State.ENABLED:
-            self.disable_compensation()
+        tai_unix = client.header.tai_sec + client.header.tai_nsec / 1e9
 
         # Strangely telemetry.state, offline_substate and enabled_substate
         # are all floats from the controller. But they should only have
         # integer value, so I output them as integers.
         self.evt_controllerState.set_put(
-            controllerState=int(server.telemetry.state),
-            offlineSubstate=int(server.telemetry.offline_substate),
-            enabledSubstate=int(server.telemetry.enabled_substate),
-            applicationStatus=[server.telemetry.application_status, 0, 0, 0, 0, 0],
+            controllerState=int(client.telemetry.state),
+            offlineSubstate=int(client.telemetry.offline_substate),
+            enabledSubstate=int(client.telemetry.enabled_substate),
+            applicationStatus=[client.telemetry.application_status, 0, 0, 0, 0, 0],
         )
 
         pos_error = [
-            server.telemetry.measured_xyz[i] - server.telemetry.commanded_pos[i]
+            client.telemetry.measured_xyz[i] - client.telemetry.commanded_pos[i]
             for i in range(3)
         ] + [
-            server.telemetry.measured_uvw[i] - server.telemetry.commanded_pos[i + 3]
+            client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3]
             for i in range(3)
         ]
         if self._actuators_has_timestamp_field:
             self.tel_actuators.set_put(
-                calibrated=server.telemetry.strut_measured_pos_um,
-                raw=server.telemetry.strut_measured_pos_raw,
+                calibrated=client.telemetry.strut_measured_pos_um,
+                raw=client.telemetry.strut_measured_pos_raw,
                 timestamp=tai_unix,
             )
         else:
             self.tel_actuators.set_put(
-                calibrated=server.telemetry.strut_measured_pos_um,
-                raw=server.telemetry.strut_measured_pos_raw,
+                calibrated=client.telemetry.strut_measured_pos_um,
+                raw=client.telemetry.strut_measured_pos_raw,
             )
         self.tel_application.set_put(
-            demand=server.telemetry.commanded_pos,
-            position=list(server.telemetry.measured_xyz)
-            + list(server.telemetry.measured_uvw),
+            demand=client.telemetry.commanded_pos,
+            position=list(client.telemetry.measured_xyz)
+            + list(client.telemetry.measured_uvw),
             error=pos_error,
         )
         self.tel_electrical.set_put(
-            copleyStatusWordDrive=server.telemetry.status_word,
-            copleyLatchingFaultStatus=server.telemetry.latching_fault_status_register,
+            copleyStatusWordDrive=client.telemetry.status_word,
+            copleyLatchingFaultStatus=client.telemetry.latching_fault_status_register,
             # TODO DM-31290: uncomment these lines when the data is available
-            # motorCurrent=server.telemetry.motor_current,
-            # motorVoltage=server.telemetry.motor_voltage,
+            # motorCurrent=client.telemetry.motor_current,
+            # motorVoltage=client.telemetry.motor_voltage,
         )
 
         in_position = (
-            server.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
+            client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         )
         self.evt_inPosition.set_put(inPosition=in_position)
 
         self.evt_commandableByDDS.set_put(
             state=bool(
-                server.telemetry.application_status
+                client.telemetry.application_status
                 & ApplicationStatus.DDS_COMMAND_SOURCE
             )
         )
 
         safety_interlock = (
-            server.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
+            client.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
         )
         self.evt_interlock.set_put(
             detail="Engaged" if safety_interlock else "Disengaged"
@@ -742,18 +734,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         return mock_controller.MockMTHexapodController(
             log=self.log,
             index=self.salinfo.index,
+            port=0,
             initial_state=initial_ctrl_state,
-            command_port=self.server.command_port,
-            telemetry_port=self.server.telemetry_port,
         )
-
-    def disable_compensation(self):
-        """Cancel compensation and report compensationMode.enabled=False."""
-        # Since this is a synchronous method, it is not safe to cancel the
-        # compensation loop (there is no way to obtain the write lock).
-        # So cancel the compensation wait task, instead.
-        self.compensation_wait_task.cancel()
-        self.evt_compensationMode.set_put(enabled=False)
 
     def _make_position_set_command(self, position):
         """Make a POSITION_SET command for the low-level controller.
@@ -804,7 +787,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         Raises:
             asyncio.CancelledError if not in enabled state.
         """
-        if self.server.telemetry.state != ControllerState.ENABLED:
+        if self.client.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError("Not enabled")
 
         # TODO: once DM-29975 is fixed remove this code block
@@ -812,7 +795,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # necessary to give the low-level controller some time
         # to process the previous command before it can be stopped.
         await self.wait_n_telemetry()
-        if self.server.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
+        if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
             return
 
         await self.run_command(
@@ -849,7 +832,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         while self.n_telemetry < n_telemetry:
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
-            if self.server.telemetry.state != ControllerState.ENABLED:
+            if self.client.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
 
     async def wait_stopped(self, n_telemetry=4):
@@ -875,16 +858,16 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
             )
 
-        if self.server.telemetry.state != ControllerState.ENABLED:
+        if self.client.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError()
 
         while (
             self.n_telemetry < n_telemetry
-            or self.server.telemetry.enabled_substate != EnabledSubstate.STATIONARY
+            or self.client.telemetry.enabled_substate != EnabledSubstate.STATIONARY
         ):
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
-            if self.server.telemetry.state != ControllerState.ENABLED:
+            if self.client.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
 
         return True
@@ -951,8 +934,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     temperature=compensation_info.compensation_inputs.temperature,
                     **vars(compensation_info.compensation_offset),
                 )
-        except asyncio.CancelledError:
-            raise
         except Exception:
             # This move failed; restart the compensation loop anyway,
             # if it is wanted.

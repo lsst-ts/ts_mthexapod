@@ -56,15 +56,9 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         SAL index; see `SalIndex` for the allowed values.
     log : `logging.Logger`
         Logger.
-    host : `str` (optional)
-        IP address of CSC server.
-    command_port : `int` or `None` (optional)
+    port : `int`, optional
         Command socket port.
-        If `None` then use the default port for this device.
-    telemetry_port : `int` or `None` (optional)
-        Telemetry socket port.
-        If `None` then use the default port for this device.
-    initial_state : `lsst.ts.idl.enums.MTHexapod.ControllerState` (optional)
+    initial_state : `lsst.ts.idl.enums.MTHexapod.ControllerState`, optional
         Initial state of mock controller.
 
     Notes
@@ -72,11 +66,11 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     To start the mock controller:
 
         ctrl = MockHexapodController(...)
-        await ctrl.connect_task
+        await ctrl.start_task
 
-    To stop the server:
+    To stop the mock controller:
 
-        await ctrl.stop()
+        await ctrl.close()
 
     *Known Limitations*
 
@@ -123,9 +117,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self,
         index,
         log,
-        host=hexrotcomm.LOCAL_HOST,
-        command_port=None,
-        telemetry_port=None,
+        port=0,
         initial_state=ControllerState.OFFLINE,
     ):
         index = enums.SalIndex(index)
@@ -199,9 +191,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             extra_commands=extra_commands,
             config=config,
             telemetry=telemetry,
-            host=host,
-            command_port=command_port,
-            telemetry_port=telemetry_port,
+            port=port,
             initial_state=initial_state,
         )
 
