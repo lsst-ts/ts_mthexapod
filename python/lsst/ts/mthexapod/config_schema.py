@@ -128,8 +128,8 @@ definitions:
         format: hostname
       port:
         description: >-
-          Command port number of the TCP/IP interface.
-          The telemetry port is one larger.
+          Telemetry port number of the TCP/IP interface.
+          The command port is one larger.
         type: integer
     required:
       - elevation_coeffs
