@@ -22,6 +22,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from lsst.ts import mthexapod
 
@@ -29,14 +30,14 @@ from lsst.ts import mthexapod
 class RangedPolynomialTestCase(unittest.TestCase):
     def test_constructor_errors(self):
         # No coefficients
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             mthexapod.RangedPolynomial(coeffs=[], min_x=0, max_x=1)
 
         # Invalid range (min_x > max_x):
         for min_x in (-100, -0.001, 0, 0.001, 100):
             for dx in (-10, -0.001):
                 bad_max_x = min_x + dx
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     mthexapod.RangedPolynomial(coeffs=[0], min_x=min_x, max_x=bad_max_x)
 
     def test_values(self):
@@ -71,7 +72,3 @@ class RangedPolynomialTestCase(unittest.TestCase):
         poly = mthexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
         for x in (min_x - 1, min_x, 0, max_x, max_x + 1):
             self.assertAlmostEqual(poly(x), coeffs[0])
-
-
-if __name__ == "__main__":
-    unittest.main()

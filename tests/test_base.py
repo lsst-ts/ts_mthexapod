@@ -22,6 +22,8 @@
 import types
 import unittest
 
+import pytest
+
 from lsst.ts import mthexapod
 
 
@@ -31,16 +33,16 @@ class BaseTestCase(unittest.TestCase):
         the specified values.
         """
         instance_data = vars(instance)
-        self.assertEqual(instance_data, data_dict)
+        assert instance_data == data_dict
 
     def assert_dataclass_data_almost_equal(self, instance, data_dict):
         """Assert that the fields of a dataclass instance are almost equal to
         the specified values.
         """
         instance_data = vars(instance)
-        self.assertEqual(set(instance_data), set(data_dict))
+        assert set(instance_data) == set(data_dict)
         for name in instance_data:
-            self.assertAlmostEqual(instance_data[name], data_dict[name])
+            assert instance_data[name] == pytest.approx(data_dict[name])
 
     def test_compensation_inputs(self):
         base_data = dict(
@@ -65,7 +67,7 @@ class BaseTestCase(unittest.TestCase):
         for bad_elevation in (-0.001, 90.001):
             data = base_data.copy()
             data["elevation"] = bad_elevation
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.CompensationInputs(**data)
 
         # Test azimuth wrap.
@@ -103,9 +105,7 @@ class BaseTestCase(unittest.TestCase):
             self.assert_dataclass_data_almost_equal(comp_input, wrapped_data)
 
     def test_position(self):
-        self.assertEqual(
-            mthexapod.Position.field_names(), ("x", "y", "z", "u", "v", "w")
-        )
+        assert mthexapod.Position.field_names() == ("x", "y", "z", "u", "v", "w")
         data = dict(x=1, y=2, z=3, u=4, v=5, w=6)
         pos1 = mthexapod.Position(**data)
         pos2 = mthexapod.Position(*data.values())
@@ -124,9 +124,13 @@ class BaseTestCase(unittest.TestCase):
         self.assert_dataclass_data_almost_equal(zero_pos, pred_data)
 
     def test_position_limits(self):
-        self.assertEqual(
-            mthexapod.PositionLimits.field_names(),
-            ("maxXY", "minZ", "maxZ", "maxUV", "minW", "maxW"),
+        assert mthexapod.PositionLimits.field_names() == (
+            "maxXY",
+            "minZ",
+            "maxZ",
+            "maxUV",
+            "minW",
+            "maxW",
         )
         data = dict(maxXY=1, minZ=-2, maxZ=3, maxUV=4, minW=-5, maxW=6)
         poslim1 = mthexapod.PositionLimits(**data)
@@ -146,13 +150,9 @@ class BaseTestCase(unittest.TestCase):
         ):
             bad_data = data.copy()
             bad_data.update(bad_items)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.PositionLimits(**bad_data)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.PositionLimits(*bad_data.values())
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.PositionLimits.from_struct(types.SimpleNamespace(**bad_data))
-
-
-if __name__ == "__main__":
-    unittest.main()

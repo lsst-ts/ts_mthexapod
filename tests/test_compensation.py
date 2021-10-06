@@ -23,6 +23,7 @@ import itertools
 import unittest
 
 import numpy as np
+import pytest
 
 from lsst.ts import mthexapod
 
@@ -44,7 +45,7 @@ class CompensationTestCase(unittest.TestCase):
         for name in kwargs:
             bad_kwargs = kwargs.copy()
             del bad_kwargs[name]
-            with self.assertRaises(TypeError):
+            with pytest.raises(TypeError):
                 mthexapod.Compensation(**bad_kwargs)
 
         # Wrong number of coefficients
@@ -59,14 +60,14 @@ class CompensationTestCase(unittest.TestCase):
         ):
             bad_kwargs = kwargs.copy()
             bad_kwargs[name] = [[0]] * ncoeff
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.Compensation(**bad_kwargs)
 
         # min_temperature >= max_temperature
         for delta in (0, 0.001, 1):
             bad_kwargs = kwargs.copy()
             bad_kwargs["min_temperature"] = bad_kwargs["max_temperature"] + delta
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.Compensation(**bad_kwargs)
 
     def test_get_offset(self):
@@ -148,17 +149,13 @@ class CompensationTestCase(unittest.TestCase):
                     temperature_polynomials[i](temperature),
                 ]
                 predicted_offset = sum(offset_list)
-                self.assertAlmostEqual(offset_value, predicted_offset)
+                assert offset_value == pytest.approx(predicted_offset)
 
         for bad_elevation in (-0.001, 90.001):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.CompensationInputs(
                     elevation=bad_elevation,
                     azimuth=25,
                     rotation=5,
                     temperature=0,
                 )
-
-
-if __name__ == "__main__":
-    unittest.main()

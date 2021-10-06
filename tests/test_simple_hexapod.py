@@ -25,6 +25,7 @@ import unittest
 
 import astropy.units as u
 import numpy as np
+import pytest
 
 from lsst.ts import utils
 from lsst.ts import mthexapod
@@ -91,7 +92,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             )
 
         for bad_base_positions in bad_positions():
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=bad_base_positions,
                     mirror_positions=mirror_positions,
@@ -102,7 +103,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                 )
 
         for bad_mirror_positions in bad_positions():
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=bad_mirror_positions,
@@ -113,7 +114,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                 )
 
         for bad_pivot in ((1, 2), (1, 2, 3, 4)):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
@@ -128,7 +129,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             (-1e99, -0.001),  # max too small
             (0.001, 2e99),  # min too big
         ):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
@@ -138,7 +139,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                     speed=speed,
                 )
         for bad_speed in (0, -1):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
@@ -399,7 +400,3 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(model.moving())
         await asyncio.sleep(margin * 2)
         self.assertFalse(model.moving())
-
-
-if __name__ == "__main__":
-    unittest.main()
