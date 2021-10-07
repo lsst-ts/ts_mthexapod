@@ -79,7 +79,3 @@ class UtilsTestCase(unittest.TestCase):
             with self.subTest(pos=pos, angle=angle):
                 rotpos = mthexapod.rot_about_z(pos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
-
-
-if __name__ == "__main__":
-    unittest.main()

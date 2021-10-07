@@ -30,6 +30,7 @@ import time
 import warnings
 
 import numpy as np
+import pytest
 
 from lsst.ts import utils
 from lsst.ts import salobj
@@ -519,7 +520,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
     async def test_constructor_errors(self):
         for bad_index in (0, 3):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.HexapodCsc(
                     index=bad_index,
                     initial_state=salobj.State.STANDBY,
@@ -575,8 +576,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         """
         vars1 = vars(dataclass1)
         vars2 = vars(dataclass2)
-        self.assertEqual(vars1, vars(dataclass1))
-        self.assertEqual(vars1.keys(), vars2.keys())
+        assert vars1 == vars(dataclass1)
+        assert vars1.keys() == vars2.keys()
         for name in vars1.keys():
             self.assertAlmostEqual(
                 vars1[name], vars2[name], msg=f"{type(dataclass1).__name__}.{name}"
@@ -1180,7 +1181,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             sleep_time = self.csc.mock_ctrl.telemetry_interval * 5
             await asyncio.sleep(sleep_time)
             new_comp_times = self.get_compensation_timestamps()
-            self.assertEqual(old_comp_times, new_comp_times)
+            assert old_comp_times == new_comp_times
 
     async def test_set_pivot(self):
         """Test the setPivot command."""
@@ -1308,7 +1309,3 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             # Do not test the controllerState event because it is
             # uncertain how many transitions will have occurred.
-
-
-if __name__ == "__main__":
-    unittest.main()
