@@ -25,8 +25,9 @@ import unittest
 
 import astropy.units as u
 import numpy as np
+import pytest
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from lsst.ts import mthexapod
 
 
@@ -91,7 +92,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             )
 
         for bad_base_positions in bad_positions():
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=bad_base_positions,
                     mirror_positions=mirror_positions,
@@ -102,7 +103,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                 )
 
         for bad_mirror_positions in bad_positions():
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=bad_mirror_positions,
@@ -113,7 +114,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                 )
 
         for bad_pivot in ((1, 2), (1, 2, 3, 4)):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
@@ -128,7 +129,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             (-1e99, -0.001),  # max too small
             (0.001, 2e99),  # min too big
         ):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
@@ -138,7 +139,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                     speed=speed,
                 )
         for bad_speed in (0, -1):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.SimpleHexapod(
                     base_positions=base_positions,
                     mirror_positions=mirror_positions,
@@ -185,7 +186,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             meas_base_radius = math.hypot(base_position[0], base_position[1])
             self.assertAlmostEqual(meas_base_radius, base_radius)
             base_angle = math.atan2(base_position[1], base_position[0]) * u.rad
-            salobj.assertAnglesAlmostEqual(base_angle, desired_base_angle)
+            utils.assert_angles_almost_equal(base_angle, desired_base_angle)
 
         np.testing.assert_equal(model.base_positions[0], model.base_positions[5])
         np.testing.assert_equal(model.base_positions[1], model.base_positions[2])
@@ -207,7 +208,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             meas_mirror_radius = math.hypot(mirror_position[0], mirror_position[1])
             self.assertAlmostEqual(meas_mirror_radius, mirror_radius)
             mirror_angle = math.atan2(mirror_position[1], mirror_position[0]) * u.rad
-            salobj.assertAnglesAlmostEqual(mirror_angle, desired_mirror_angle)
+            utils.assert_angles_almost_equal(mirror_angle, desired_mirror_angle)
         np.testing.assert_equal(
             model.neutral_mirror_positions[0], model.neutral_mirror_positions[1]
         )
@@ -387,7 +388,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                 * u.rad
             )
             delta_angle = rotated_angle_rad - unrotated_angle_rad
-            salobj.assertAnglesAlmostEqual(delta_angle, rot_angle)
+            utils.assert_angles_almost_equal(delta_angle, rot_angle)
 
         await self.check_move(model)
 
@@ -399,7 +400,3 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(model.moving())
         await asyncio.sleep(margin * 2)
         self.assertFalse(model.moving())
-
-
-if __name__ == "__main__":
-    unittest.main()

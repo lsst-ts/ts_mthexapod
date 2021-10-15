@@ -30,7 +30,9 @@ import time
 import warnings
 
 import numpy as np
+import pytest
 
+from lsst.ts import utils
 from lsst.ts import salobj
 from lsst.ts import mthexapod
 from lsst.ts import hexrotcomm
@@ -472,8 +474,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         if not did_something:
             self.fail("Must specify at least one non-None input")
 
-        t0 = salobj.current_tai()
-        while salobj.current_tai() - t0 < timeout:
+        t0 = utils.current_tai()
+        while utils.current_tai() - t0 < timeout:
             await asyncio.sleep(0.1)
             if elevation is not None:
                 mtmount_target = self.csc.mtmount.evt_target.get()
@@ -518,7 +520,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
     async def test_constructor_errors(self):
         for bad_index in (0, 3):
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 mthexapod.HexapodCsc(
                     index=bad_index,
                     initial_state=salobj.State.STANDBY,
@@ -574,8 +576,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         """
         vars1 = vars(dataclass1)
         vars2 = vars(dataclass2)
-        self.assertEqual(vars1, vars(dataclass1))
-        self.assertEqual(vars1.keys(), vars2.keys())
+        assert vars1 == vars(dataclass1)
+        assert vars1.keys() == vars2.keys()
         for name in vars1.keys():
             self.assertAlmostEqual(
                 vars1[name], vars2[name], msg=f"{type(dataclass1).__name__}.{name}"
@@ -786,7 +788,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # TODO DM-30952: remove this hasattr test
             # once ts_xml 9.2 is used everywhere.
             if hasattr(data, "timestamp"):
-                tai = salobj.current_tai()
+                tai = utils.current_tai()
                 # No need to be picky; it just needs to be close.
                 self.assertAlmostEqual(data.timestamp, tai, delta=0.5)
             else:
@@ -1179,7 +1181,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             sleep_time = self.csc.mock_ctrl.telemetry_interval * 5
             await asyncio.sleep(sleep_time)
             new_comp_times = self.get_compensation_timestamps()
-            self.assertEqual(old_comp_times, new_comp_times)
+            assert old_comp_times == new_comp_times
 
     async def test_set_pivot(self):
         """Test the setPivot command."""
@@ -1307,7 +1309,3 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             # Do not test the controllerState event because it is
             # uncertain how many transitions will have occurred.
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -22,6 +22,7 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from lsst.ts import mthexapod
 
@@ -29,7 +30,7 @@ from lsst.ts import mthexapod
 class FourierSeriesTestCase(unittest.TestCase):
     def test_constructor_errors(self):
         # No coefficients
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             mthexapod.FourierSeries(coeffs=[])
 
     def test_values(self):
@@ -56,7 +57,3 @@ class FourierSeriesTestCase(unittest.TestCase):
         poly = mthexapod.FourierSeries(coeffs=coeffs)
         xarr = np.linspace(-360, 360, num=50)
         np.testing.assert_allclose(poly(xarr), coeffs[0])
-
-
-if __name__ == "__main__":
-    unittest.main()

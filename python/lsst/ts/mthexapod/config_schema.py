@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/master/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v1
+title: MTHexapod v2
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -122,6 +122,15 @@ definitions:
           Above this temperature, terms above the first order are ignored;
           see RangedPolynomial for details.
         type: number
+      host:
+        description: IP address of the TCP/IP interface.
+        type: string
+        format: hostname
+      port:
+        description: >-
+          Telemetry port number of the TCP/IP interface.
+          The command port is one larger.
+        type: integer
     required:
       - elevation_coeffs
       - azimuth_coeffs
@@ -130,6 +139,8 @@ definitions:
       - min_compensation_adjustment
       - min_temperature
       - max_temperature
+      - host
+      - port
     additionalProperties: false
 
 type: object
@@ -178,6 +189,8 @@ properties:
         - 1.0e-4
       min_temperature: -20
       max_temperature: 30
+      host: 10.9.57.226
+      port: 5560
   m2_config:
     $ref: "#/definitions/instance_specific_config"
     default:
@@ -218,7 +231,14 @@ properties:
         - 1.0e-4
       min_temperature: -20
       max_temperature: 30
-required: [camera_config, m2_config]
+      host: 10.9.57.231
+      port: 5550
+  connection_timeout:
+    description: Time limit for connecting to the TCP/IP interface (sec)
+    type: number
+    exclusiveMinimum: 0
+    default: 10
+required: [camera_config, m2_config, connection_timeout]
 additionalProperties: false
 """
 )

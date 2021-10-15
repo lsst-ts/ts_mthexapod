@@ -24,7 +24,8 @@ Run one instance of the CSC for each hexapod, using index=1 for the camera hexap
 User Guide
 ==========
 
-Start an MTHexapod CSC as follows:
+Start an MTHexapod CSC
+----------------------
 
 .. prompt:: bash
 
@@ -32,23 +33,31 @@ Start an MTHexapod CSC as follows:
 
 where ``<index>`` is 1 for the camera hexapod, 2 for the M2 hexapod
 
-Then check that the CSC has control of the low-level controller, as follows:
+Use a Hexapod for Observing
+---------------------------
 
-* Wait for the ``connected`` event to report ``command=True`` and ``telemetry=True``.
-  This should happen quickly; if it does not then check that the low-level controller is fully booted up and configured to use the correct IP address for the CSC.
-* Check the ``controllerState`` event.
-  If it is ``state=Offline, offline_substate=PublishOnly``, which is the state the low-level controller wakes up in,
-  then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
-* Check the ``commandableByDDS`` event.
-  If ``state=False`` then you must :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
-
-To use a hexapod for observing:
-
-* Check that the CSC has control of the low-level controller, as just described.
 * Enable the CSC.
+  If this fails see :ref:`troubleshooting <lsst.ts.mthexapod.troubleshooting>`.
 * Enable :ref:`compensation mode<lsst.ts.mthexapod.compensation_mode>` with the ``setCompensationMode`` command.
-* Move to x=0, y=0, z=0, u=0, v=0, w=0 with the ``move`` command.
-* Apply offsets, as required, to improve collimation with the ``offset`` command (or specify absolute position with the ``move`` command).
+* Use the ``move`` and/or ``offset`` commands to improve and maintain collimation.
+
+.. _lsst.ts.mthexapod.troubleshooting:
+
+Troubleshooting
+---------------
+
+The hexapod will refuse to go into ENABLED state if:
+
+* The low-level controller is in state=Offline, offline_substate=PublishOnly,
+  which is the state in which the low-level controller wakes up.
+  To fix this :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
+* The EUI has control.
+  To fix this :ref:`use the EUI to enable DDS mode <lsst.ts.mthexapod.enable_with_eui>`.
+
+To recover from a low-level controller fault:
+
+* Figure out why the controller faulted and fix the problem.
+* Send the CSC to STANDBY state, then to ENABLED state.
 
 .. _lsst.ts.mthexapod.compensation_mode:
 
@@ -109,26 +118,6 @@ Configuration is specified in `ts_config_mttcs <https://github.com/lsst-ts/ts_co
 The most important settings are:
 
 * Coefficients for the :ref:`compensation<lsst.ts.mthexapod.compensation_mode>` model.
-
-Notes
------
-
-* To recover from the ``FAULT`` state (after fixing whatever is wrong) issue the ``clearError`` command.
-  This will transition to the ``STANDBY`` state.
-
-* The low-level controller maintains the CSC summary state,
-  so the CSC reports a summary state of ``OFFLINE`` until it receives telemetry from the low-level controller.
-  Thus the CSC may transition from ``OFFLINE`` to almost any other state as it starts up.
-
-* Communication between the low-level controller and CSC is quite unusual:
-
-  * The low-level controller connects to a TCP/IP *server* in the CSC.
-    Thus the low-level controller must be configured with the TCP/IP address of the CSC.
-  * The low-level controller does not acknowledge commands in any way.
-    Thus the CSC must try to predict whether the low-level controller can execute a command and reject the command if not.
-    Unfortunately this prediction cannot be completely accurate.
-  * The connection uses two separate sockets, one for commands and the other for telemetry and configuration.
-    Both are one-directional: the low-level controller reads commands on the command socket and writes configuration and telemetry to the telemetry socket.
 
 Simulator
 ---------

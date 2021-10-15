@@ -6,6 +6,33 @@
 Version History
 ###############
 
+v0.21.0
+-------
+
+* Update for ts_hexrotcomm v0.23.0, which is required.
+
+    * Run the TCP/IP clients in the CSC and the servers in the mock controller.
+    * Disassociated controller state from CSC state.
+      As part of the ``standby`` command the CSC connects to the low-level controller.
+      As part of the ``enable`` command the CSC attempts to enable the low-level controller
+      (including resetting errors if the low-level controller is in fault state).
+    * The CSC is no longer alive in the OFFLINE state, and no longer supports the enterControl command.
+    * Added ``host``, ``port``, and ``connection_timeout`` fields to the CSC configuration.
+
+* Update the schema to v2 because it has new host and port fields
+  (which must be specified if you specify other hexapod-specific settings, such as compensation coefficients).
+* Update to use `lsst.ts.idl.enums.MTHexapod.ErrorCode`, which requires ts_idl 3.4.
+* setup.cfg: add an [options] section.
+
+Requires:
+
+* ts_hexapod_controller 1.2.0
+* ts_hexrotcomm 0.23
+* ts_salobj 6.3
+* ts_idl 3.4
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.20.0
 -------
 

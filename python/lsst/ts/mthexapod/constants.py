@@ -27,6 +27,8 @@ __all__ = [
     "IndexControllerConstants",
 ]
 
+import dataclasses
+
 from . import base
 from . import enums
 
@@ -58,31 +60,30 @@ MAX_POSITION_LIMITS = {
 }
 
 
+@dataclasses.dataclass
 class ControllerConstants:
     """Constants needed to communicate with a low-level MTHexapod controller.
 
     Parameters
     ----------
-    port : `int`
-        Configuration and telemetry port.
-        The command port is one larger than this value.
     sync_pattern : `int`
         Sync pattern for commands to the low-level controller.
+    subconfig_name : `str`
+        Name of device-specific configuration.
     """
 
-    def __init__(self, port, sync_pattern):
-        self.port = port
-        self.sync_pattern = sync_pattern
+    sync_pattern: int
+    subconfig_name: str
 
 
 # Dict of SalIndex: ControllerConstants
 IndexControllerConstants = {
     enums.SalIndex.CAMERA_HEXAPOD: ControllerConstants(
-        port=5560,
         sync_pattern=0x6666,
+        subconfig_name="camera_config",
     ),
     enums.SalIndex.M2_HEXAPOD: ControllerConstants(
-        port=5550,
         sync_pattern=0xB4B4,
+        subconfig_name="m2_config",
     ),
 }

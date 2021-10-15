@@ -23,9 +23,10 @@ import copy
 import itertools
 import unittest
 
+import jsonschema
 import numpy as np
 from numpy.testing import assert_allclose
-import jsonschema
+import pytest
 
 from lsst.ts import salobj
 from lsst.ts import mthexapod
@@ -41,18 +42,18 @@ class ValidationTestCase(unittest.TestCase):
 
     def test_default(self):
         result = self.validator.validate(None)
-        self.assertEqual(result["compensation_interval"], 0.2)
+        assert result["compensation_interval"] == 0.2
         for instance_name in self.instance_names:
             instance = result[instance_name]
             for coeffs_prefix in ("elevation", "azimuth", "rotation", "temperature"):
                 coeffs_name = f"{coeffs_prefix}_coeffs"
-                self.assertEqual(len(instance[coeffs_name]), 6)
-                self.assertEqual(instance[coeffs_name], [[0], [0], [0], [0], [0], [0]])
+                assert len(instance[coeffs_name]) == 6
+                assert instance[coeffs_name] == [[0], [0], [0], [0], [0], [0]]
             assert_allclose(
                 instance["min_compensation_adjustment"], [1, 1, 1, 1e-4, 1e-4, 1e-4]
             )
-            self.assertLessEqual(instance["min_temperature"], 0)
-            self.assertGreaterEqual(instance["max_temperature"], 20)
+            assert instance["min_temperature"] <= 0
+            assert instance["max_temperature"] >= 20
 
     def test_minmax_temperature_specified(self):
         defaults = self.validator.validate(None)
@@ -62,7 +63,7 @@ class ValidationTestCase(unittest.TestCase):
                 new_value = data[instance_name][name] + delta
                 data[instance_name][name] = new_value
                 result = self.validator.validate(data)
-                self.assertAlmostEqual(result[instance_name][name], new_value)
+                assert result[instance_name][name] == pytest.approx(new_value)
 
     def test_coeffs_specified(self):
         defaults = self.validator.validate(None)
@@ -115,7 +116,7 @@ class ValidationTestCase(unittest.TestCase):
                 data = copy.deepcopy(defaults)
                 name = f"{short_name}_coeffs"
                 data[instance_name][name] = bad_coeffs
-                with self.assertRaises(jsonschema.exceptions.ValidationError):
+                with pytest.raises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)
 
     def test_missing_data(self):
@@ -127,9 +128,5 @@ class ValidationTestCase(unittest.TestCase):
             for name in defaults[instance_name]:
                 data = copy.deepcopy(defaults)
                 del data[instance_name][name]
-                with self.assertRaises(jsonschema.exceptions.ValidationError):
+                with pytest.raises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)
-
-
-if __name__ == "__main__":
-    unittest.main()
