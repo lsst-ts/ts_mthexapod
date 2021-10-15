@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/master/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v1
+title: MTHexapod v2
 description: Configuration for the MTHexapod CSCs
 
 definitions:

@@ -19,6 +19,8 @@ v0.21.0
     * The CSC is no longer alive in the OFFLINE state, and no longer supports the enterControl command.
     * Added ``host``, ``port``, and ``connection_timeout`` fields to the CSC configuration.
 
+* Update the schema to v2 because it has new host and port fields
+  (which must be specified if you specify other hexapod-specific settings, such as compensation coefficients).
 * Update to use `lsst.ts.idl.enums.MTHexapod.ErrorCode`, which requires ts_idl 3.4.
 * setup.cfg: add an [options] section.
 
