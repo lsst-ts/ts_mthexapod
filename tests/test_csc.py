@@ -24,6 +24,7 @@ import contextlib
 import copy
 import dataclasses
 import logging
+import math
 import pathlib
 import unittest
 import time
@@ -135,14 +136,14 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             Expected compensation offset.
         """
         data = await self.assert_next_sample(self.remote.evt_compensationOffset)
-        self.assertAlmostEqual(data.elevation, compensation_inputs.elevation)
-        self.assertAlmostEqual(data.azimuth, compensation_inputs.azimuth)
-        self.assertAlmostEqual(data.rotation, compensation_inputs.rotation)
+        assert data.elevation == pytest.approx(compensation_inputs.elevation)
+        assert data.azimuth == pytest.approx(compensation_inputs.azimuth)
+        assert data.rotation == pytest.approx(compensation_inputs.rotation)
         # TODO DM-28005: check specified temperature
-        self.assertAlmostEqual(data.temperature, 0)
+        assert data.temperature == pytest.approx(0)
 
         for i, name in enumerate(("x", "y", "z", "u", "v", "w")):
-            self.assertAlmostEqual(getattr(data, name), getattr(offset, name))
+            assert getattr(data, name) == pytest.approx(getattr(offset, name))
 
     async def assert_next_compensated_position(self, position):
         """Wait for and check the next uncompensatedPosition event.
@@ -320,7 +321,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
 
-        # TODO DM-28005: use compensation_inputs directly
+        # TODO DM-28005: use compensation_inputs directly,
+        # once we have temperature inputs.
         hacked_compensation_inputs = copy.copy(compensation_inputs)
         hacked_compensation_inputs.temperature = 0
         compensation_offset = self.csc.compensation.get_offset(
@@ -332,7 +334,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             nonzero = [
                 offset != 0 for offset in dataclasses.astuple(compensation_offset)
             ]
-            self.assertIn(True, nonzero)
+            assert True in nonzero
 
         reported_compensation_offset = mthexapod.Position.from_struct(data)
         self.assert_dataclasses_almost_equal(
@@ -380,9 +382,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         compensatedPosition events.
         """
         offset_data = self.remote.evt_compensationOffset.get()
-        self.assertIsNotNone(offset_data)
+        assert offset_data is not None
         comp_pos_data = self.remote.evt_compensatedPosition.get()
-        self.assertIsNotNone(comp_pos_data)
+        assert comp_pos_data is not None
         return (offset_data.private_sndStamp, comp_pos_data.private_sndStamp)
 
     def limits_to_min_position(self, limits):
@@ -479,17 +481,20 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await asyncio.sleep(0.1)
             if elevation is not None:
                 mtmount_target = self.csc.mtmount.evt_target.get()
-                if (
-                    mtmount_target is None
-                    or abs(mtmount_target.elevation - elevation) > EPSILON
-                    or abs(mtmount_target.azimuth - azimuth) > EPSILON
+                if mtmount_target is None or not np.allclose(
+                    [mtmount_target.elevation, mtmount_target.azimuth],
+                    [elevation, azimuth],
+                    atol=EPSILON,
+                    equal_nan=True,
                 ):
                     continue
             if rotation is not None:
                 mtrotator_target = self.csc.mtrotator.evt_target.get()
-                if (
-                    mtrotator_target is None
-                    or abs(mtrotator_target.position - rotation) > EPSILON
+                if mtrotator_target is None or not np.allclose(
+                    mtrotator_target.position,
+                    rotation,
+                    atol=EPSILON,
+                    equal_nan=True,
                 ):
                     continue
             break
@@ -561,7 +566,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             data = await self.remote.evt_configuration.next(
                 flush=False, timeout=STD_TIMEOUT
             )
-            self.assertAlmostEqual(data.accelerationStrut, new_limit)
+            assert data.accelerationStrut == pytest.approx(new_limit)
 
             for bad_acceleration in (-1, 0, mthexapod.MAX_ACCEL_LIMIT + 0.001):
                 with self.subTest(bad_acceleration=bad_acceleration):
@@ -579,9 +584,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         assert vars1 == vars(dataclass1)
         assert vars1.keys() == vars2.keys()
         for name in vars1.keys():
-            self.assertAlmostEqual(
-                vars1[name], vars2[name], msg=f"{type(dataclass1).__name__}.{name}"
-            )
+            assert vars1[name] == pytest.approx(
+                vars2[name]
+            ), f"{type(dataclass1).__name__}.{name}"
 
     async def test_configure_limits(self):
         """Test the configureLimits command."""
@@ -628,33 +633,41 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             # Make sure we cannot move to a position outside the new limits
             for name in good_min_position.field_names():
-                bad_min_position = copy.copy(good_min_position)
-                setattr(bad_min_position, name, getattr(bad_min_position, name) * 1.01)
-
-                bad_max_position = copy.copy(good_max_position)
-                setattr(bad_max_position, name, getattr(bad_max_position, name) * 1.01)
-
-                with salobj.assertRaisesAckError():
-                    await self.remote.cmd_move.set_start(
-                        **vars(bad_min_position), timeout=STD_TIMEOUT
+                with self.subTest(name=name):
+                    bad_min_position = copy.copy(good_min_position)
+                    setattr(
+                        bad_min_position, name, getattr(bad_min_position, name) * 1.01
                     )
 
-                with salobj.assertRaisesAckError():
-                    await self.remote.cmd_move.set_start(
-                        **vars(bad_max_position), timeout=STD_TIMEOUT
+                    bad_max_position = copy.copy(good_max_position)
+                    setattr(
+                        bad_max_position, name, getattr(bad_max_position, name) * 1.01
                     )
+
+                    with salobj.assertRaisesAckError():
+                        await self.remote.cmd_move.set_start(
+                            **vars(bad_min_position), timeout=STD_TIMEOUT
+                        )
+
+                    with salobj.assertRaisesAckError():
+                        await self.remote.cmd_move.set_start(
+                            **vars(bad_max_position), timeout=STD_TIMEOUT
+                        )
 
             # Try setting limits that exceed the allowed values
             for name, value in vars(self.csc.max_pos_limits).items():
-                bad_limits = copy.copy(self.csc.max_pos_limits)
-                bad_value = value * 1.01
-                setattr(bad_limits, name, bad_value)
-                with self.subTest(name=name, bad_value=bad_value):
-                    with salobj.assertRaisesAckError(ack=salobj.SalRetCode.CMD_FAILED):
-                        await self.remote.cmd_configureLimits.set_start(
-                            **vars(bad_limits),
-                            timeout=STD_TIMEOUT,
-                        )
+                with self.subTest(name=name):
+                    bad_limits = copy.copy(self.csc.max_pos_limits)
+                    bad_value = value * 1.01
+                    setattr(bad_limits, name, bad_value)
+                    with self.subTest(name=name, bad_value=bad_value):
+                        with salobj.assertRaisesAckError(
+                            ack=salobj.SalRetCode.CMD_FAILED
+                        ):
+                            await self.remote.cmd_configureLimits.set_start(
+                                **vars(bad_limits),
+                                timeout=STD_TIMEOUT,
+                            )
 
     async def test_configure_velocity(self):
         """Test the configureVelocity command."""
@@ -685,8 +698,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
             reported_limits = get_velocity_limits(data)
-            for i in range(4):
-                self.assertAlmostEqual(new_vel_limits[i], reported_limits[i])
+            np.testing.assert_allclose(new_vel_limits, reported_limits, atol=1e-7)
 
             bad_linear_vel_limit = mthexapod.MAX_LINEAR_VEL_LIMIT + 0.001
             bad_angular_vel_limit = mthexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
@@ -790,7 +802,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             if hasattr(data, "timestamp"):
                 tai = utils.current_tai()
                 # No need to be picky; it just needs to be close.
-                self.assertAlmostEqual(data.timestamp, tai, delta=0.5)
+                assert data.timestamp == pytest.approx(tai, abs=0.5)
             else:
                 warnings.warn("actuators topic does not have a timestamp field")
 
@@ -919,12 +931,47 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             update_inputs = False
             for compensation_inputs in compensation_inputs_list:
-                await self.check_compensation(
-                    uncompensated_position=uncompensated_position,
-                    compensation_inputs=compensation_inputs,
-                    update_inputs=update_inputs,
-                )
-                update_inputs = True
+                with self.subTest(compensation_inputs=compensation_inputs):
+                    await self.check_compensation(
+                        uncompensated_position=uncompensated_position,
+                        compensation_inputs=compensation_inputs,
+                        update_inputs=update_inputs,
+                    )
+                    update_inputs = True
+
+            # Set each input to NaN in turn.
+            # This should prevent compensation updates
+            # and should update bad_inputs_str
+            # input_name is the name of the item in CompensationInputs;
+            # input_descr is the description of the field that the CSC uses,
+            # which includes the name of the CSC, event, and field.
+            # TODO DM-28005: add temperature
+            prev_bad_inputs_str = self.csc.bad_inputs_str
+            for input_name, input_descr in (
+                ("elevation", "MTMount.target.elevation"),
+                ("azimuth", "MTMount.target.azimuth"),
+                ("rotation", "MTRotator.target.position"),
+            ):
+                with self.subTest(input_name=input_name, input_descr=input_descr):
+                    nan_compensation_inputs = copy.copy(compensation_inputs)
+                    setattr(nan_compensation_inputs, input_name, math.nan)
+                    await self.set_compensation_inputs(**vars(nan_compensation_inputs))
+                    t0 = utils.current_tai()
+                    while prev_bad_inputs_str == self.csc.bad_inputs_str:
+                        if utils.current_tai() - t0 > STD_TIMEOUT:
+                            self.fail(
+                                "Timed out waiting for bad_inputs_str to be updated"
+                            )
+                        await asyncio.sleep(0.1)
+                    assert input_descr in self.csc.bad_inputs_str
+                    prev_bad_inputs_str = self.csc.bad_inputs_str
+
+            # Try finite inputs again; this should work.
+            await self.check_compensation(
+                uncompensated_position=uncompensated_position,
+                compensation_inputs=compensation_inputs_list[-2],
+                update_inputs=True,
+            )
 
             # Test disabling compensation with setCompensationMode
             await self.remote.cmd_setCompensationMode.set_start(
@@ -1000,7 +1047,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             isfirst = True
             for position in positions:
-                print("command a move")
                 await self.remote.cmd_move.set_start(
                     **vars(position), timeout=STD_TIMEOUT
                 )
@@ -1065,7 +1111,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             move_tasks = []
             for position in positions:
-                print("command a move")
                 move_tasks.append(
                     asyncio.create_task(
                         self.remote.cmd_move.set_start(
@@ -1165,12 +1210,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             update_inputs = False
             for compensation_inputs in compensation_inputs_list:
-                await self.check_compensation(
-                    uncompensated_position=uncompensated_position,
-                    compensation_inputs=compensation_inputs,
-                    update_inputs=update_inputs,
-                )
-                update_inputs = True
+                with self.subTest(compensation_inputs=compensation_inputs):
+                    await self.check_compensation(
+                        uncompensated_position=uncompensated_position,
+                        compensation_inputs=compensation_inputs,
+                        update_inputs=update_inputs,
+                    )
+                    update_inputs = True
 
             # Make a tiny change to compensation inputs -- not enough
             # to trigger a compensation offset.
@@ -1210,7 +1256,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 name: getattr(new_config, f"pivot{name.upper()}") for name in axis_names
             }
             for name in axis_names:
-                self.assertAlmostEqual(new_pivot[name], commanded_pivot[name])
+                assert new_pivot[name] == pytest.approx(commanded_pivot[name])
 
     async def test_stop_move_after_delay(self):
         """Test stopping a move after giving it time to start."""
@@ -1252,8 +1298,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 actuator.end_position
                 for actuator in self.csc.mock_ctrl.hexapod.actuators
             ]
-            for i in range(6):
-                self.assertNotAlmostEqual(cmd_lengths[i], stopped_lengths[i])
+            assert not np.allclose(cmd_lengths, stopped_lengths, atol=1e-7)
 
     async def test_stop_move_immediately(self):
         """Test that stop can interrupt a move right away."""
@@ -1285,7 +1330,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
             await asyncio.sleep(0)
-            self.assertTrue(move_task.done())
+            assert move_task.done()
 
             # Give the mock controller telemetry loop some time
             await asyncio.sleep(self.csc.mock_ctrl.telemetry_interval * 3)
@@ -1298,13 +1343,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
 
             # Make sure the controller is stopped
-            self.assertEqual(
-                self.csc.mock_ctrl.telemetry.state,
-                ControllerState.ENABLED,
-            )
-            self.assertEqual(
-                self.csc.mock_ctrl.telemetry.enabled_substate,
-                EnabledSubstate.STATIONARY,
+            assert self.csc.mock_ctrl.telemetry.state == ControllerState.ENABLED
+            assert (
+                self.csc.mock_ctrl.telemetry.enabled_substate
+                == EnabledSubstate.STATIONARY
             )
 
             # Do not test the controllerState event because it is

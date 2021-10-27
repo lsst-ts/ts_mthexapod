@@ -47,7 +47,7 @@ class FourierSeriesTestCase(unittest.TestCase):
         )
         np.testing.assert_allclose(poly(angarr), pred_values)
         for ang, pred_value in zip(angarr, pred_values):
-            self.assertAlmostEqual(poly(ang), pred_value)
+            assert poly(ang) == pytest.approx(pred_value)
 
     def test_one_coeff(self):
         """Test that a fourier series with only one coffficient

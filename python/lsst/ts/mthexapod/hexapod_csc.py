@@ -24,6 +24,7 @@ __all__ = ["HexapodCsc"]
 import asyncio
 import copy
 import dataclasses
+import math
 import types
 
 import numpy as np
@@ -169,7 +170,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         # Record missing compensation inputs we have warned about,
         # to avoid duplicate warnings.
-        self.missing_inputs_str = ""
+        self.bad_inputs_str = ""
 
         # Interval between compensation updates.
         # Set in `configure`, but we need an initial value.
@@ -441,26 +442,38 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         mount_target = self.mtmount.evt_target.get()
         missing_inputs = []
+        nan_inputs = []
         if mount_target is None:
             missing_inputs.append("MTMount.target.elevation, azimuth")
+        else:
+            if math.isnan(mount_target.elevation):
+                nan_inputs.append("MTMount.target.elevation")
+            if math.isnan(mount_target.azimuth):
+                nan_inputs.append("MTMount.target.azimuth")
 
         rotator_target = self.mtrotator.evt_target.get()
         if rotator_target is None:
             missing_inputs.append("MTRotator.target.position")
+        elif math.isnan(rotator_target.position):
+            nan_inputs.append("MTRotator.target.position")
 
         # TODO DM-28005: update this code:
         temperature = 0
 
+        bad_inputs_items = []
         if missing_inputs:
-            missing_str = ", ".join(missing_inputs)
-            if self.missing_inputs_str != missing_str:
-                self.log.warning(
-                    f"Cannot apply compensation; missing inputs: {missing_str}"
-                )
-                self.missing_inputs_str = missing_str
+            bad_inputs_items.append("missing inputs: " + ", ".join(missing_inputs))
+        if nan_inputs:
+            bad_inputs_items.append("nan inputs: " + ", ".join(nan_inputs))
+
+        if bad_inputs_items:
+            bad_inputs_str = "; ".join(bad_inputs_items)
+            if self.bad_inputs_str != bad_inputs_str:
+                self.log.warning(f"Cannot apply compensation; {bad_inputs_str}")
+                self.bad_inputs_str = bad_inputs_str
             return None
 
-        self.missing_inputs_str = ""
+        self.bad_inputs_str = ""
 
         return base.CompensationInputs(
             elevation=mount_target.elevation,
