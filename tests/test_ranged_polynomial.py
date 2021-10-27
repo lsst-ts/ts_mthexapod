@@ -47,20 +47,20 @@ class RangedPolynomialTestCase(unittest.TestCase):
         poly = mthexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
         for x in np.linspace(min_x, max_x, num=10, endpoint=True):
             pred_value = coeffs[0] + x * (coeffs[1] + x * (coeffs[2] + x * coeffs[3]))
-            self.assertAlmostEqual(poly(x), pred_value)
+            assert poly(x) == pytest.approx(pred_value)
 
         # Check that there is a smooth transition at the borders
-        self.assertAlmostEqual(poly(min_x - 1e-5), poly(min_x + 1e-5), delta=1e-3)
-        self.assertAlmostEqual(poly(max_x + 1e-5), poly(max_x - 1e-5), delta=1e-3)
+        assert poly(min_x - 1e-5) == pytest.approx(poly(min_x + 1e-5), abs=1e-3)
+        assert poly(max_x + 1e-5) == pytest.approx(poly(max_x - 1e-5), abs=1e-3)
 
         # Check that the out-of-range values are linear
         for x in np.linspace(min_x - 10, min_x, num=10, endpoint=True):
             pred_value = poly(min_x) + (x - min_x) * coeffs[1]
-            self.assertAlmostEqual(poly(x), pred_value)
+            assert poly(x) == pytest.approx(pred_value)
 
         for x in np.linspace(max_x, max_x + 10, num=10, endpoint=True):
             pred_value = poly(max_x) + (x - max_x) * coeffs[1]
-            self.assertAlmostEqual(poly(x), pred_value)
+            assert poly(x) == pytest.approx(pred_value)
 
     def test_one_coeff(self):
         """Test that a ranged polynomial with only one coffficient
@@ -71,4 +71,4 @@ class RangedPolynomialTestCase(unittest.TestCase):
         max_x = 10
         poly = mthexapod.RangedPolynomial(coeffs=coeffs, min_x=min_x, max_x=max_x)
         for x in (min_x - 1, min_x, 0, max_x, max_x + 1):
-            self.assertAlmostEqual(poly(x), coeffs[0])
+            assert poly(x) == pytest.approx(coeffs[0])

@@ -58,10 +58,10 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         np.testing.assert_equal(model.cmd_xyzrot, np.zeros(3))
         np.testing.assert_equal(model.cmd_mirror_positions, mirror_positions)
         for actuator in model.actuators:
-            self.assertAlmostEqual(actuator.min_position, min_length)
-            self.assertAlmostEqual(actuator.max_position, max_length)
-            self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.position(), 0)
+            assert actuator.min_position == pytest.approx(min_length)
+            assert actuator.max_position == pytest.approx(max_length)
+            assert actuator.speed == pytest.approx(speed)
+            assert actuator.position() == pytest.approx(0)
         relative_actuator_lengths = model.compute_actuator_lengths(
             mirror_positions, absolute=False
         )
@@ -182,9 +182,9 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         for base_position, desired_base_angle in zip(
             model.base_positions, desired_base_angles
         ):
-            self.assertAlmostEqual(base_position[2], 0)
+            assert base_position[2] == pytest.approx(0)
             meas_base_radius = math.hypot(base_position[0], base_position[1])
-            self.assertAlmostEqual(meas_base_radius, base_radius)
+            assert meas_base_radius == pytest.approx(base_radius)
             base_angle = math.atan2(base_position[1], base_position[0]) * u.rad
             utils.assert_angles_almost_equal(base_angle, desired_base_angle)
 
@@ -204,9 +204,9 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         for mirror_position, desired_mirror_angle in zip(
             model.neutral_mirror_positions, desired_mirror_angles
         ):
-            self.assertAlmostEqual(mirror_position[2], mirror_z)
+            assert mirror_position[2] == pytest.approx(mirror_z)
             meas_mirror_radius = math.hypot(mirror_position[0], mirror_position[1])
-            self.assertAlmostEqual(meas_mirror_radius, mirror_radius)
+            assert meas_mirror_radius == pytest.approx(mirror_radius)
             mirror_angle = math.atan2(mirror_position[1], mirror_position[0]) * u.rad
             utils.assert_angles_almost_equal(mirror_angle, desired_mirror_angle)
         np.testing.assert_equal(
@@ -227,10 +227,10 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         np.testing.assert_equal(model.neutral_pivot, pivot)
 
         for actuator in model.actuators:
-            self.assertAlmostEqual(actuator.min_position, min_length)
-            self.assertAlmostEqual(actuator.max_position, max_length)
-            self.assertAlmostEqual(actuator.speed, speed)
-            self.assertAlmostEqual(actuator.position(), 0)
+            assert actuator.min_position == pytest.approx(min_length)
+            assert actuator.max_position == pytest.approx(max_length)
+            assert actuator.speed == pytest.approx(speed)
+            assert actuator.position() == pytest.approx(0)
 
         relative_actuator_lengths = model.compute_actuator_lengths(
             model.neutral_mirror_positions, absolute=False
@@ -315,7 +315,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         axis : `int`
             Axis about which to rotate; one of (0, 1, 2)
         """
-        self.assertIn(axis, (0, 1, 2))
+        assert axis in (0, 1, 2)
         # Arbitrary but reasonable values. Lengths are in microns
         # because that is what the hexapod controller uses.
         base_radius = 2.1e6
@@ -355,8 +355,8 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             # relative to the pivot.
             relative_mirror_position = cmd_mirror_position - np.add(translation, pivot)
             # Rotation does not affect the position along the specified axis
-            self.assertAlmostEqual(
-                relative_unrotated_mirror_position[axis], relative_mirror_position[axis]
+            assert relative_unrotated_mirror_position[axis] == pytest.approx(
+                relative_mirror_position[axis]
             )
             # Rotation is about the translated pivot point.
             # Check that the vector from the pivot to each mirror point:
@@ -373,7 +373,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             rotated_len = math.hypot(
                 relative_mirror_position[axis1], relative_mirror_position[axis2]
             )
-            self.assertAlmostEqual(unrotated_len, rotated_len)
+            assert unrotated_len == pytest.approx(rotated_len)
             unrotated_angle_rad = (
                 math.atan2(
                     relative_unrotated_mirror_position[axis2],
@@ -394,9 +394,9 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def check_move(self, model):
         """Check the remaining_time and moving methods."""
-        self.assertTrue(model.moving())
+        assert model.moving()
         margin = 0.02
         await asyncio.sleep(model.remaining_time() - margin)
-        self.assertTrue(model.moving())
+        assert model.moving()
         await asyncio.sleep(margin * 2)
-        self.assertFalse(model.moving())
+        assert not model.moving()
