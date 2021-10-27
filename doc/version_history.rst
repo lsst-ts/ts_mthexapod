@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.21.1
+-------
+
+* Improve handling of NaNs in compensation inputs.
+  Treat them as missing data: report them once and keep running the compensation loop.
+* Modernized unit tests to use bare asserts.
+
+Requires:
+
+* ts_hexapod_controller 1.2.0
+* ts_hexrotcomm 0.23
+* ts_salobj 6.3
+* ts_idl 3.4
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.21.0
 -------
 
