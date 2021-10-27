@@ -24,6 +24,7 @@ import contextlib
 import copy
 import dataclasses
 import logging
+import math
 import pathlib
 import unittest
 import time
@@ -320,7 +321,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
 
-        # TODO DM-28005: use compensation_inputs directly
+        # TODO DM-28005: use compensation_inputs directly,
+        # once we have temperature inputs.
         hacked_compensation_inputs = copy.copy(compensation_inputs)
         hacked_compensation_inputs.temperature = 0
         compensation_offset = self.csc.compensation.get_offset(
@@ -479,17 +481,20 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await asyncio.sleep(0.1)
             if elevation is not None:
                 mtmount_target = self.csc.mtmount.evt_target.get()
-                if (
-                    mtmount_target is None
-                    or abs(mtmount_target.elevation - elevation) > EPSILON
-                    or abs(mtmount_target.azimuth - azimuth) > EPSILON
+                if mtmount_target is None or not np.allclose(
+                    [mtmount_target.elevation, mtmount_target.azimuth],
+                    [elevation, azimuth],
+                    atol=EPSILON,
+                    equal_nan=True,
                 ):
                     continue
             if rotation is not None:
                 mtrotator_target = self.csc.mtrotator.evt_target.get()
-                if (
-                    mtrotator_target is None
-                    or abs(mtrotator_target.position - rotation) > EPSILON
+                if mtrotator_target is None or not np.allclose(
+                    mtrotator_target.position,
+                    rotation,
+                    atol=EPSILON,
+                    equal_nan=True,
                 ):
                     continue
             break
@@ -925,6 +930,30 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                     update_inputs=update_inputs,
                 )
                 update_inputs = True
+
+            # Set each input to NaN in turn.
+            # This should prevent compensation updates
+            # and should update bad_inputs_str
+            # input_name is the name of the item in CompensationInputs;
+            # input_descr is the description of the field that the CSC uses,
+            # which includes the name of the CSC, event, and field.
+            # TODO DM-28005: add temperature
+            prev_bad_inputs_str = self.csc.bad_inputs_str
+            for input_name, input_descr in (
+                ("elevation", "MTMount.target.elevation"),
+                ("azimuth", "MTMount.target.azimuth"),
+                ("rotation", "MTRotator.target.position"),
+            ):
+                nan_compensation_inputs = copy.copy(compensation_inputs)
+                setattr(nan_compensation_inputs, input_name, math.nan)
+                await self.set_compensation_inputs(**vars(nan_compensation_inputs))
+                t0 = utils.current_tai()
+                while prev_bad_inputs_str == self.csc.bad_inputs_str:
+                    if utils.current_tai() - t0 > STD_TIMEOUT:
+                        self.fail("Timed out waiting for bad_inputs_str to be updated")
+                    await asyncio.sleep(0.1)
+                assert input_descr in self.csc.bad_inputs_str
+                prev_bad_inputs_str = self.csc.bad_inputs_str
 
             # Test disabling compensation with setCompensationMode
             await self.remote.cmd_setCompensationMode.set_start(
