@@ -52,8 +52,8 @@ class HexapodCommander(salobj.CscCommander):
             index=index,
             enable=enable,
         )
-        for command_to_ignore in ("abort", "setValue"):
-            del self.command_dict[command_to_ignore]
+        for command_to_ignore in ("enterControl", "abort", "setValue"):
+            self.command_dict.pop(command_to_ignore, None)
 
     def positions_close(self, position1, position2):
         """Return True if two positions are nearly equal.

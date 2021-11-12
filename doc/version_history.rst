@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v0.21.2
+-------
+
+* `HexapodCommander`: make compatible with ts_xml 10.1 (while retaining backwards compatibility).
+
+Requires:
+
+* ts_hexapod_controller 1.2.0
+* ts_hexrotcomm 0.23
+* ts_salobj 6.3
+* ts_idl 3.4
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMo
+
 v0.21.1
 -------
 
