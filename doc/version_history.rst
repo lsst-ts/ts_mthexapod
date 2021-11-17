@@ -23,7 +23,7 @@ Requires:
 * ts_salobj 6.3
 * ts_idl 3.4
 * ts_xml 7.1
-* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMo
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
 v0.21.1
 -------
