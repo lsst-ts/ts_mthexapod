@@ -189,7 +189,7 @@ properties:
         - 1.0e-4
       min_temperature: -20
       max_temperature: 30
-      host: 10.9.57.226
+      host: camhex-pxi-controller.cp.lsst.org
       port: 5560
   m2_config:
     $ref: "#/definitions/instance_specific_config"
@@ -231,7 +231,7 @@ properties:
         - 1.0e-4
       min_temperature: -20
       max_temperature: 30
-      host: 10.9.57.231
+      host: m2hex-pxi-controller.cp.lsst.org
       port: 5550
   connection_timeout:
     description: Time limit for connecting to the TCP/IP interface (sec)
