@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.22.0
+-------
+
+* Update the default host addresses in the CSC config schema to match the new public addresses.
+
 v0.21.2
 -------
 
