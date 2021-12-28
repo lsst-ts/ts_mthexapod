@@ -685,7 +685,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             controllerState=int(client.telemetry.state),
             offlineSubstate=int(client.telemetry.offline_substate),
             enabledSubstate=int(client.telemetry.enabled_substate),
-            applicationStatus=[client.telemetry.application_status, 0, 0, 0, 0, 0],
+            applicationStatus=client.telemetry.application_status,
         )
 
         pos_error = [
@@ -735,9 +735,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         safety_interlock = (
             client.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
         )
-        self.evt_interlock.set_put(
-            detail="Engaged" if safety_interlock else "Disengaged"
-        )
+        self.evt_interlock.set_put(engaged=safety_interlock)
 
         if self.n_telemetry < MAX_N_TELEMETRY:
             self.n_telemetry += 1
