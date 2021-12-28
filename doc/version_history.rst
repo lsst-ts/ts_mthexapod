@@ -6,6 +6,24 @@
 Version History
 ###############
 
+v0.23.0
+-------
+
+* `HexapodCsc`: changed the interlock event's field from ``detail`` (a string) to ``enabled`` (a boolean).
+  Also change `applicationStatus` to a scalar (instead of an array with only the first element nonzero).
+  These changes requires ts_xml 11.0.
+  These changes also requires ts_hexrotcomm 0.27 (only because it has other changes that require ts_xml 11).
+* `CONFIG_SCHEMA`: change ``master`` to ``main`` in the ``$id`` field.
+
+Requires:
+
+* ts_hexapod_controller 1.2.0
+* ts_hexrotcomm 0.27
+* ts_salobj 6.3
+* ts_idl 3.4
+* ts_xml 11.0
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.22.0
 -------
 
