@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v0.22.1
+-------
+
+* Update the command sync patterns for ts_hexapod_controller 1.2.4, which is required.
+  This change also requires ts_hexrotcomm 0.25, because ts_hexapod_controller 1.2.4 acknowledges commands.
+
+Requires:
+
+* ts_hexapod_controller 1.2.4
+* ts_hexrotcomm 0.25
+* ts_salobj 6.3
+* ts_idl 3.4
+* ts_xml 7.1
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.22.0
 -------
 
