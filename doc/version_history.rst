@@ -22,7 +22,7 @@ Requires:
 * ts_hexrotcomm 0.27
 * ts_salobj 6.8
 * ts_idl 3.4
-* ts_xml 11.0
+* ts_xml 10.2
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
 v0.22.1
