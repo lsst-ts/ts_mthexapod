@@ -28,7 +28,6 @@ import math
 import pathlib
 import unittest
 import time
-import warnings
 
 import numpy as np
 import pytest
@@ -46,7 +45,7 @@ ZERO_POSITION = mthexapod.Position(0, 0, 0, 0, 0, 0)
 
 logging.basicConfig()
 
-index_gen = salobj.index_generator(imin=1, imax=2)
+index_gen = utils.index_generator(imin=1, imax=2)
 
 local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
@@ -797,14 +796,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
 
             data = await self.remote.tel_actuators.next(flush=True, timeout=STD_TIMEOUT)
-            # TODO DM-30952: remove this hasattr test
-            # once ts_xml 9.2 is used everywhere.
-            if hasattr(data, "timestamp"):
-                tai = utils.current_tai()
-                # No need to be picky; it just needs to be close.
-                assert data.timestamp == pytest.approx(tai, abs=0.5)
-            else:
-                warnings.warn("actuators topic does not have a timestamp field")
+            tai = utils.current_tai()
+            # No need to be picky; it just needs to be close.
+            assert data.timestamp == pytest.approx(tai, abs=0.5)
 
             expected_bus_voltage = [mthexapod.mock_controller.BUS_VOLTAGE] * 3
             data = await self.remote.tel_electrical.next(

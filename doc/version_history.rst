@@ -6,6 +6,26 @@
 Version History
 ###############
 
+v0.24.0
+-------
+
+* Update for ts_hexrotcomm 0.28 and ts_hexapod_controller 1.3.0:
+
+    * Remove support for the sync_pattern field in low-level commands.
+    * Remove ``FRAME_ID`` class constants from the `Config` and `Telemetry` structs, because frame IDs are now standardized.
+    * Remove support for older (pre-ts_xml 9.2) actuators telemetry.
+
+* Use index_generator from ts_utils instead of the deprecated version in ts_salobj.
+
+Requires:
+
+* ts_hexapod_controller 1.3.0
+* ts_hexrotcomm 0.28
+* ts_salobj 6.8
+* ts_idl 3.4
+* ts_xml 10.2
+* MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
+
 v0.23.0
 -------
 
