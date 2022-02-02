@@ -45,7 +45,7 @@ ZERO_POSITION = mthexapod.Position(0, 0, 0, 0, 0, 0)
 
 logging.basicConfig()
 
-index_gen = salobj.index_generator(imin=1, imax=2)
+index_gen = utils.index_generator(imin=1, imax=2)
 
 local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
 
