@@ -51,7 +51,6 @@ class Config(ctypes.Structure):
         ("pos_limits", ctypes.c_double * 6),
         ("pivot", ctypes.c_double * 3),
     ]
-    FRAME_ID = 0x2
 
 
 class PosVel(ctypes.Structure):
@@ -132,4 +131,3 @@ class Telemetry(ctypes.Structure):
         # ("motor_current", ctypes.c_double * 6),
         # ("bus_voltage", ctypes.c_double * 3),
     ]
-    FRAME_ID = 0x0
