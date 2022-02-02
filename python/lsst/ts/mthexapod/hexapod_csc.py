@@ -193,7 +193,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         super().__init__(
             name="MTHexapod",
             index=index,
-            sync_pattern=controller_constants.sync_pattern,
             CommandCode=enums.CommandCode,
             ConfigClass=structs.Config,
             TelemetryClass=structs.Telemetry,

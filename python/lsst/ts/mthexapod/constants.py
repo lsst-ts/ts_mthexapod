@@ -66,24 +66,19 @@ class ControllerConstants:
 
     Parameters
     ----------
-    sync_pattern : `int`
-        Sync pattern for commands to the low-level controller.
     subconfig_name : `str`
         Name of device-specific configuration.
     """
 
-    sync_pattern: int
     subconfig_name: str
 
 
 # Dict of SalIndex: ControllerConstants
 IndexControllerConstants = {
     enums.SalIndex.CAMERA_HEXAPOD: ControllerConstants(
-        sync_pattern=0x5555,
         subconfig_name="camera_config",
     ),
     enums.SalIndex.M2_HEXAPOD: ControllerConstants(
-        sync_pattern=0x5555,
         subconfig_name="m2_config",
     ),
 }
