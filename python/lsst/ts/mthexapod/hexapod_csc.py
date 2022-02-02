@@ -203,17 +203,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             simulation_mode=simulation_mode,
         )
 
-        # TODO DM-30952: remove this attribute and the code that uses it
-        # once ts_xml 9.2 is used everywhere.
-        self._actuators_has_timestamp_field = hasattr(
-            self.tel_actuators.DataType(), "timestamp"
-        )
-        if not self._actuators_has_timestamp_field:
-            self.log.warning(
-                "Using xml < 9.2; timestamp is not available "
-                "in the 'actuators' telemetry topic"
-            )
-
         # TODO DM-28005: add a suitable Remote from which to get temperature;
         # perhaps something like:
         # self.eas = salobj.Remote(domain=self.domain, name="EAS", include=[?])
@@ -694,17 +683,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3]
             for i in range(3)
         ]
-        if self._actuators_has_timestamp_field:
-            self.tel_actuators.set_put(
-                calibrated=client.telemetry.strut_measured_pos_um,
-                raw=client.telemetry.strut_measured_pos_raw,
-                timestamp=tai_unix,
-            )
-        else:
-            self.tel_actuators.set_put(
-                calibrated=client.telemetry.strut_measured_pos_um,
-                raw=client.telemetry.strut_measured_pos_raw,
-            )
+        self.tel_actuators.set_put(
+            calibrated=client.telemetry.strut_measured_pos_um,
+            raw=client.telemetry.strut_measured_pos_raw,
+            timestamp=tai_unix,
+        )
         self.tel_application.set_put(
             demand=client.telemetry.commanded_pos,
             position=list(client.telemetry.measured_xyz)
