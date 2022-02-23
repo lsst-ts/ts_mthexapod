@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/main/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v2
+title: MTHexapod v3
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -148,97 +148,19 @@ properties:
   compensation_interval:
     description: Time between compensation updates (seconds).
     type: number
-    default: 0.2
-  camera_config:
-    $ref: "#/definitions/instance_specific_config"
-    default:
-      elevation_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      azimuth_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      rotation_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      temperature_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      min_compensation_adjustment:
-        - 1
-        - 1
-        - 1
-        - 1.0e-4
-        - 1.0e-4
-        - 1.0e-4
-      min_temperature: -20
-      max_temperature: 30
-      host: camhex-pxi-controller.cp.lsst.org
-      port: 5560
-  m2_config:
-    $ref: "#/definitions/instance_specific_config"
-    default:
-      elevation_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      azimuth_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      rotation_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      temperature_coeffs:
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-        - [0]
-      min_compensation_adjustment:
-        - 1
-        - 1
-        - 1
-        - 1.0e-4
-        - 1.0e-4
-        - 1.0e-4
-      min_temperature: -20
-      max_temperature: 30
-      host: m2hex-pxi-controller.cp.lsst.org
-      port: 5550
   connection_timeout:
     description: Time limit for connecting to the TCP/IP interface (sec)
     type: number
     exclusiveMinimum: 0
-    default: 10
-required: [camera_config, m2_config, connection_timeout]
+  camera_config:
+    $ref: "#/definitions/instance_specific_config"
+  m2_config:
+    $ref: "#/definitions/instance_specific_config"
+required:
+  - compensation_interval
+  - connection_timeout
+  - camera_config
+  - m2_config
 additionalProperties: false
 """
 )
