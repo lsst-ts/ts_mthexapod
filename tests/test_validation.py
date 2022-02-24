@@ -21,15 +21,17 @@
 
 import copy
 import itertools
+import pathlib
 import unittest
 
 import jsonschema
-import numpy as np
-from numpy.testing import assert_allclose
+import yaml
 import pytest
 
 from lsst.ts import salobj
 from lsst.ts import mthexapod
+
+TEST_CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
 class ValidationTestCase(unittest.TestCase):
@@ -37,68 +39,38 @@ class ValidationTestCase(unittest.TestCase):
 
     def setUp(self):
         self.schema = mthexapod.CONFIG_SCHEMA
-        self.validator = salobj.DefaultingValidator(schema=self.schema)
+        self.validator = salobj.StandardValidator(schema=self.schema)
         self.instance_names = ("camera_config", "m2_config")
 
-    def test_default(self):
-        result = self.validator.validate(None)
-        assert result["compensation_interval"] == 0.2
-        for instance_name in self.instance_names:
-            instance = result[instance_name]
-            for coeffs_prefix in ("elevation", "azimuth", "rotation", "temperature"):
-                coeffs_name = f"{coeffs_prefix}_coeffs"
-                assert len(instance[coeffs_name]) == 6
-                assert instance[coeffs_name] == [[0], [0], [0], [0], [0], [0]]
-            assert_allclose(
-                instance["min_compensation_adjustment"], [1, 1, 1, 1e-4, 1e-4, 1e-4]
-            )
-            assert instance["min_temperature"] <= 0
-            assert instance["max_temperature"] >= 20
+    def load_config(self):
+        with open(TEST_CONFIG_DIR / "_init.yaml", "r") as f:
+            raw_config = f.read()
+        return yaml.safe_load(raw_config)
 
-    def test_minmax_temperature_specified(self):
-        defaults = self.validator.validate(None)
-        for instance_name in self.instance_names:
-            for name, delta in (("min_temperature", -1.5), ("max_temperature", 3.1)):
-                data = copy.deepcopy(defaults)
-                new_value = data[instance_name][name] + delta
-                data[instance_name][name] = new_value
-                result = self.validator.validate(data)
-                assert result[instance_name][name] == pytest.approx(new_value)
+    def test_basics(self):
+        config = self.load_config()
+        self.validator.validate(config)
 
-    def test_coeffs_specified(self):
-        defaults = self.validator.validate(None)
-        # Test validating a dict that only has data for one instance,
-        # and with a dict that has data for all instances.
-        for just_one_instance in (False, True):
-            for instance_name in self.instance_names:
-                for short_name, coeffs in itertools.product(
-                    ("elevation", "azimuth", "rotation", "temperature"),
-                    (
-                        [[0]] * 6,
-                        [
-                            [1.1, 1.2],
-                            [2.1, 2.2, 2.3],
-                            [3.1, 3.2, 3.3, 3.4],
-                            [4.1, 4.2, 4.3, 4.4, 4.5],
-                            [5.1, 5.2, 5.3, 5.4, 5.5, 5.6],
-                            [6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7],
-                        ],
-                    ),
-                ):
-                    if just_one_instance:
-                        data = {instance_name: copy.deepcopy(defaults[instance_name])}
-                    else:
-                        data = copy.deepcopy(defaults)
-                    name = f"{short_name}_coeffs"
-                    data[instance_name][name] = coeffs
-                    result = self.validator.validate(data)
-                    for i in range(6):
-                        np.testing.assert_allclose(
-                            result[instance_name][name][i], coeffs[i]
-                        )
+    def test_missing_data(self):
+        config = self.load_config()
+        for key in config:
+            with self.subTest(key=key):
+                bad_config = config.copy()
+                del bad_config[key]
+                with pytest.raises(jsonschema.ValidationError):
+                    self.validator.validate(bad_config)
+
+        for instance_name in self.instance_names:
+            for key in config[instance_name]:
+                with self.subTest(instance_name=instance_name, key=key):
+                    bad_config = config.copy()
+                    bad_config[instance_name] = config[instance_name].copy()
+                    del bad_config[instance_name][key]
+                    with pytest.raises(jsonschema.ValidationError):
+                        self.validator.validate(bad_config)
 
     def test_bad_coeffs(self):
-        defaults = self.validator.validate(None)
+        defaults = self.load_config()
         for instance_name in self.instance_names:
             for short_name, bad_coeffs in itertools.product(
                 ("elevation", "temperature"),
@@ -116,17 +88,5 @@ class ValidationTestCase(unittest.TestCase):
                 data = copy.deepcopy(defaults)
                 name = f"{short_name}_coeffs"
                 data[instance_name][name] = bad_coeffs
-                with pytest.raises(jsonschema.exceptions.ValidationError):
-                    self.validator.validate(data)
-
-    def test_missing_data(self):
-        """The defaults for a given instance only work if no values
-        are specified for that instance.
-        """
-        defaults = self.validator.validate(None)
-        for instance_name in self.instance_names:
-            for name in defaults[instance_name]:
-                data = copy.deepcopy(defaults)
-                del data[instance_name][name]
                 with pytest.raises(jsonschema.exceptions.ValidationError):
                     self.validator.validate(data)

@@ -47,17 +47,17 @@ logging.basicConfig()
 
 index_gen = utils.index_generator(imin=1, imax=2)
 
-local_config_dir = pathlib.Path(__file__).parent / "data" / "config"
+TEST_CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
-        self, initial_state, config_dir=None, settings_to_apply="", simulation_mode=1
+        self, initial_state, config_dir=None, override="", simulation_mode=1
     ):
         return mthexapod.HexapodCsc(
             index=next(index_gen),
             initial_state=initial_state,
-            settings_to_apply=settings_to_apply,
+            override=override,
             simulation_mode=simulation_mode,
             config_dir=config_dir,
         )
@@ -66,8 +66,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
     async def make_csc(
         self,
         initial_state=salobj.State.STANDBY,
-        config_dir=None,
-        settings_to_apply="",
+        config_dir=TEST_CONFIG_DIR,
+        override="",
         simulation_mode=1,
         log_level=None,
     ):
@@ -75,7 +75,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         async with super().make_csc(
             initial_state=initial_state,
             config_dir=config_dir,
-            settings_to_apply=settings_to_apply,
+            override=override,
             simulation_mode=simulation_mode,
             log_level=log_level,
         ), salobj.Controller(
@@ -466,12 +466,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         did_something = False
         if elevation is not None:
             did_something = True
-            self.mtmount_controller.evt_target.set_put(
+            await self.mtmount_controller.evt_target.set_write(
                 elevation=elevation, azimuth=azimuth
             )
         if rotation is not None:
             did_something = True
-            self.mtrotator_controller.evt_target.set_put(position=rotation)
+            await self.mtrotator_controller.evt_target.set_write(position=rotation)
         if not did_something:
             self.fail("Must specify at least one non-None input")
 
@@ -781,8 +781,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         """
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.assert_next_sample(
@@ -828,8 +827,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         """
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.assert_next_application(desired_position=ZERO_POSITION)
@@ -853,8 +851,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         """
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.set_compensation_inputs(
@@ -879,9 +876,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
     async def test_move_with_compensation_with_initial_compensation_inputs(self):
         """Test move with compensation enabled."""
         async with self.make_csc(
-            config_dir=local_config_dir,
             initial_state=salobj.State.ENABLED,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             compensation_inputs_list = (
@@ -981,9 +977,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         This should act like an uncompensated move.
         """
         async with self.make_csc(
-            config_dir=local_config_dir,
             initial_state=salobj.State.ENABLED,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.assert_next_sample(
@@ -1025,8 +1020,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         positions = [mthexapod.Position(*data) for data in positions_data]
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.assert_next_sample(
@@ -1089,8 +1083,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         positions = [mthexapod.Position(*data) for data in positions_data]
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.assert_next_sample(
@@ -1144,8 +1137,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         offset = mthexapod.Position(50, -100, 135, 0.005, -0.005, 0.01)
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             await self.assert_next_application(desired_position=ZERO_POSITION)
@@ -1169,8 +1161,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         offset = mthexapod.Position(50, -100, 135, 0.005, -0.005, 0.01)
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             compensation_inputs_list = (
@@ -1300,8 +1291,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         position.z = 1000
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
-            config_dir=local_config_dir,
-            settings_to_apply="valid.yaml",
+            override="",
             simulation_mode=1,
         ):
             self.csc.log.level = 10

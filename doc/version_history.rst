@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v0.25.0
+-------
+
+* Update for ts_salobj v7, ts_xml 11, and ts_hexrotcomm 0.29, all of which are required.
+
+Requires:
+
+* ts_hexapod_controller 1.3.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
+
 v0.24.0
 -------
 

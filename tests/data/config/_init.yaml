@@ -1,3 +1,5 @@
+compensation_interval: 0.2
+connection_timeout: 10
 # Valid coefficients
 # The values are not realistic, but do give
 # compensation offsets that are typically in range.
