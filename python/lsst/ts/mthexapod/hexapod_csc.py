@@ -107,9 +107,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         The initial state of the CSC.
         Must be `lsst.ts.salobj.State.STANDBY` unless simulating
         (``simulation_mode != 0``).
-    settings_to_apply : `str`, optional
-        Settings to apply if ``initial_state`` is `State.DISABLED`
-        or `State.ENABLED`.
+    override : `str`, optional
+        Configuration override file to apply if ``initial_state`` is
+        `State.DISABLED` or `State.ENABLED`.
     simulation_mode : `int` (optional)
         Simulation mode. Allowed values:
 
@@ -137,7 +137,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         index,
         config_dir=None,
         initial_state=salobj.State.STANDBY,
-        settings_to_apply="",
+        override="",
         simulation_mode=0,
     ):
         index = enums.SalIndex(index)
@@ -193,27 +193,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         super().__init__(
             name="MTHexapod",
             index=index,
-            sync_pattern=controller_constants.sync_pattern,
             CommandCode=enums.CommandCode,
             ConfigClass=structs.Config,
             TelemetryClass=structs.Telemetry,
             config_schema=CONFIG_SCHEMA,
             config_dir=config_dir,
             initial_state=initial_state,
-            settings_to_apply=settings_to_apply,
+            override=override,
             simulation_mode=simulation_mode,
         )
-
-        # TODO DM-30952: remove this attribute and the code that uses it
-        # once ts_xml 9.2 is used everywhere.
-        self._actuators_has_timestamp_field = hasattr(
-            self.tel_actuators.DataType(), "timestamp"
-        )
-        if not self._actuators_has_timestamp_field:
-            self.log.warning(
-                "Using xml < 9.2; timestamp is not available "
-                "in the 'actuators' telemetry topic"
-            )
 
         # TODO DM-28005: add a suitable Remote from which to get temperature;
         # perhaps something like:
@@ -238,7 +226,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """Return True if moves are compensated, False otherwise."""
         return self.evt_compensationMode.data.enabled
 
-    def config_callback(self, client):
+    async def config_callback(self, client):
         """Called when the low-level controller outputs configuration.
 
         Parameters
@@ -246,7 +234,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         client : `lsst.ts.hexrotcomm.CommandTelemetryClient`
             TCP/IP client.
         """
-        self.evt_configuration.set_put(
+        await self.evt_configuration.set_write(
             maxXY=client.config.pos_limits[0],
             minZ=client.config.pos_limits[1],
             maxZ=client.config.pos_limits[2],
@@ -347,7 +335,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 )
             except Exception:
                 self.log.exception("Compensation failed; turning off compensation mode")
-                self.evt_compensationMode.set_put(enabled=False)
+                await self.evt_compensationMode.set_write(enabled=False)
                 return
 
     async def compensation_wait(self):
@@ -595,7 +583,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_setCompensationMode(self, data):
         self.assert_enabled()
-        self.evt_compensationMode.set_put(enabled=data.enable)
+        await self.evt_compensationMode.set_write(enabled=data.enable)
         async with self.write_lock:
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
@@ -661,14 +649,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             async with self.write_lock:
                 self.move_task.cancel()
                 self.compensation_loop_task.cancel()
-            self.evt_compensationMode.set_put(enabled=False)
+            await self.evt_compensationMode.set_write(enabled=False)
 
     async def start(self):
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
-        self.evt_compensationMode.set_put(enabled=False)
+        await self.evt_compensationMode.set_write(enabled=False)
         await super().start()
 
-    def telemetry_callback(self, client):
+    async def telemetry_callback(self, client):
         """Called when the low-level controller outputs telemetry.
 
         Parameters
@@ -681,7 +669,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Strangely telemetry.state, offline_substate and enabled_substate
         # are all floats from the controller. But they should only have
         # integer value, so I output them as integers.
-        self.evt_controllerState.set_put(
+        await self.evt_controllerState.set_write(
             controllerState=int(client.telemetry.state),
             offlineSubstate=int(client.telemetry.offline_substate),
             enabledSubstate=int(client.telemetry.enabled_substate),
@@ -695,24 +683,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3]
             for i in range(3)
         ]
-        if self._actuators_has_timestamp_field:
-            self.tel_actuators.set_put(
-                calibrated=client.telemetry.strut_measured_pos_um,
-                raw=client.telemetry.strut_measured_pos_raw,
-                timestamp=tai_unix,
-            )
-        else:
-            self.tel_actuators.set_put(
-                calibrated=client.telemetry.strut_measured_pos_um,
-                raw=client.telemetry.strut_measured_pos_raw,
-            )
-        self.tel_application.set_put(
+        await self.tel_actuators.set_write(
+            calibrated=client.telemetry.strut_measured_pos_um,
+            raw=client.telemetry.strut_measured_pos_raw,
+            timestamp=tai_unix,
+        )
+        await self.tel_application.set_write(
             demand=client.telemetry.commanded_pos,
             position=list(client.telemetry.measured_xyz)
             + list(client.telemetry.measured_uvw),
             error=pos_error,
         )
-        self.tel_electrical.set_put(
+        await self.tel_electrical.set_write(
             copleyStatusWordDrive=client.telemetry.status_word,
             copleyLatchingFaultStatus=client.telemetry.latching_fault_status_register,
             # TODO DM-31290: uncomment these lines when the data is available
@@ -723,9 +705,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         in_position = (
             client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         )
-        self.evt_inPosition.set_put(inPosition=in_position)
+        await self.evt_inPosition.set_write(inPosition=in_position)
 
-        self.evt_commandableByDDS.set_put(
+        await self.evt_commandableByDDS.set_write(
             state=bool(
                 client.telemetry.application_status
                 & ApplicationStatus.DDS_COMMAND_SOURCE
@@ -735,7 +717,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         safety_interlock = (
             client.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
         )
-        self.evt_interlock.set_put(engaged=safety_interlock)
+        await self.evt_interlock.set_write(engaged=safety_interlock)
 
         if self.n_telemetry < MAX_N_TELEMETRY:
             self.n_telemetry += 1
@@ -933,12 +915,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
             await self.run_multiple_commands(cmd1, cmd2)
 
-            self.evt_uncompensatedPosition.set_put(**vars(uncompensated_pos))
-            self.evt_compensatedPosition.set_put(
+            await self.evt_uncompensatedPosition.set_write(**vars(uncompensated_pos))
+            await self.evt_compensatedPosition.set_write(
                 **vars(compensation_info.compensated_pos)
             )
             if compensation_info.compensation_offset is not None:
-                self.evt_compensationOffset.set_put(
+                await self.evt_compensationOffset.set_write(
                     elevation=compensation_info.compensation_inputs.elevation,
                     azimuth=compensation_info.compensation_inputs.azimuth,
                     rotation=compensation_info.compensation_inputs.rotation,
