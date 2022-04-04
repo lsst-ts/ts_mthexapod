@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.26.0
+-------
+
+* Update for ts_hexapod_controller 1.4.0, which is required.
+  This version reports motor currents and bus voltages.
+* Report motor currents and bus voltages in the electrical telemetry topic.
+* Make a unit test more robust.
+
+Requires:
+
+* ts_hexapod_controller 1.4.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
+
 v0.25.0
 -------
 
