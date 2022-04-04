@@ -768,9 +768,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                             timeout=STD_TIMEOUT,
                         )
 
-    @unittest.skip(
-        "TODO DM-31290: enable this test when current and voltage is available"
-    )
     async def test_electrical_telemetry(self):
         """Test motor current and velocity with a simple move.
 
@@ -804,7 +801,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=True, timeout=STD_TIMEOUT
             )
             np.testing.assert_allclose(data.motorCurrent, [0] * 6)
-            np.testing.assert_allclose(data.motorVoltage, expected_bus_voltage)
+            np.testing.assert_allclose(data.busVoltage, expected_bus_voltage)
 
             uncompensated_position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
             await self.remote.cmd_move.set_start(
@@ -819,7 +816,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=True, timeout=STD_TIMEOUT
             )
             np.testing.assert_array_less([0] * 6, data.motorCurrent)
-            np.testing.assert_allclose(data.motorVoltage, expected_bus_voltage)
+            np.testing.assert_allclose(data.busVoltage, expected_bus_voltage)
 
     async def test_move_no_compensation_no_compensation_inputs(self):
         """Test move with compensation disabled when the CSC has
