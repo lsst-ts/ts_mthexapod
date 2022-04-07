@@ -90,6 +90,8 @@ class Telemetry(ctypes.Structure):
         ("copley_fault_status_register", ctypes.c_uint32 * 6),
         ("application_status", ctypes.c_uint32),
         ("input_pin_states", ctypes.c_uint32 * 3),
+        ("motor_current", ctypes.c_double * 6),
+        ("bus_voltage", ctypes.c_double * 3),
         ("mjd", ctypes.c_double),
         ("mjd_frac", ctypes.c_double),
         ("dt", ctypes.c_double),
@@ -126,8 +128,4 @@ class Telemetry(ctypes.Structure):
         ("strut_linear_encoder_velocity", ctypes.c_double * 6),
         # Probably hexCmd_mic_deg in telemetryStreamStructure_t
         ("commanded_pos", ctypes.c_double * 6),
-        # TODO DM-31290: uncomment these lines and move them
-        # to the correct location when the data is available
-        # ("motor_current", ctypes.c_double * 6),
-        # ("bus_voltage", ctypes.c_double * 3),
     ]

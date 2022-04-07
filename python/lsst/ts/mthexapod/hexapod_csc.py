@@ -697,9 +697,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await self.tel_electrical.set_write(
             copleyStatusWordDrive=client.telemetry.status_word,
             copleyLatchingFaultStatus=client.telemetry.latching_fault_status_register,
-            # TODO DM-31290: uncomment these lines when the data is available
-            # motorCurrent=client.telemetry.motor_current,
-            # motorVoltage=client.telemetry.motor_voltage,
+            motorCurrent=client.telemetry.motor_current,
+            busVoltage=client.telemetry.bus_voltage,
         )
 
         in_position = (

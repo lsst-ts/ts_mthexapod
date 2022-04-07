@@ -30,6 +30,7 @@ import unittest
 import time
 
 import numpy as np
+from numpy.testing import assert_allclose
 import pytest
 
 from lsst.ts import utils
@@ -194,12 +195,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             position2_tuple = dataclasses.astuple(position2)
         else:
             position2_tuple = position2
-        np.testing.assert_allclose(
-            position1_tuple[:3], position2_tuple[:3], atol=pos_atol
-        )
-        np.testing.assert_allclose(
-            position1_tuple[3:], position2_tuple[3:], atol=ang_atol
-        )
+        assert_allclose(position1_tuple[:3], position2_tuple[:3], atol=pos_atol)
+        assert_allclose(position1_tuple[3:], position2_tuple[3:], atol=ang_atol)
 
     async def check_move(
         self,
@@ -697,7 +694,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
             reported_limits = get_velocity_limits(data)
-            np.testing.assert_allclose(new_vel_limits, reported_limits, atol=1e-7)
+            assert_allclose(new_vel_limits, reported_limits, atol=1e-7)
 
             bad_linear_vel_limit = mthexapod.MAX_LINEAR_VEL_LIMIT + 0.001
             bad_angular_vel_limit = mthexapod.MAX_ANGULAR_VEL_LIMIT + 0.001
@@ -768,9 +765,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                             timeout=STD_TIMEOUT,
                         )
 
-    @unittest.skip(
-        "TODO DM-31290: enable this test when current and voltage is available"
-    )
     async def test_electrical_telemetry(self):
         """Test motor current and velocity with a simple move.
 
@@ -803,8 +797,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             data = await self.remote.tel_electrical.next(
                 flush=True, timeout=STD_TIMEOUT
             )
-            np.testing.assert_allclose(data.motorCurrent, [0] * 6)
-            np.testing.assert_allclose(data.motorVoltage, expected_bus_voltage)
+            assert_allclose(data.motorCurrent, [0] * 6)
+            assert_allclose(data.busVoltage, expected_bus_voltage)
 
             uncompensated_position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
             await self.remote.cmd_move.set_start(
@@ -819,7 +813,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=True, timeout=STD_TIMEOUT
             )
             np.testing.assert_array_less([0] * 6, data.motorCurrent)
-            np.testing.assert_allclose(data.motorVoltage, expected_bus_voltage)
+            assert_allclose(data.busVoltage, expected_bus_voltage)
 
     async def test_move_no_compensation_no_compensation_inputs(self):
         """Test move with compensation disabled when the CSC has
@@ -1309,8 +1303,19 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 self.remote.cmd_move.set_start(**vars(position), timeout=STD_TIMEOUT)
             )
 
-            # Give the CSC a chance to start processing the command
-            await asyncio.sleep(0.1)
+            # Wait for the low-level controller to start processing the move
+            t0 = utils.current_tai()
+            position_tuple = dataclasses.astuple(position)
+            while True:
+                await asyncio.sleep(0.05)
+                if np.allclose(
+                    self.csc.mock_ctrl.telemetry.commanded_pos, position_tuple
+                ):
+                    break
+                dt = utils.current_tai() - t0
+                assert (
+                    dt < 0.5
+                ), "Timed out waiting for commanded position to be updated"
 
             await self.remote.cmd_stop.start(timeout=STD_TIMEOUT)
             await asyncio.sleep(0)
@@ -1319,9 +1324,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # Give the mock controller telemetry loop some time
             await asyncio.sleep(self.csc.mock_ctrl.telemetry_interval * 3)
 
-            # Make sure the commanded position is indeed the last position
-            # (in other words: that the move command was actually sent
-            # to the low-level controller).
+            # Make sure the commanded position is still the last position
             self.assert_positions_close(
                 self.csc.mock_ctrl.telemetry.commanded_pos, position
             )
