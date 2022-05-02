@@ -652,9 +652,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             await self.evt_compensationMode.set_write(enabled=False)
 
     async def start(self):
+        await super().start()
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
         await self.evt_compensationMode.set_write(enabled=False)
-        await super().start()
 
     async def telemetry_callback(self, client):
         """Called when the low-level controller outputs telemetry.

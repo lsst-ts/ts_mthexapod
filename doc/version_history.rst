@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.27.0
+-------
+
+* `HexapodCsc`: call ``super().start()`` at the beginning of the start method.
+  This requires ts_salobj 7.1.
+* ``setup.cfg``: set asyncio_mode = auto.
+* git ignore .hypothesis.
+* Modernize ``Jenkinsfile``.
+
+Requires:
+
+* ts_hexapod_controller 1.4.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7.1
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
+
 v0.26.0
 -------
 
