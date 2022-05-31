@@ -19,7 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["HexapodCommander"]
+__all__ = ["HexapodCommander", "command_hexapod"]
+
+import asyncio
 
 import numpy as np
 
@@ -42,7 +44,7 @@ class HexapodCommander(salobj.CscCommander):
     The telemetry is filtered so that tiny changes due to encoder jitter
     are ignored.
 
-    See bin/command_mthexapod.py for an example of how to use this class.
+    Used by `command_mthexapod`.
     """
 
     def __init__(self, index, enable):
@@ -108,3 +110,8 @@ class HexapodCommander(salobj.CscCommander):
             return
         self.previous_tel_application = data
         print(f"application: {self.format_data(data)}")
+
+
+def command_hexapod():
+    """Run the hexapod commander."""
+    asyncio.run(HexapodCommander.amain(index=True))
