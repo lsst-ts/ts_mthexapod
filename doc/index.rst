@@ -29,7 +29,7 @@ Start an MTHexapod CSC
 
 .. prompt:: bash
 
-    run_mthexapod.py <index>
+    run_mthexapod <index>
 
 where ``<index>`` is 1 for the camera hexapod, 2 for the M2 hexapod
 
@@ -114,7 +114,7 @@ Relevant events:
 Configuration
 -------------
 
-Configuration is specified in `ts_config_mttcs <https://github.com/lsst-ts/ts_config_mttcs>`_ following `this schema <https://github.com/lsst-ts/ts_mthexapod/blob/develop/schema/MTHexapod.yaml>`_.
+Configuration is specified in `ts_config_mttcs <https://github.com/lsst-ts/ts_config_mttcs>`_ following `this schema <https://github.com/lsst-ts/ts_mthexapod/blob/develop/python/lsst/ts/mthexapod/config_schema.py>`_.
 The most important settings are:
 
 * Coefficients for the :ref:`compensation<lsst.ts.mthexapod.compensation_mode>` model.
@@ -126,7 +126,7 @@ The CSC includes a simulation mode. To run using CSC's internal simulator:
 
 .. prompt:: bash
 
-    run_mthexapod.py <index> --simulate
+    run_mthexapod <index> --simulate
 
 .. _lsst.ts.mthexapod.enable_with_eui:
 
