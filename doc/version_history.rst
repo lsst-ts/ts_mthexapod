@@ -9,11 +9,11 @@ Version History
 v0.27.0
 -------
 
+* Rename command-line scripts to remove ".py" suffix.
 * `HexapodCsc`: call ``super().start()`` at the beginning of the start method.
   This requires ts_salobj 7.1.
-* ``setup.cfg``: set asyncio_mode = auto.
-* git ignore .hypothesis.
-* Modernize ``Jenkinsfile``.
+* Build with pyproject.toml.
+* Modernize the continuous integration ``Jenkinsfile``.
 
 Requires:
 

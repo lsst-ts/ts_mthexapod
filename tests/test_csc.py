@@ -515,7 +515,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         await self.check_bin_script(
             name="MTHexapod",
             index=next(index_gen),
-            exe_name="run_mthexapod.py",
+            exe_name="run_mthexapod",
             cmdline_args=["--simulate"],
         )
 
