@@ -7,6 +7,7 @@ source:
   path: ../
 
 build:
+  noarch: generic
   script: python -m pip install --no-deps --ignore-installed .
   entry_points:
     - run_mthexapod = lsst.ts.mthexapod:run_mthexapod

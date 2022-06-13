@@ -1,3 +1,3 @@
 @Library('JenkinsShared')_
-CondaPipeline(["ts_config_mttcs"], "ts-mthexapod", "lsst.ts.mthexapod")
+CondaPipeline(["ts_config_mttcs"], "ts-mthexapod", "lsst.ts.mthexapod", "noarch")
 
