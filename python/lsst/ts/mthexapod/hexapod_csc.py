@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["HexapodCsc"]
+__all__ = ["HexapodCsc", "run_mthexapod"]
 
 import asyncio
 import copy
@@ -652,9 +652,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             await self.evt_compensationMode.set_write(enabled=False)
 
     async def start(self):
+        await super().start()
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
         await self.evt_compensationMode.set_write(enabled=False)
-        await super().start()
 
     async def telemetry_callback(self, client):
         """Called when the low-level controller outputs telemetry.
@@ -937,3 +937,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         if self.compensation_mode and not is_compensation_loop:
             self.compensation_loop_task = asyncio.create_task(self.compensation_loop())
+
+
+def run_mthexapod():
+    """Run the MTHexapod CSC."""
+    asyncio.run(HexapodCsc.amain(index=enums.SalIndex))

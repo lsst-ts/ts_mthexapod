@@ -21,8 +21,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """An example of how to run a CSC"""
-import asyncio
+from lsst.ts.mthexapod import run_mthexapod
 
-from lsst.ts.mthexapod import HexapodCsc, SalIndex
 
-asyncio.run(HexapodCsc.amain(index=SalIndex))
+run_mthexapod()

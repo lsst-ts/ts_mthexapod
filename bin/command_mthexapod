@@ -35,8 +35,7 @@ initial MTHexapod status and help.
 Commands are entered by typing the command and arguments (if any),
 separated by spaces, then <return>. "help" is a command.
 """
-import asyncio
+from lsst.ts.mthexapod import command_hexapod
 
-from lsst.ts import mthexapod
 
-asyncio.run(mthexapod.HexapodCommander.amain(index=True))
+command_hexapod()
