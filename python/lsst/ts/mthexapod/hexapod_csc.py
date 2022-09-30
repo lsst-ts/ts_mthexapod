@@ -166,6 +166,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         #        self.compensation_loop_task.cancel()
         self.move_task = make_done_future()
 
+        # Event that is set when a move or offset command is received.
+        # This is intended for unit tests, which may clear the event
+        # and wait for it to be set to know the command has been received.
+        self.move_command_received_event = asyncio.Event()
+
         # Compensation loop task. To cancel safely::
         #
         #     async with self.write_lock:
@@ -551,6 +556,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         as it allows running with invalid compensation coefficients or inputs.
         """
         self.assert_enabled()
+        self.move_command_received_event.set()
         uncompensated_pos = base.Position.from_struct(data)
 
         # Check the new position _before_ cancelling the current move (if any)
@@ -570,6 +576,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         See note for do_move regarding checking the target position.
         """
         self.assert_enabled()
+        self.move_command_received_event.set()
         curr_uncompensated_pos = self._get_uncompensated_position()
         offset = base.Position.from_struct(data)
         uncompensated_pos = curr_uncompensated_pos + offset
