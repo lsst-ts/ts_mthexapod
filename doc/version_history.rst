@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.28.0
+-------
+
+* Write the ``positionError`` field of the actuators telemetry topic, if present.
+  This field will be added to ts_xml 12.1.
+* Make unit test test_move_interrupt_move_immediately in test_csc.py more robust.
+* Fix Jenkins CI file by changing HOME to WHOME everywhere except the cleanup section.
+* Add setupRequired(ts_config_mttcs) to the ups table file.
+
+Requires:
+
+* ts_hexapod_controller 1.4.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7.1
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
+
 v0.27.0
 -------
 

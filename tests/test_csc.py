@@ -1092,6 +1092,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             move_tasks = []
             for position in positions:
+                self.csc.move_command_received_event.clear()
                 move_tasks.append(
                     asyncio.create_task(
                         self.remote.cmd_move.set_start(
@@ -1099,8 +1100,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                         )
                     )
                 )
-                # Give the CSC a chance to start processing the command
-                await asyncio.sleep(0)
+                # Wait for the move to be triggered.
+                await asyncio.wait_for(
+                    self.csc.move_command_received_event.wait(), timeout=STD_TIMEOUT
+                )
 
             # Wait for the final move task to finish
             await move_tasks[-1]
