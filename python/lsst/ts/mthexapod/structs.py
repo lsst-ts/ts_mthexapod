@@ -111,21 +111,30 @@ class Telemetry(ctypes.Structure):
         ("enabled_substate", ctypes.c_double),
         ("offline_substate", ctypes.c_double),
         ("test_state", ctypes.c_double),
-        # PosErrorn in telemetryStreamStructure_t with this note:
-        # Get the PosError from the drive directly instead of Simulink Model
+        # Position following error (microns)
+        # PosErrorn in telemetryStreamStructure_t
         ("strut_pos_error", ctypes.c_double * 6),
+        # Estimated hexapod rotation (rx, ry, rz) in degree
         # Rn_Est in telemetryStreamStructure_t
         ("measured_uvw", ctypes.c_double * 3),
+        # Estimated hexapod position (x, y, z) in micron
         # Posn_Est in telemetryStreamStructure_t
         ("measured_xyz", ctypes.c_double * 3),
         ("num_iterations", ctypes.c_double),
         # EstPos_M_n, EstPos_M_Filt_n, EstVel_n in telemetryStreamStructure_t
+        # EstPos_M_n (n = 1-6) is the estimated strut length in microns.
+        # EstPos_M_Filt_n (n = 1-6) is the estimated strut length after the
+        # low-pass filter is applied. The unit is meters (NOT microns).
+        # EstVel_n (n = 1-6) is the estimated strut velocity after the
+        # low-pass filter is applied. The unit is meters/s (NOT microns/s).
         ("estimated_posfiltvel", PosFiltVel * 6),
-        # LinearEncodern in telemetryStreamStructure_t;
-        # I have no idea how this differs from strut_measured_pos_raw
-        ("strut_linear_encoder", ctypes.c_double * 6),
+        # LinearEncodern in telemetryStreamStructure_t
+        # Do not use: these are redundant and may be removed.
+        ("_strut_linear_encoder", ctypes.c_double * 6),
         # LinearEncoderVelocityn in telemetryStreamStructure_t
-        ("strut_linear_encoder_velocity", ctypes.c_double * 6),
-        # Probably hexCmd_mic_deg in telemetryStreamStructure_t
+        # Do not use: these may be removed.
+        ("_strut_linear_encoder_velocity", ctypes.c_double * 6),
+        # Commanded hexapod position.
+        # hexCmd_mic_deg in telemetryStreamStructure_t
         ("commanded_pos", ctypes.c_double * 6),
     ]
