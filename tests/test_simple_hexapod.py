@@ -26,9 +26,7 @@ import unittest
 import astropy.units as u
 import numpy as np
 import pytest
-
-from lsst.ts import utils
-from lsst.ts import mthexapod
+from lsst.ts import mthexapod, utils
 
 
 class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):

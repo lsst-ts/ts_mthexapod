@@ -23,5 +23,4 @@
 """An example of how to run a CSC"""
 from lsst.ts.mthexapod import run_mthexapod
 
-
 run_mthexapod()

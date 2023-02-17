@@ -12,11 +12,11 @@ The data format is explained in the README file.
 """
 import argparse
 import itertools
-import pdb
 import math
+import pdb
 
-import numpy as np
 import matplotlib
+import numpy as np
 import scipy.optimize
 
 # Edit the following to change matplotlib's backend

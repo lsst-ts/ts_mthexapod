@@ -29,8 +29,7 @@ __all__ = [
 
 import dataclasses
 
-from . import base
-from . import enums
+from . import base, enums
 
 # Limits for the configureAcceleration command (deg/sec^2).
 MAX_ACCEL_LIMIT = 500.0
