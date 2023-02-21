@@ -23,19 +23,14 @@ __all__ = ["MockMTHexapodController"]
 import dataclasses
 
 import numpy as np
-
 from lsst.ts import hexrotcomm
 from lsst.ts.idl.enums.MTHexapod import (
+    ApplicationStatus,
     ControllerState,
     EnabledSubstate,
-    ApplicationStatus,
 )
-from . import base
-from . import constants
-from . import enums
-from . import structs
-from . import utils
-from . import simple_hexapod
+
+from . import base, constants, enums, simple_hexapod, structs, utils
 
 # Maximum time between track commands (seconds)
 # The real controller may use 0.15

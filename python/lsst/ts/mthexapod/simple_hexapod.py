@@ -21,9 +21,9 @@
 __all__ = ["SimpleHexapod"]
 
 import numpy as np
+from lsst.ts import simactuators
 
 from . import utils
-from lsst.ts import simactuators
 
 
 class SimpleHexapod:

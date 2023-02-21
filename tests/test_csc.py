@@ -26,18 +26,14 @@ import dataclasses
 import logging
 import math
 import pathlib
-import unittest
 import time
+import unittest
 
 import numpy as np
-from numpy.testing import assert_allclose
 import pytest
-
-from lsst.ts import utils
-from lsst.ts import salobj
-from lsst.ts import mthexapod
-from lsst.ts import hexrotcomm
+from lsst.ts import hexrotcomm, mthexapod, salobj, utils
 from lsst.ts.idl.enums.MTHexapod import ControllerState, EnabledSubstate
+from numpy.testing import assert_allclose
 
 STD_TIMEOUT = 10  # timeout for command ack
 EPSILON = 1e-10  # approx allowed error between float and double

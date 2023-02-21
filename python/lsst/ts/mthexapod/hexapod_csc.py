@@ -28,24 +28,25 @@ import math
 import types
 
 import numpy as np
-
-from lsst.ts.utils import make_done_future
-from lsst.ts import salobj
-from lsst.ts import hexrotcomm
+from lsst.ts import hexrotcomm, salobj
 from lsst.ts.idl.enums.MTHexapod import (
+    ApplicationStatus,
     ControllerState,
     EnabledSubstate,
-    ApplicationStatus,
 )
-from . import __version__
+from lsst.ts.utils import make_done_future
+
+from . import (
+    __version__,
+    base,
+    compensation,
+    constants,
+    enums,
+    mock_controller,
+    structs,
+    utils,
+)
 from .config_schema import CONFIG_SCHEMA
-from . import base
-from . import compensation
-from . import constants
-from . import enums
-from . import mock_controller
-from . import structs
-from . import utils
 
 # Maximum time to stop axes (seconds).
 # The minimum needed is time to acquire the write lock,
