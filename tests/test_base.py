@@ -23,7 +23,6 @@ import types
 import unittest
 
 import pytest
-
 from lsst.ts import mthexapod
 
 
