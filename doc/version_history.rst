@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.0.0
+------
+
+* Use ts_pre_commit_conf.
+* ``Jenkinsfile``: use new shared library.
+* Remove scons support.
+
+Requires:
+
+* ts_hexapod_controller 1.4.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7.1
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 14.
+
 v0.28.1
 -------
 
