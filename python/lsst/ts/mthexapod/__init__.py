@@ -25,15 +25,15 @@ except ImportError:
     __version__ = "?"
 
 from .base import *
+from .compensation import *
 from .config_schema import *
 from .constants import *
 from .enums import *
 from .fourier_series import *
+from .hexapod_commander import *
+from .hexapod_csc import *
+from .mock_controller import *
 from .ranged_polynomial import *
-from .compensation import *
+from .simple_hexapod import *
 from .structs import *
 from .utils import *
-from .hexapod_commander import *
-from .simple_hexapod import *
-from .mock_controller import *
-from .hexapod_csc import *
