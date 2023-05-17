@@ -1,22 +1,23 @@
-.hypothesis
-.sconsign.dblite
+__pycache__
+*.egg
+*.egg-info
 *.log
-.sconf_temp
-*.cfgc
-*.pyc
-*.log
-.vscode
 
-# Built by sconsUtils
+# Constructed by the build system
 version.py
 
 # Pytest
-tests/.tests
-pytest_session.txt
-.cache
+.coverage
 .hypothesis
 .pytest_cache
-.coverage
+pytest_session.txt
+tests/.tests
 
 # Editors
 .vscode
+
+# ts_pre_commit_config
+.pre-commit-config.yaml
+.flake8
+.isort.cfg
+.mypy.ini
