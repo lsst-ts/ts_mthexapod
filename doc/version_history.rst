@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.0.1
+------
+
+* `HexapodCsc`: assume that ``positionError`` is present in the ``actuators`` telemetry topic (DM-36424).
+
+Requires:
+
+* ts_hexapod_controller 1.4.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7.1
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 14.
+
 v1.0.0
 ------
 
