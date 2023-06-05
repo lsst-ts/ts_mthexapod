@@ -150,10 +150,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # within these limits.
         self.max_pos_limits = constants.MAX_POSITION_LIMITS[index]
 
-        # TODO DM-36424: remove this code and always assume
-        # this field is present
-        self.actuators_position_error_present = None
-
         # Current position limits; initialize to max limits,
         # but update from configuration reported by the low-level controller.
         self.current_pos_limits = copy.copy(self.max_pos_limits)
@@ -695,21 +691,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3]
             for i in range(3)
         ]
-        # TODO DM-36424: assume the "positionError" field is present;
-        # remove all use of self.actuators_position_error_present.
-        if self.actuators_position_error_present is None:
-            self.actuators_position_error_present = hasattr(
-                self.tel_actuators.data, "positionError"
-            )
-        if self.actuators_position_error_present:
-            extra_kwargs = dict(positionError=client.telemetry.strut_pos_error)
-        else:
-            extra_kwargs = dict()
         await self.tel_actuators.set_write(
             calibrated=client.telemetry.strut_measured_pos_um,
             raw=client.telemetry.strut_measured_pos_raw,
+            positionError=client.telemetry.strut_pos_error,
             timestamp=tai_unix,
-            **extra_kwargs,
         )
         await self.tel_application.set_write(
             demand=client.telemetry.commanded_pos,
