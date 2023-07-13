@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.0.2
+------
+
+* Temporarily disable a unit test case that hangs on Python 3.11.
+
+Requires:
+
+* ts_hexapod_controller 1.4.0
+* ts_hexrotcomm 0.29
+* ts_salobj 7.1
+* ts_idl 3.4
+* MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 14.
+
 v1.0.1
 ------
 
