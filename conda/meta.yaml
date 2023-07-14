@@ -7,7 +7,7 @@ source:
   path: ../
 
 build:
-  noarch: generic
+  noarch: python
   script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
 
 test:
@@ -27,13 +27,16 @@ test:
 
 requirements:
   host:
-    - python
+    - python {{python}}
     - pip
     - setuptools_scm
     - setuptools
     - pytest-runner
+  build:
+    - python {{python}}
+    - ts-conda-build =0.3
   run:
-    - python
+    - python {{python}}
     - setuptools
     - setuptools_scm
     - ts-idl {{ idl_version }}
