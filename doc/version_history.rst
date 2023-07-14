@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.0.3
+------
+
+* Add {{python}} to conda recipe.
+
 v1.0.2
 ------
 
