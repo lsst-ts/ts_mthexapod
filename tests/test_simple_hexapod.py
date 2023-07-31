@@ -284,6 +284,8 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         # by the amount of the translation.
         translation = (500, -3020, 2500)
         model.move(translation, (0, 0, 0))
+        await self.check_move(model)
+
         np.testing.assert_allclose(model.cmd_pos, translation, atol=1e-7)
         np.testing.assert_allclose(model.cmd_xyzrot, (0, 0, 0), atol=1e-7)
         for cmd_mirror_position, neutral_mirror_position in zip(
@@ -293,8 +295,6 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             np.testing.assert_allclose(
                 cmd_mirror_position, desired_mirror_position, atol=1e-7
             )
-
-        await self.check_move(model)
 
     async def test_move_rotate_about_x_axis(self):
         await self.check_move_rotate_about_one_axis(axis=0)
