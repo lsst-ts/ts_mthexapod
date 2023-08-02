@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v1.0.4
+------
+
+* Fix the test case: ``test_offset_with_compensation()`` when using Python 3.11.
+* Improve the test case: ``test_move_translate()``.
+
 v1.0.3
 ------
 
