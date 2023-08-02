@@ -26,7 +26,6 @@ import dataclasses
 import logging
 import math
 import pathlib
-import sys
 import time
 import unittest
 
@@ -1147,11 +1146,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 desired_position=desired_uncompensated_position
             )
 
-    # TODO DM-39991 Investigate why this test case hangs in Python 3.11 and
-    #  fix.
-    @pytest.mark.skipif(
-        sys.version_info > (3, 11), reason="requires python3.10 or lower"
-    )
     async def test_offset_with_compensation(self):
         """Test offset with compensation enabled."""
         first_uncompensated_position = mthexapod.Position(
@@ -1212,6 +1206,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await asyncio.sleep(sleep_time)
             new_comp_times = self.get_compensation_timestamps()
             assert old_comp_times == new_comp_times
+
+            # Stop the compensation loop task
+            await self.remote.cmd_stop.set_start(timeout=STD_TIMEOUT)
 
     async def test_set_pivot(self):
         """Test the setPivot command."""
