@@ -13,6 +13,7 @@ build:
 test:
   requires:
     - ts-conda-build =0.3
+    - ts-xml
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
     - ts-hexrotcomm
@@ -39,6 +40,7 @@ requirements:
     - python {{python}}
     - setuptools
     - setuptools_scm
+    - ts-xml
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
     - ts-hexrotcomm
