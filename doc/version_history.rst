@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v1.1.0
+------
+
+* Fix the telemetry.
+* Update the ``.ts_pre_commit_config.yaml``.
+* Import the enums from **ts_xml** instead of **ts_idl**.
+
 v1.0.4
 ------
 

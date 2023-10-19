@@ -32,7 +32,7 @@ import unittest
 import numpy as np
 import pytest
 from lsst.ts import hexrotcomm, mthexapod, salobj, utils
-from lsst.ts.idl.enums.MTHexapod import ControllerState, EnabledSubstate
+from lsst.ts.xml.enums.MTHexapod import ControllerState, EnabledSubstate
 from numpy.testing import assert_allclose
 
 STD_TIMEOUT = 10  # timeout for command ack

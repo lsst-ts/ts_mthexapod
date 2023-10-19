@@ -29,12 +29,12 @@ import types
 
 import numpy as np
 from lsst.ts import hexrotcomm, salobj
-from lsst.ts.idl.enums.MTHexapod import (
+from lsst.ts.utils import make_done_future
+from lsst.ts.xml.enums.MTHexapod import (
     ApplicationStatus,
     ControllerState,
     EnabledSubstate,
 )
-from lsst.ts.utils import make_done_future
 
 from . import (
     __version__,
@@ -127,7 +127,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     -----
     **Error Codes**
 
-    See `lsst.ts.idl.enums.MTHexapod.ErrorCode`
+    See `lsst.ts.xml.enums.MTHexapod.ErrorCode`
     """
 
     valid_simulation_modes = [0, 1]
@@ -691,8 +691,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3]
             for i in range(3)
         ]
+
+        # Change the unit from m to um
+        calibrated = [
+            single_posfiltvel.pos_filt * 1e6
+            for single_posfiltvel in client.telemetry.estimated_posfiltvel
+        ]
         await self.tel_actuators.set_write(
-            calibrated=client.telemetry.strut_measured_pos_um,
+            calibrated=calibrated,
             raw=client.telemetry.strut_measured_pos_raw,
             positionError=client.telemetry.strut_pos_error,
             timestamp=tai_unix,
@@ -703,12 +709,22 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             + list(client.telemetry.measured_uvw),
             error=pos_error,
         )
-        await self.tel_electrical.set_write(
+
+        # This is to keep the backward compatibility of ts_xml v20.0.0 that
+        # does not have the 'copleyFaultStatus' defined in xml.
+        # TODO: Remove this after ts_xml v20.1.0.
+        electrical = dict(
             copleyStatusWordDrive=client.telemetry.status_word,
             copleyLatchingFaultStatus=client.telemetry.latching_fault_status_register,
             motorCurrent=client.telemetry.motor_current,
             busVoltage=client.telemetry.bus_voltage,
         )
+        if hasattr(self.tel_electrical.DataType(), "copleyFaultStatus"):
+            electrical[
+                "copleyFaultStatus"
+            ] = client.telemetry.copley_fault_status_register
+
+        await self.tel_electrical.set_write(**electrical)
 
         in_position = (
             client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
