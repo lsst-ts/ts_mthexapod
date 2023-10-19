@@ -94,9 +94,8 @@ class Telemetry(ctypes.Structure):
         ("mjd", ctypes.c_double),
         ("mjd_frac", ctypes.c_double),
         ("dt", ctypes.c_double),
-        # StrutPosition_1 in telemetryStreamStructure_t;
-        # documented as: simulink "calibrated" position (in microns?)
-        ("strut_measured_pos_um", ctypes.c_double * 6),
+        # StrutPosition_1 in telemetryStreamStructure_t in meter
+        ("strut_commanded_delta_pos_m", ctypes.c_double * 6),
         # CommandPos_n, CommandVel_n in telemetryStreamStructure_t
         ("strut_commanded_posvel", PosVel * 6),
         # CommandAccel_n in telemetryStreamStructure_t

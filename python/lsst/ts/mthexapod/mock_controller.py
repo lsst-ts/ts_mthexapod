@@ -24,7 +24,7 @@ import dataclasses
 
 import numpy as np
 from lsst.ts import hexrotcomm
-from lsst.ts.idl.enums.MTHexapod import (
+from lsst.ts.xml.enums.MTHexapod import (
     ApplicationStatus,
     ControllerState,
     EnabledSubstate,
@@ -53,7 +53,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         Logger.
     port : `int`, optional
         Command socket port.
-    initial_state : `lsst.ts.idl.enums.MTHexapod.ControllerState`, optional
+    initial_state : `ControllerState`, optional
         Initial state of mock controller.
 
     Notes
@@ -322,7 +322,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             self.telemetry.strut_encoder_raw = tuple(
                 pos * self.actuator_encoder_resolution for pos in current_lengths
             )
-            self.telemetry.strut_measured_pos_um = tuple(current_lengths)
+            self.telemetry.strut_commanded_delta_pos_m = tuple(current_lengths)
 
             # self.telemetry.commanded_pos and commanded_length are both set
             # by MOVE and MOVE_LUT.
