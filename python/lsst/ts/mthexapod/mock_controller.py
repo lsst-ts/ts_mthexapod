@@ -21,6 +21,8 @@
 __all__ = ["MockMTHexapodController"]
 
 import dataclasses
+import logging
+import typing
 
 import numpy as np
 from lsst.ts import hexrotcomm
@@ -81,20 +83,20 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     # (a copy is in the doc directory)
     # received from John Andrew 2020-02-13.
     actuator_base_positions = [
-        (-227647, 653753, 0),
-        (227647, 653753, 0),
-        (679990, -129728, 0),
-        (452343, -524025, 0),
-        (-452343, -524025, 0),
-        (-679990, -129728, 0),
+        np.array([-227647, 653753, 0]),
+        np.array([227647, 653753, 0]),
+        np.array([679990, -129728, 0]),
+        np.array([452343, -524025, 0]),
+        np.array([-452343, -524025, 0]),
+        np.array([-679990, -129728, 0]),
     ]
     actuator_mirror_positions = [
-        (-472917, 512146, 403918),
-        (472917, 512146, 403918),
-        (679990, 153485, 403918),
-        (207073, -665631, 403918),
-        (-207073, -665631, 403918),
-        (-679990, 153485, 403918),
+        np.array([-472917, 512146, 403918]),
+        np.array([472917, 512146, 403918]),
+        np.array([679990, 153485, 403918]),
+        np.array([207073, -665631, 403918]),
+        np.array([-207073, -665631, 403918]),
+        np.array([-679990, 153485, 403918]),
     ]
     # Actuator position limits (µm) and speed (µm/second) from
     # https://github.com/lsst-ts/ts_mt_hexRot_middleware/blob/master/config/cam_hex/default.conf  # noqa
@@ -110,11 +112,11 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
     def __init__(
         self,
-        index,
-        log,
-        port=0,
-        initial_state=ControllerState.OFFLINE,
-    ):
+        index: int,
+        log: logging.Logger,
+        port: int = 0,
+        initial_state: ControllerState = ControllerState.OFFLINE,
+    ) -> None:
         index = enums.SalIndex(index)
         self.max_pos_limits = constants.MAX_POSITION_LIMITS[index]
 
@@ -155,7 +157,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         telemetry.commanded_pos = (0,) * 6
         # The position specified by the POSITION_SET command (a `Position`);
         # reset to None after any other command.
-        self.set_position = None
+        self.set_position: base.Position | None = None
 
         # Dict of command key: command
         extra_commands = {
@@ -190,7 +192,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             initial_state=initial_state,
         )
 
-    async def close(self):
+    async def close(self) -> None:
         """Kill command and telemetry tasks and close the connections.
 
         Always safe to call.
@@ -198,7 +200,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.hexapod.stop()
         await super().close()
 
-    async def do_config_accel(self, command):
+    async def do_config_accel(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         if not 0 < command.param1 <= constants.MAX_ACCEL_LIMIT:
             raise ValueError(
@@ -208,7 +210,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.config.acceleration_strut = command.param1
         await self.write_config()
 
-    async def do_config_limits(self, command):
+    async def do_config_limits(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         limits_values = tuple(getattr(command, f"param{i + 1}") for i in range(6))
         limits = base.PositionLimits(*limits_values)
@@ -216,7 +218,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.config.pos_limits = limits_values
         await self.write_config()
 
-    async def do_config_vel(self, command):
+    async def do_config_vel(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         utils.check_positive_value(command.param1, "xy", constants.MAX_LINEAR_VEL_LIMIT)
         utils.check_positive_value(
@@ -232,10 +234,10 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         )
         await self.write_config()
 
-    async def do_offset(self, command):
+    async def do_offset(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
 
-    async def do_position_set(self, command):
+    async def do_position_set(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         position_values = tuple(getattr(command, f"param{i + 1}") for i in range(6))
         position = base.Position(*position_values)
@@ -243,18 +245,18 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         utils.check_position(position=position, limits=limits)
         self.set_position = position
 
-    async def do_set_pivotpoint(self, command):
+    async def do_set_pivotpoint(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         self.config.pivot = (command.param1, command.param2, command.param3)
         await self.write_config()
 
-    async def do_stop(self, command):
+    async def do_stop(self, command: hexrotcomm.Command) -> None:
         self.assert_state(ControllerState.ENABLED)
         self.hexapod.stop()
         self.telemetry.enabled_substate = EnabledSubstate.STATIONARY
         self.move_commanded = False
 
-    async def do_move_point_to_point(self, command):
+    async def do_move_point_to_point(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         if self.set_position is None:
             raise RuntimeError(
@@ -262,8 +264,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             )
         self.telemetry.commanded_pos = dataclasses.astuple(self.set_position)
         duration = self.hexapod.move(
-            pos=self.telemetry.commanded_pos[0:3],
-            xyzrot=self.telemetry.commanded_pos[3:6],
+            pos=self.telemetry.commanded_pos[0:3],  # type: ignore[arg-type]
+            xyzrot=self.telemetry.commanded_pos[3:6],  # type: ignore[arg-type]
         )
         self.telemetry.commanded_length = tuple(
             actuator.end_position for actuator in self.hexapod.actuators
@@ -276,11 +278,13 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             duration,
         )
 
-    async def end_run_command(self, command, cmd_method):
+    async def end_run_command(
+        self, command: hexrotcomm.Command, cmd_method: typing.Coroutine
+    ) -> None:
         if cmd_method != self.do_position_set:
             self.set_position = None
 
-    async def update_telemetry(self, curr_tai):
+    async def update_telemetry(self, curr_tai: float) -> None:
         try:
             self.telemetry.status_word = (0,) * 6
             self.telemetry.latching_fault_status_register = (0,) * 6

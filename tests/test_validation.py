@@ -35,21 +35,21 @@ TEST_CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 class ValidationTestCase(unittest.TestCase):
     """Test validation of the config schema."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.schema = mthexapod.CONFIG_SCHEMA
         self.validator = salobj.StandardValidator(schema=self.schema)
         self.instance_names = ("camera_config", "m2_config")
 
-    def load_config(self):
+    def load_config(self) -> dict:
         with open(TEST_CONFIG_DIR / "_init.yaml", "r") as f:
             raw_config = f.read()
         return yaml.safe_load(raw_config)
 
-    def test_basics(self):
+    def test_basics(self) -> None:
         config = self.load_config()
         self.validator.validate(config)
 
-    def test_missing_data(self):
+    def test_missing_data(self) -> None:
         config = self.load_config()
         for key in config:
             with self.subTest(key=key):
@@ -67,7 +67,7 @@ class ValidationTestCase(unittest.TestCase):
                     with pytest.raises(jsonschema.ValidationError):
                         self.validator.validate(bad_config)
 
-    def test_bad_coeffs(self):
+    def test_bad_coeffs(self) -> None:
         defaults = self.load_config()
         for instance_name in self.instance_names:
             for short_name, bad_coeffs in itertools.product(
