@@ -74,13 +74,13 @@ class Compensation:
     def __init__(
         self,
         *,
-        elevation_coeffs,
-        azimuth_coeffs,
-        rotation_coeffs,
-        temperature_coeffs,
-        min_temperature,
-        max_temperature,
-    ):
+        elevation_coeffs: list[list[float]],
+        azimuth_coeffs: list[list[float]],
+        rotation_coeffs: list[list[float]],
+        temperature_coeffs: list[list[float]],
+        min_temperature: float,
+        max_temperature: float,
+    ) -> None:
         for name, coeffs in (
             ("elevation", elevation_coeffs),
             ("azimuth", azimuth_coeffs),
@@ -105,7 +105,7 @@ class Compensation:
             for i in range(NUM_AXES)
         ]
 
-    def get_offset(self, inputs):
+    def get_offset(self, inputs: base.CompensationInputs) -> base.Position:
         """Get compensation offset.
 
         Parameters
@@ -125,11 +125,12 @@ class Compensation:
         ValueError
             If elevation not in range [0, 90].
         """
+
         offsets = [
-            self.elevation_polys[i](inputs.elevation)
-            + self.azimuth_polys[i](inputs.azimuth)
-            + self.rotation_polys[i](inputs.rotation)
-            + self.temperature_polys[i](inputs.temperature)
+            self.elevation_polys[i](inputs.elevation)  # type: ignore[attr-defined]
+            + self.azimuth_polys[i](inputs.azimuth)  # type: ignore[attr-defined]
+            + self.rotation_polys[i](inputs.rotation)  # type: ignore[attr-defined]
+            + self.temperature_polys[i](inputs.temperature)  # type: ignore[attr-defined]
             for i in range(NUM_AXES)
         ]
         return base.Position(*offsets)

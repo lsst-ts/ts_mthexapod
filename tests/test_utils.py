@@ -27,7 +27,7 @@ from lsst.ts import mthexapod
 
 
 class UtilsTestCase(unittest.TestCase):
-    def xyiter(self):
+    def xyiter(self) -> tuple[tuple, ...]:
         """Return a list of xypos, angle (deg), desired rotated xypos."""
         return (
             ((1, 0), 0, (1, 0)),
@@ -43,13 +43,13 @@ class UtilsTestCase(unittest.TestCase):
             ((0, 1), -90, (1, 0)),
         )
 
-    def test_rot2d(self):
+    def test_rot2d(self) -> None:
         for xypos, angle, desired_rotxy in self.xyiter():
             with self.subTest(xypos=xypos, angle=angle):
                 rotxy = mthexapod.rot2d(xypos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotxy, desired_rotxy, atol=1e-10)
 
-    def test_rot_about_x(self):
+    def test_rot_about_x(self) -> None:
         # Positive rotation is y to z
         xpos = 1
         for (ypos, zpos), angle, (desired_roty, desired_rotz) in self.xyiter():
@@ -59,7 +59,7 @@ class UtilsTestCase(unittest.TestCase):
                 rotpos = mthexapod.rot_about_x(pos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
 
-    def test_rot_about_y(self):
+    def test_rot_about_y(self) -> None:
         # Positive rotation is z to x
         ypos = 1
         for (zpos, xpos), angle, (desired_rotz, desired_rotx) in self.xyiter():
@@ -69,7 +69,7 @@ class UtilsTestCase(unittest.TestCase):
                 rotpos = mthexapod.rot_about_y(pos, angle * mthexapod.RAD_PER_DEG)
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
 
-    def test_rot_about_z(self):
+    def test_rot_about_z(self) -> None:
         # Positive rotation is x to y
         zpos = 1
         for (xpos, ypos), angle, (desired_rotx, desired_roty) in self.xyiter():

@@ -27,7 +27,7 @@ from lsst.ts import mthexapod
 
 
 class RangedPolynomialTestCase(unittest.TestCase):
-    def test_constructor_errors(self):
+    def test_constructor_errors(self) -> None:
         # No coefficients
         with pytest.raises(ValueError):
             mthexapod.RangedPolynomial(coeffs=[], min_x=0, max_x=1)
@@ -39,7 +39,7 @@ class RangedPolynomialTestCase(unittest.TestCase):
                 with pytest.raises(ValueError):
                     mthexapod.RangedPolynomial(coeffs=[0], min_x=min_x, max_x=bad_max_x)
 
-    def test_values(self):
+    def test_values(self) -> None:
         coeffs = [-0.5, 0.4, -0.3, 0.2]
         min_x = -10
         max_x = 10
@@ -61,7 +61,7 @@ class RangedPolynomialTestCase(unittest.TestCase):
             pred_value = poly(max_x) + (x - max_x) * coeffs[1]
             assert poly(x) == pytest.approx(pred_value)
 
-    def test_one_coeff(self):
+    def test_one_coeff(self) -> None:
         """Test that a ranged polynomial with only one coffficient
         is constant everywhere.
         """

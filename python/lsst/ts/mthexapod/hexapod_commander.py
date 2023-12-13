@@ -46,7 +46,7 @@ class HexapodCommander(salobj.CscCommander):
     Used by `command_mthexapod`.
     """
 
-    def __init__(self, index, enable):
+    def __init__(self, index: int, enable: bool) -> None:
         index = enums.SalIndex(index)
         super().__init__(
             name="MTHexapod",
@@ -56,7 +56,7 @@ class HexapodCommander(salobj.CscCommander):
         for command_to_ignore in ("enterControl", "abort", "setValue"):
             self.command_dict.pop(command_to_ignore, None)
 
-    def positions_close(self, position1, position2):
+    def positions_close(self, position1: list[float], position2: list[float]) -> bool:
         """Return True if two positions are nearly equal.
 
         Parameters
@@ -70,7 +70,7 @@ class HexapodCommander(salobj.CscCommander):
             position1[3:], position2[3:], atol=1e-5
         )
 
-    async def tel_actuators_callback(self, data):
+    async def tel_actuators_callback(self, data: salobj.BaseMsgType) -> None:
         """Callback for actuators telemetry.
 
         Output actuators telemetry data if the values have changed enough
@@ -81,14 +81,17 @@ class HexapodCommander(salobj.CscCommander):
         data : self.controller.tel_actuators.DataType.
             Actuators data.
         """
-        if self.previous_tel_actuators is not None and np.allclose(
-            self.previous_tel_actuators.calibrated, data.calibrated, atol=1
+        if (
+            self.previous_tel_actuators is not None  # type: ignore[has-type]
+            and np.allclose(
+                self.previous_tel_actuators.calibrated, data.calibrated, atol=1  # type: ignore[has-type]
+            )
         ):
             return
         self.previous_tel_actuators = data
         print(f"actuators: {self.format_data(data)}")
 
-    async def tel_application_callback(self, data):
+    async def tel_application_callback(self, data: salobj.BaseMsgType) -> None:
         """Callback for the application telemetry.
 
         Output application telemetry if the values have changed enough
@@ -100,17 +103,17 @@ class HexapodCommander(salobj.CscCommander):
             Actuators data.
         """
         if (
-            self.previous_tel_application is not None
+            self.previous_tel_application is not None  # type: ignore[has-type]
             and self.positions_close(
-                self.previous_tel_application.position, data.position
+                self.previous_tel_application.position, data.position  # type: ignore[has-type]
             )
-            and np.array_equal(data.demand, self.previous_tel_application.demand)
+            and np.array_equal(data.demand, self.previous_tel_application.demand)  # type: ignore[has-type]
         ):
             return
         self.previous_tel_application = data
         print(f"application: {self.format_data(data)}")
 
 
-def command_hexapod():
+def command_hexapod() -> None:
     """Run the hexapod commander."""
     asyncio.run(HexapodCommander.amain(index=True))

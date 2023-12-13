@@ -14,9 +14,12 @@ import argparse
 import itertools
 import math
 import pdb
+import typing
+from pathlib import Path
 
 import matplotlib
 import numpy as np
+import numpy.typing
 import scipy.optimize
 
 # Edit the following to change matplotlib's backend
@@ -51,7 +54,7 @@ UNITS_DICT = dict(
 AXES_TO_FIT = ["x", "y", "z", "u"]
 
 
-def read_data(path):
+def read_data(path: str | Path) -> numpy.typing.NDArray[np.float64]:
     """Read and parse a data file.
 
     Parameters
@@ -74,7 +77,7 @@ def read_data(path):
     return data
 
 
-def cospoly(ang, *coeffs):
+def cospoly(ang: float, *coeffs: list[float]) -> float:
     """Polynomial with x = cos(ang) and ang in degrees.
 
     f(ang) = C0 + C1 cos(ang) + C2 cos(ang)^2 + ...
@@ -84,7 +87,7 @@ def cospoly(ang, *coeffs):
     return poly(x)
 
 
-def poly(x, *coeffs):
+def poly(x: float, *coeffs: list[float]) -> float:
     """Standard polynomial.
 
     f(x) = C0 + C1 x + C2 x^2 + ...
@@ -93,11 +96,11 @@ def poly(x, *coeffs):
     return poly(x)
 
 
-def return_one(data):
-    return 1
+def return_one(data: float) -> float:
+    return 1.0
 
 
-def fourier(ang, *coeffs):
+def fourier(ang: float, *coeffs: list[float]) -> float:
     """Real-valued Fourier series with ang in degrees.
 
     f(ang) = C0 + C1 sin(ang) + C2 cos(ang) + C3 sin(2 ang) + C4 cos(2 ang) ...
@@ -107,13 +110,19 @@ def fourier(ang, *coeffs):
     # Angle multipliers for C0, C1, C2, C3
     angle_multipliers = [((i + 1) // 2) * RAD_PER_DEG for i in range(len(coeffs))]
 
-    result = 0
+    result = 0.0
     for coeff, function, angle_multiplier in zip(coeffs, functions, angle_multipliers):
         result += coeff * function(ang * angle_multiplier)
     return result
 
 
-def fit_one(data, cause, axis, model, ncoeffs):
+def fit_one(
+    data: numpy.typing.NDArray[np.float64],
+    cause: str,
+    axis: str,
+    model: typing.Callable,
+    ncoeffs: int,
+) -> tuple[list[float], numpy.typing.NDArray[np.float64]]:
     """Fit one axis of MTHexapod motion vs cause to a model.
 
     Parameters
@@ -154,8 +163,13 @@ def fit_one(data, cause, axis, model, ncoeffs):
 
 
 def fit_all_axes(
-    data, cause, model, ncoeffs_arr, print_covariance=False, graph_path=None
-):
+    data: numpy.typing.NDArray[np.float64],
+    cause: str,
+    model: typing.Callable,
+    ncoeffs_arr: list[int],
+    print_covariance: bool = False,
+    graph_path: str | None = None,
+) -> None:
     """Fit and plot all AXES_TO_FIT using varying numbers of coeffs.
 
     Parameters
@@ -235,7 +249,7 @@ model_dict = dict(poly=poly, fourier=fourier, cospoly=cospoly)
 model_names = sorted(model_dict.keys())
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser("fit MTHexapod compensation coefficients")
     parser.add_argument(
         "datafile",
