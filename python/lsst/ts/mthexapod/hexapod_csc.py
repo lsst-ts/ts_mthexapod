@@ -26,6 +26,7 @@ import copy
 import dataclasses
 import math
 import types
+from pathlib import Path
 
 import numpy as np
 from lsst.ts import hexrotcomm, salobj
@@ -66,11 +67,11 @@ class CompensationInfo:
     ----------
     uncompensated_pos : `Position`
         Target position (without compensation applied).
-    compensation_offset : `Position` or None.
-        Amount of compensation, if relevant, else None.
     compensation_inputs : `CompensationInputs` or `None`
         The compensation inputs, if compensating and all inputs
         are available, else `None`.
+    compensation_offset : `Position` or None.
+        Amount of compensation, if relevant, else None.
 
     Attributes
     ----------
@@ -83,7 +84,12 @@ class CompensationInfo:
     All the parameters are also attributes.
     """
 
-    def __init__(self, uncompensated_pos, compensation_inputs, compensation_offset):
+    def __init__(
+        self,
+        uncompensated_pos: base.Position,
+        compensation_inputs: base.CompensationInputs | None,
+        compensation_offset: base.Position | None,
+    ) -> None:
         self.uncompensated_pos = uncompensated_pos
         self.compensation_inputs = compensation_inputs
         self.compensation_offset = compensation_offset
@@ -100,7 +106,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     ----------
     index : `SalIndex` or `int`
         SAL index; see `SalIndex` for the allowed values.
-    config_dir : `str`, optional
+    config_dir : `str` or `pathlib.Path` or None, optional
         Directory of configuration files, or None for the standard
         configuration directory (obtained from `_get_default_config_dir`).
         This is provided for unit testing.
@@ -135,12 +141,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     def __init__(
         self,
-        index,
-        config_dir=None,
-        initial_state=salobj.State.STANDBY,
-        override="",
-        simulation_mode=0,
-    ):
+        index: int,
+        config_dir: str | Path | None = None,
+        initial_state: salobj.State = salobj.State.STANDBY,
+        override: str = "",
+        simulation_mode: int = 0,
+    ) -> None:
         index = enums.SalIndex(index)
         controller_constants = constants.IndexControllerConstants[index]
         self.subconfig_name = controller_constants.subconfig_name
@@ -220,19 +226,19 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
     @property
-    def host(self):
+    def host(self) -> str:
         return getattr(self.config, self.subconfig_name)["host"]
 
     @property
-    def port(self):
+    def port(self) -> int:
         return getattr(self.config, self.subconfig_name)["port"]
 
     @property
-    def compensation_mode(self):
+    def compensation_mode(self) -> bool:
         """Return True if moves are compensated, False otherwise."""
         return self.evt_compensationMode.data.enabled
 
-    async def config_callback(self, client):
+    async def config_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs configuration.
 
         Parameters
@@ -298,7 +304,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         self.log.info(f"max_move_duration={self.max_move_duration}")
 
-    async def configure(self, config):
+    async def configure(self, config: types.SimpleNamespace) -> None:
         await super().configure(config)
         self.compensation_interval = config.compensation_interval
         subconfig = types.SimpleNamespace(**getattr(config, self.subconfig_name))
@@ -314,7 +320,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             max_temperature=subconfig.max_temperature,
         )
 
-    async def compensation_loop(self):
+    async def compensation_loop(self) -> None:
         """Apply compensation at regular intervals.
 
         The algorithm is to repeat the following sequence:
@@ -344,7 +350,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 await self.evt_compensationMode.set_write(enabled=False)
                 return
 
-    async def compensation_wait(self):
+    async def compensation_wait(self) -> None:
         """Wait until it is time to apply the next compensation update.
 
         Wait for motion to stop, then wait for self.compensation_interval
@@ -377,7 +383,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     "compensation interval; waiting again."
                 )
 
-    def compute_compensation(self, uncompensated_pos):
+    def compute_compensation(
+        self, uncompensated_pos: base.Position
+    ) -> CompensationInfo:
         """Check uncompensated and, if relevant, compensated position
         and return compensation information.
 
@@ -423,7 +431,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             compensation_offset=compensation_offset,
         )
 
-    def get_compensation_inputs(self):
+    def get_compensation_inputs(self) -> base.CompensationInputs | None:
         """Return the current compensation inputs, or None if not available.
 
         Log a warning if inputs are missing and the missing list
@@ -476,7 +484,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             temperature=temperature,
         )
 
-    async def do_configureAcceleration(self, data):
+    async def do_configureAcceleration(self, data: salobj.BaseMsgType) -> None:
         """Specify the acceleration limit."""
         self.assert_enabled_substate(EnabledSubstate.STATIONARY)
         utils.check_positive_value(
@@ -489,7 +497,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             code=enums.CommandCode.CONFIG_ACCEL, param1=data.acceleration
         )
 
-    async def do_configureLimits(self, data):
+    async def do_configureLimits(self, data: salobj.BaseMsgType) -> None:
         """Specify position and rotation limits."""
         self.assert_enabled_substate(EnabledSubstate.STATIONARY)
         try:
@@ -508,7 +516,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await self.run_command(code=enums.CommandCode.CONFIG_LIMITS, **command_kwargs)
         # The new limits are set by config_callback
 
-    async def do_configureVelocity(self, data):
+    async def do_configureVelocity(self, data: salobj.BaseMsgType) -> None:
         """Specify velocity limits."""
         self.assert_enabled_substate(EnabledSubstate.STATIONARY)
         utils.check_positive_value(
@@ -543,7 +551,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             param4=data.w,
         )
 
-    async def do_move(self, data):
+    async def do_move(self, data: salobj.BaseMsgType) -> None:
         """Move to a specified position and orientation.
 
         Check the target before and after compensation (if applied).
@@ -567,7 +575,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         await self.move_task
 
-    async def do_offset(self, data):
+    async def do_offset(self, data: salobj.BaseMsgType) -> None:
         """Move by a specified offset in position and orientation.
 
         See note for do_move regarding checking the target position.
@@ -589,7 +597,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         await self.move_task
 
-    async def do_setCompensationMode(self, data):
+    async def do_setCompensationMode(self, data: salobj.BaseMsgType) -> None:
         self.assert_enabled()
         await self.evt_compensationMode.set_write(enabled=data.enable)
         async with self.write_lock:
@@ -617,7 +625,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self._move(uncompensated_pos=uncompensated_pos, sync=True)
         )
 
-    async def do_setPivot(self, data):
+    async def do_setPivot(self, data: salobj.BaseMsgType) -> None:
         """Set the coordinates of the pivot point."""
         self.assert_enabled_substate(EnabledSubstate.STATIONARY)
         await self.run_command(
@@ -627,7 +635,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             param3=data.z,
         )
 
-    async def do_stop(self, data):
+    async def do_stop(self, data: salobj.BaseMsgType) -> None:
         """Halt tracking or any other motion."""
         self.assert_enabled()
         async with self.write_lock:
@@ -639,7 +647,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # I would much rather just issue the stop command!
         await self.stop_motion()
 
-    async def basic_run_command(self, command):
+    async def basic_run_command(self, command: hexrotcomm.Command) -> None:
         # Overload of lsst.ts.hexrotcomm.BaseCsc's version
         # that resets the n_telemetry attribute.
         self.n_telemetry = 0
@@ -651,7 +659,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await super().basic_run_command(command)
         self.n_telemetry = 0
 
-    async def handle_summary_state(self):
+    async def handle_summary_state(self) -> None:
         await super().handle_summary_state()
         if self.summary_state != salobj.State.ENABLED:
             async with self.write_lock:
@@ -659,12 +667,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.compensation_loop_task.cancel()
             await self.evt_compensationMode.set_write(enabled=False)
 
-    async def start(self):
+    async def start(self) -> None:
         await super().start()
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
         await self.evt_compensationMode.set_write(enabled=False)
 
-    async def telemetry_callback(self, client):
+    async def telemetry_callback(
+        self, client: hexrotcomm.CommandTelemetryClient
+    ) -> None:
         """Called when the low-level controller outputs telemetry.
 
         Parameters
@@ -747,7 +757,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.n_telemetry += 1
         self.telemetry_event.set()
 
-    def make_mock_controller(self, initial_ctrl_state):
+    def make_mock_controller(
+        self, initial_ctrl_state: ControllerState
+    ) -> mock_controller.MockMTHexapodController:
         return mock_controller.MockMTHexapodController(
             log=self.log,
             index=self.salinfo.index,
@@ -755,7 +767,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             initial_state=initial_ctrl_state,
         )
 
-    def _make_position_set_command(self, position):
+    def _make_position_set_command(self, position: base.Position) -> hexrotcomm.Command:
         """Make a POSITION_SET command for the low-level controller.
 
         Parameters
@@ -774,13 +786,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         }
         return self.make_command(code=enums.CommandCode.POSITION_SET, **command_kwargs)
 
-    def _has_uncompensated_position(self):
+    def _has_uncompensated_position(self) -> bool:
         """Return True if the uncompensated position has been set,
         e.g. by a move command.
         """
         return self.evt_uncompensatedPosition.has_data
 
-    def _get_uncompensated_position(self):
+    def _get_uncompensated_position(self) -> base.Position:
         """Return the current uncompensated position.
 
         Returns
@@ -798,7 +810,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             raise salobj.ExpectedError("No uncompensated position to offset from")
         return base.Position.from_struct(uncompensated_data)
 
-    async def stop_motion(self):
+    async def stop_motion(self) -> None:
         """Stop motion and wait for it to stop.
 
         Raises:
@@ -822,7 +834,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         await self.wait_stopped()
 
-    async def wait_n_telemetry(self, n_telemetry=4):
+    async def wait_n_telemetry(self, n_telemetry: int = 4) -> None:
         """Wait for n_telemetry telemetry messages since the most recent
         low-level command.
 
@@ -852,7 +864,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             if self.client.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
 
-    async def wait_stopped(self, n_telemetry=4):
+    async def wait_stopped(self, n_telemetry: int = 4) -> bool:
         """Wait for the current motion, if any, to stop.
 
         Parameters
@@ -889,7 +901,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         return True
 
-    async def _move(self, uncompensated_pos, sync, is_compensation_loop=False):
+    async def _move(
+        self,
+        uncompensated_pos: base.Position,
+        sync: bool,
+        is_compensation_loop: bool = False,
+    ) -> None:
         """Command a move and output appropriate events.
 
         Parameters
@@ -944,6 +961,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 **vars(compensation_info.compensated_pos)
             )
             if compensation_info.compensation_offset is not None:
+                # Workaround the mypy check
+                assert compensation_info.compensation_inputs is not None
+
                 await self.evt_compensationOffset.set_write(
                     elevation=compensation_info.compensation_inputs.elevation,
                     azimuth=compensation_info.compensation_inputs.azimuth,
@@ -964,6 +984,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.compensation_loop_task = asyncio.create_task(self.compensation_loop())
 
 
-def run_mthexapod():
+def run_mthexapod() -> None:
     """Run the MTHexapod CSC."""
     asyncio.run(HexapodCsc.amain(index=enums.SalIndex))

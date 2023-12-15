@@ -25,6 +25,8 @@ __all__ = [
 ]
 
 import dataclasses
+import types
+import typing
 
 from lsst.ts import utils
 
@@ -57,18 +59,18 @@ class CompensationInputs:
     rotation: float
     temperature: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.elevation < 0 or self.elevation > 90:
             raise ValueError(f"elevation={self.elevation} must be in range [0, 90]")
         self.azimuth = utils.angle_wrap_nonnegative(self.azimuth).deg
         self.rotation = utils.angle_wrap_center(self.rotation).deg
 
     @classmethod
-    def field_names(cls):
+    def field_names(cls) -> tuple[str, ...]:
         return tuple(field.name for field in dataclasses.fields(cls))
 
     @classmethod
-    def from_struct(cls, data):
+    def from_struct(cls, data: types.SimpleNamespace) -> typing.Self:
         """Construct an instance from any object with fields:
         maxXY, minZ, maxZ, maxUV, minW, maxW
         """
@@ -100,29 +102,29 @@ class Position:
     w: float
 
     @classmethod
-    def field_names(cls):
+    def field_names(cls) -> tuple[str, ...]:
         return tuple(field.name for field in dataclasses.fields(cls))
 
     @classmethod
-    def from_struct(cls, data):
+    def from_struct(cls, data: types.SimpleNamespace) -> typing.Self:
         """Construct an instance from any object with fields:
         x, y, z, u, v, w.
         """
         return cls(**{name: getattr(data, name) for name in cls.field_names()})
 
-    def __add__(self, other):
+    def __add__(self, other: typing.Self) -> typing.Self:
         kwargs = {
             name: getattr(self, name) + getattr(other, name)
             for name in self.field_names()
         }
-        return Position(**kwargs)
+        return Position(**kwargs)  # type: ignore[return-value]
 
-    def __sub__(self, other):
+    def __sub__(self, other: typing.Self) -> typing.Self:
         kwargs = {
             name: getattr(self, name) - getattr(other, name)
             for name in self.field_names()
         }
-        return Position(**kwargs)
+        return Position(**kwargs)  # type: ignore[return-value]
 
 
 @dataclasses.dataclass
@@ -163,7 +165,7 @@ class PositionLimits:
     minW: float
     maxW: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.maxXY <= 0:
             raise ValueError(f"maxXY={self.maxXY} must be positive.")
         if self.maxZ <= self.minZ:
@@ -174,11 +176,11 @@ class PositionLimits:
             raise ValueError(f"maxW={self.maxW} must be >= minW={self.minW}.")
 
     @classmethod
-    def field_names(cls):
+    def field_names(cls) -> tuple[str, ...]:
         return tuple(field.name for field in dataclasses.fields(cls))
 
     @classmethod
-    def from_struct(cls, data):
+    def from_struct(cls, data: types.SimpleNamespace) -> typing.Self:
         """Construct an instance from any object with fields:
         maxXY, minZ, maxZ, maxUV, minW, maxW
         """

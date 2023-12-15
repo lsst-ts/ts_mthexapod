@@ -20,7 +20,10 @@
 
 __all__ = ["SimpleHexapod"]
 
+import typing
+
 import numpy as np
+import numpy.typing
 from lsst.ts import simactuators
 
 from . import utils
@@ -39,13 +42,13 @@ class SimpleHexapod:
 
     Parameters
     ----------
-    base_positions : `List` [`List` [`float`]]
+    base_positions : `list` [`numpy.ndarray`]
         Position of the base end of each linear actuator,
         as a list of z,y,z tuples, one per actuator.
-    mirror_positions : `List` [`List` [`float`]]
+    mirror_positions : `list` [`numpy.ndarray`]
         Position of the mirror end of each actuator at zero
         orientation, as a list of z,y,z tuples, one per actuator.
-    pivot : `numpy.ndarray`
+    pivot : `tuple`
         The point whose orientation is set by the `move` command.
         For a mirror it will typically be the vertex of the mirror.
     min_length : `float`
@@ -57,8 +60,14 @@ class SimpleHexapod:
     """
 
     def __init__(
-        self, base_positions, mirror_positions, pivot, min_length, max_length, speed
-    ):
+        self,
+        base_positions: list[numpy.typing.NDArray[np.float64]],
+        mirror_positions: list[numpy.typing.NDArray[np.float64]],
+        pivot: tuple[float, float, float],
+        min_length: float,
+        max_length: float,
+        speed: float,
+    ) -> None:
         if len(base_positions) != 6:
             raise ValueError(f"base_positions={base_positions} must have 6 elements")
         for pos in base_positions:
@@ -101,15 +110,15 @@ class SimpleHexapod:
     @classmethod
     def make_zigzag_model(
         cls,
-        base_radius,
-        mirror_radius,
-        mirror_z,
-        base_angle0,
-        pivot,
-        min_length,
-        max_length,
-        speed,
-    ):
+        base_radius: float,
+        mirror_radius: float,
+        mirror_z: float,
+        base_angle0: float,
+        pivot: tuple[float, float, float],
+        min_length: float,
+        max_length: float,
+        speed: float,
+    ) -> typing.Self:
         """Make a `SimpleHexapod` of a typical hexapod with 6 actuators in a
         symmetrical zigzag arrangement.
 
@@ -134,7 +143,7 @@ class SimpleHexapod:
             of the linear actuators.
         base_angle0 : `float`
             Angle of first base actuator point in x,y plane (deg).
-        pivot : `numpy.ndarray`
+        pivot : `tuple`
             The point whose orientation is set by the `move` command.
             For a mirror it will typically be the vertex of the mirror.
         min_length : `float`
@@ -151,12 +160,12 @@ class SimpleHexapod:
         for i in range(3):
             base_angle = base_angle0 + i * delta_angle
             basepos = utils.rot_about_z(
-                (base_radius, 0, 0), base_angle * utils.RAD_PER_DEG
+                (base_radius, 0.0, 0.0), base_angle * utils.RAD_PER_DEG
             )
             base_positions += [basepos, basepos]
             mirror_angle = base_angle + mirror_angle_offset
             mirrorpos = utils.rot_about_z(
-                (mirror_radius, 0, mirror_z), mirror_angle * utils.RAD_PER_DEG
+                (mirror_radius, 0.0, mirror_z), mirror_angle * utils.RAD_PER_DEG
             )
             mirror_positions += [mirrorpos, mirrorpos]
         # base_positions has order [5, 0, 1, 2, 3, 4]; fix to [0, 1, 2...]
@@ -170,23 +179,25 @@ class SimpleHexapod:
             speed=speed,
         )
 
-    def moving(self, tai=None):
+    def moving(self, tai: float | None = None) -> bool:
         """Is any actuator moving?"""
         return any(actuator.moving(tai) for actuator in self.actuators)
 
-    def remaining_time(self, tai=None):
+    def remaining_time(self, tai: float | None = None) -> float:
         """Remaining time for this move (sec)."""
         return max(actuator.remaining_time(tai) for actuator in self.actuators)
 
-    def move(self, pos, xyzrot):
+    def move(
+        self, pos: tuple[float, float, float], xyzrot: tuple[float, float, float]
+    ) -> float:
         """Move the actuators so the pivot point is at the specified
         orientation.
 
         Parameters
         ----------
-        pos : `numpy.ndarray`
+        pos : `tuple`
             x, y, z position of pivot point.
-        xyzrot : `numpy.ndarray`
+        xyzrot : `tuple`
             Orientation of translated pivot point,
             as a rotation about x, then y, then z (deg).
 
@@ -206,17 +217,19 @@ class SimpleHexapod:
         for actuator, actuator_length in zip(self.actuators, actuator_lengths):
             duration = actuator.set_position(actuator_length)
             max_duration = max(duration, max_duration)
-        self.cmd_pos = pos
-        self.cmd_xyzrot = xyzrot
+        self.cmd_pos = np.array(pos)
+        self.cmd_xyzrot = np.array(xyzrot)
         self.cmd_mirror_positions = mirror_positions
         return max_duration
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop all actuators."""
         for actuator in self.actuators:
             actuator.stop()
 
-    def assert_in_range(self, actuator_lengths):
+    def assert_in_range(
+        self, actuator_lengths: numpy.typing.NDArray[np.float64]
+    ) -> None:
         """Assert that all actuators would be in range if set to the
         specified length.
         """
@@ -227,12 +240,14 @@ class SimpleHexapod:
         if not all(in_range):
             raise ValueError(f"One or more actuators would be out of range: {in_range}")
 
-    def compute_actuator_lengths(self, mirror_positions, absolute):
+    def compute_actuator_lengths(
+        self, mirror_positions: list[numpy.typing.NDArray[np.float64]], absolute: bool
+    ) -> numpy.typing.NDArray[np.float64]:
         """Compute actuator lengths, given mirror positions.
 
         Parameters
         ----------
-        mirror_positions : `List` [`numpy.ndarray`]
+        mirror_positions : `list` [`numpy.ndarray`]
             Position of the mirror end of each actuator.
         absolute : `bool`
             If True then return end to end actuator lengths.
@@ -241,7 +256,7 @@ class SimpleHexapod:
 
         Returns
         -------
-        actuator_end_to_end_lengths : `numpy.ndarray`
+        lengths : `numpy.ndarray`
             End to end length of each actuator.
         """
         lengths = np.array(
@@ -255,27 +270,28 @@ class SimpleHexapod:
             lengths -= self.neutral_actuator_lengths
         return lengths
 
-    def compute_mirror_positions(self, pos, xyzrot):
+    def compute_mirror_positions(
+        self, pos: tuple[float, float, float], xyzrot: tuple[float, float, float]
+    ) -> list[numpy.typing.NDArray[np.float64]]:
         """Compute the actuator mirror positions needed to move the pivot point
         to a specified orientation.
 
         Parameters
         ----------
-        pos : `numpy.ndarray`
+        pos : `tuple`
             Desired x, y, z position of pivot point,
             relative to the neutral pivot point.
-        xyzrot : `numpy.ndarray`
+        xyzrot : `tuple`
             Orientation of translated pivot point,
             as a rotation about x, then y, then z (deg).
 
         Returns
         -------
-        mirror_positions : `List` [`numpy.ndarray`]
+        mirror_positions : `list` [`numpy.ndarray`]
             Resulting position of the mirror end of each actuator.
         """
-        pos = np.array(pos, dtype=float)
-        xyzrot = np.array(xyzrot, dtype=float)
-        xyzrot_rad = xyzrot * utils.RAD_PER_DEG
+
+        xyzrot_rad = np.array(xyzrot, dtype=float) * utils.RAD_PER_DEG
         # Compute the mirror position and resulting length of each actuator,
         # as well as determining if that length in range.
         mirror_positions = []
@@ -297,7 +313,7 @@ class SimpleHexapod:
             mirror_pos = mirror_pos_in_pivot_frame + self.neutral_pivot
 
             # Translate actuator mirror position
-            mirror_pos = mirror_pos + pos
+            mirror_pos = mirror_pos + np.array(pos, dtype=float)
             mirror_positions.append(mirror_pos)
 
         return mirror_positions

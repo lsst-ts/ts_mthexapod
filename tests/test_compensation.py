@@ -28,7 +28,7 @@ from lsst.ts import mthexapod
 
 
 class CompensationTestCase(unittest.TestCase):
-    def test_constructor_errors(self):
+    def test_constructor_errors(self) -> None:
         kwargs = dict(
             elevation_coeffs=[[0]] * 6,
             azimuth_coeffs=[[0, 0]] * 6,
@@ -65,11 +65,11 @@ class CompensationTestCase(unittest.TestCase):
         # min_temperature >= max_temperature
         for delta in (0, 0.001, 1):
             bad_kwargs = kwargs.copy()
-            bad_kwargs["min_temperature"] = bad_kwargs["max_temperature"] + delta
+            bad_kwargs["min_temperature"] = bad_kwargs["max_temperature"] + delta  # type: ignore[operator]
             with pytest.raises(ValueError):
                 mthexapod.Compensation(**bad_kwargs)
 
-    def test_get_offset(self):
+    def test_get_offset(self) -> None:
         elevation_coeffs = [
             [0.11, 0.12, 0.013, 0.0014],
             [0.21, 0.22, 0.023],

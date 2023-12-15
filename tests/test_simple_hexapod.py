@@ -30,10 +30,10 @@ from lsst.ts import mthexapod, utils
 
 
 class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         np.random.seed(47)
 
-    def test_constructor(self):
+    def test_constructor(self) -> None:
         max_length = 10e6  # big enough to not be a problem
         min_length = -max_length
         speed = 5e6
@@ -71,7 +71,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7
         )
 
-    def test_constructor_errors(self):
+    def test_constructor_errors(self) -> None:
         # Use default position limits large enough to not be a problem
         max_length = 10e6
         min_length = -max_length
@@ -82,7 +82,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         mirror_positions = [np.random.normal(loc=1e6, size=3) for i in range(6)]
         pivot = np.random.normal(size=3)
 
-        def bad_positions():
+        def bad_positions() -> tuple:
             return (
                 [np.random.normal(size=3) for i in range(5)],
                 [np.random.normal(size=3) for i in range(7)],
@@ -147,7 +147,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                     speed=bad_speed,
                 )
 
-    def test_make_zigzag_model(self):
+    def test_make_zigzag_model(self) -> None:
         # Arbitrary but reasonable values. Lengths are in microns
         # because that is what the hexapod controller uses.
         base_radius = 1.2e6
@@ -241,7 +241,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             absolute_actuator_lengths, model.neutral_actuator_lengths, atol=1e-7
         )
 
-    async def test_move_translate(self):
+    async def test_move_translate(self) -> None:
         # Arbitrary but reasonable values. Lengths are in microns
         # because that is what the hexapod controller uses.
         base_radius = 1.2e6
@@ -296,16 +296,16 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
                 cmd_mirror_position, desired_mirror_position, atol=1e-7
             )
 
-    async def test_move_rotate_about_x_axis(self):
+    async def test_move_rotate_about_x_axis(self) -> None:
         await self.check_move_rotate_about_one_axis(axis=0)
 
-    async def test_move_rotate_about_y_axis(self):
+    async def test_move_rotate_about_y_axis(self) -> None:
         await self.check_move_rotate_about_one_axis(axis=1)
 
-    async def test_move_rotate_about_z_axis(self):
+    async def test_move_rotate_about_z_axis(self) -> None:
         await self.check_move_rotate_about_one_axis(axis=2)
 
-    async def check_move_rotate_about_one_axis(self, axis):
+    async def check_move_rotate_about_one_axis(self, axis: int) -> None:
         """Check translation and rotation about a single axis.
 
         Parameters
@@ -390,7 +390,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.check_move(model)
 
-    async def check_move(self, model):
+    async def check_move(self, model: mthexapod.SimpleHexapod) -> None:
         """Check the remaining_time and moving methods."""
         assert model.moving()
         margin = 0.02

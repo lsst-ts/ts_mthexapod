@@ -53,7 +53,7 @@ class RangedPolynomial:
         If coeffs has no elements or min_x >= max_x.
     """
 
-    def __init__(self, coeffs, min_x, max_x):
+    def __init__(self, coeffs: list[float], min_x: float, max_x: float) -> None:
         if len(coeffs) < 1:
             raise ValueError(f"coeffs={coeffs} must contain at least one element")
         if min_x >= max_x:
@@ -70,7 +70,7 @@ class RangedPolynomial:
             [self._inrange_poly(self.max_x), linear_coeff]
         )
 
-    def __call__(self, x):
+    def __call__(self, x: float) -> float:
         """Compute the value of the function.
 
         Parameters

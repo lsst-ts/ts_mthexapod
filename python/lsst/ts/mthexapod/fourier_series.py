@@ -22,6 +22,7 @@ __all__ = ["FourierSeries"]
 
 import itertools
 import math
+import typing
 
 import numpy as np
 
@@ -42,17 +43,17 @@ class FourierSeries:
         Polynomial coefficients C0, C1, ...
     """
 
-    def __init__(self, coeffs):
+    def __init__(self, coeffs: list[float]) -> None:
         if len(coeffs) < 1:
             raise ValueError(f"coeffs={coeffs} must contain at least one element")
         self.coeffs = coeffs
 
-        def return_one(data):
-            return 1
+        def return_one(data: float) -> float:
+            return 1.0
 
         # Functions for C0, C1, C2, C3, ...
         function_iter = itertools.cycle([np.sin, np.cos])
-        self.functions = [return_one] + [
+        self.functions: list[typing.Any] = [return_one] + [
             next(function_iter) for i in range(len(coeffs) - 1)
         ]
         # Angle multipliers for C0, C1, C2, C3
@@ -60,7 +61,7 @@ class FourierSeries:
             ((i + 1) // 2) * RAD_PER_DEG for i in range(len(coeffs))
         ]
 
-    def __call__(self, angle):
+    def __call__(self, angle: float) -> float:
         """Compute the value of the function.
 
         Parameters
@@ -68,7 +69,7 @@ class FourierSeries:
         angle : `float`
             Angle, in degrees.
         """
-        result = 0
+        result = 0.0
         for coeff, function, angle_multiplier in zip(
             self.coeffs, self.functions, self.angle_multipliers
         ):

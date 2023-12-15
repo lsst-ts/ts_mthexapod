@@ -27,12 +27,12 @@ from lsst.ts import mthexapod
 
 
 class FourierSeriesTestCase(unittest.TestCase):
-    def test_constructor_errors(self):
+    def test_constructor_errors(self) -> None:
         # No coefficients
         with pytest.raises(ValueError):
             mthexapod.FourierSeries(coeffs=[])
 
-    def test_values(self):
+    def test_values(self) -> None:
         coeffs = [-0.5, 0.4, -0.3, 0.2, 0.1, -0.15]
         poly = mthexapod.FourierSeries(coeffs=coeffs)
         angarr = np.linspace(-360, 360, num=50, endpoint=True)
@@ -48,7 +48,7 @@ class FourierSeriesTestCase(unittest.TestCase):
         for ang, pred_value in zip(angarr, pred_values):
             assert poly(ang) == pytest.approx(pred_value)
 
-    def test_one_coeff(self):
+    def test_one_coeff(self) -> None:
         """Test that a fourier series with only one coffficient
         is constant everywhere.
         """

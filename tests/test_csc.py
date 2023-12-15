@@ -27,6 +27,7 @@ import logging
 import math
 import pathlib
 import time
+import types
 import unittest
 
 import numpy as np
@@ -49,8 +50,12 @@ TEST_CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
-        self, initial_state, config_dir=None, override="", simulation_mode=1
-    ):
+        self,
+        initial_state: salobj.State,
+        config_dir: pathlib.Path | None = None,
+        override: str = "",
+        simulation_mode: int = 1,
+    ) -> mthexapod.HexapodCsc:
         return mthexapod.HexapodCsc(
             index=next(index_gen),
             initial_state=initial_state,
@@ -62,12 +67,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
     @contextlib.asynccontextmanager
     async def make_csc(
         self,
-        initial_state=salobj.State.STANDBY,
-        config_dir=TEST_CONFIG_DIR,
-        override="",
-        simulation_mode=1,
-        log_level=None,
-    ):
+        initial_state: salobj.State = salobj.State.STANDBY,
+        config_dir: pathlib.Path = TEST_CONFIG_DIR,
+        override: str = "",
+        simulation_mode: int = 1,
+        log_level: int | None = None,
+    ) -> mthexapod.HexapodCsc:
         # TODO DM-28005: add a controller for the temperature
         async with super().make_csc(
             initial_state=initial_state,
@@ -84,7 +89,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # self.mtrotator_controller = mtrotator_controller
             yield
 
-    async def assert_next_application(self, desired_position):
+    async def assert_next_application(
+        self, desired_position: mthexapod.Position
+    ) -> None:
         """Wait for and check the next application telemetry.
 
         Test desired_position against the ``demand`` field
@@ -121,7 +128,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             data.position, desired_position, pos_atol=1, ang_atol=1e-5
         )
 
-    async def assert_next_compensation(self, compensation_inputs, offset):
+    async def assert_next_compensation(
+        self,
+        compensation_inputs: mthexapod.CompensationInputs,
+        offset: mthexapod.Position,
+    ) -> None:
         """Wait for and check the next compensation event.
 
         Parameters
@@ -141,7 +152,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         for i, name in enumerate(("x", "y", "z", "u", "v", "w")):
             assert getattr(data, name) == pytest.approx(getattr(offset, name))
 
-    async def assert_next_compensated_position(self, position):
+    async def assert_next_compensated_position(
+        self, position: mthexapod.Position
+    ) -> None:
         """Wait for and check the next uncompensatedPosition event.
 
         Parameters
@@ -154,7 +167,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
         self.assert_dataclasses_almost_equal(position, read_position)
 
-    async def assert_next_uncompensated_position(self, position):
+    async def assert_next_uncompensated_position(
+        self, position: mthexapod.Position
+    ) -> None:
         """Wait for and check the next uncompensatedPosition event.
 
         Parameters
@@ -168,15 +183,19 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         self.assert_dataclasses_almost_equal(position, read_position)
 
     def assert_positions_close(
-        self, position1, position2, pos_atol=1e-2, ang_atol=1e-7
-    ):
+        self,
+        position1: mthexapod.Position | tuple[float, float, float, float, float, float],
+        position2: mthexapod.Position | tuple[float, float, float, float, float, float],
+        pos_atol: float = 1e-2,
+        ang_atol: float = 1e-7,
+    ) -> None:
         """Assert that two positions are close.
 
         Parameters
         ----------
-        position1 : `Position` or `List` [`float`]
+        position1 : `Position` or `list` [`float`]
             First position to check.
-        position1 : `Position` or `List` [`float`]
+        position1 : `Position` or `list` [`float`]
             Second position to check.
         pos_atol : `float`, optional
             Absolute tolerance for x, y, z (um)
@@ -196,10 +215,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
     async def check_move(
         self,
-        uncompensated_position,
-        est_move_duration,
-        speed_factor=2,
-    ):
+        uncompensated_position: mthexapod.Position,
+        est_move_duration: float,
+        speed_factor: float = 2.0,
+    ) -> None:
         """Test point to point motion using the move command.
 
         Initially expects to see the following events:
@@ -233,7 +252,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             est_move_duration=est_move_duration,
         )
 
-    async def basic_check_move(self, uncompensated_position, est_move_duration):
+    async def basic_check_move(
+        self, uncompensated_position: mthexapod.Position, est_move_duration: float
+    ) -> None:
         """Test point to point motion using the move command.
 
         Initially expects to see the following events:
@@ -281,13 +302,16 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         await self.assert_next_uncompensated_position(position=uncompensated_position)
 
     async def check_compensation(
-        self, uncompensated_position, compensation_inputs, update_inputs
-    ):
+        self,
+        uncompensated_position: mthexapod.Position,
+        compensation_inputs: mthexapod.CompensationInputs,
+        update_inputs: bool,
+    ) -> None:
         """Check compensation for a given set of of compensation inputs.
 
         Parameters
         ----------
-        uncompensated_position : `list` [`float`]
+        uncompensated_position : `Position`
             Target x, y, z (um), u, v, w (deg).
         compensation_inputs : `CompensationInputs`
             Compensation inputs
@@ -339,8 +363,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         )
 
     async def check_offset(
-        self, first_uncompensated_position, offset, est_move_duration
-    ):
+        self,
+        first_uncompensated_position: mthexapod.Position,
+        offset: mthexapod.Position,
+        est_move_duration: float,
+    ) -> None:
         """Check an offset.
 
         Parameters
@@ -369,7 +396,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             enabledSubstate=EnabledSubstate.STATIONARY,
         )
 
-    def get_compensation_timestamps(self):
+    def get_compensation_timestamps(self) -> tuple[float, float]:
         """Get private_sndStamp of most recent compensationOffset and
         compensatedPosition events.
         """
@@ -379,7 +406,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         assert comp_pos_data is not None
         return (offset_data.private_sndStamp, comp_pos_data.private_sndStamp)
 
-    def limits_to_min_position(self, limits):
+    def limits_to_min_position(
+        self, limits: mthexapod.PositionLimits
+    ) -> mthexapod.Position:
         """Return the position corresponding to the minimum position limit.
 
         Parameters
@@ -401,7 +430,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             w=limits.minW,
         )
 
-    def limits_to_max_position(self, limits):
+    def limits_to_max_position(
+        self, limits: mthexapod.PositionLimits
+    ) -> mthexapod.Position:
         """Return the position corresponding to the maximum position limit.
 
         Parameters
@@ -424,8 +455,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         )
 
     async def set_compensation_inputs(
-        self, elevation, azimuth, rotation, temperature, timeout=STD_TIMEOUT
-    ):
+        self,
+        elevation: float | None,
+        azimuth: float | None,
+        rotation: float | None,
+        temperature: float | None,
+        timeout: float = STD_TIMEOUT,
+    ) -> None:
         """Set one or more of the compensation input topics read by the CSC.
 
         This accepts individual parameters rather than a `CompensationInputs`
@@ -472,6 +508,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         while utils.current_tai() - t0 < timeout:
             await asyncio.sleep(0.1)
             if elevation is not None:
+                # Workaround the mypy check
+                assert azimuth is not None
+
                 mtmount_target = self.csc.mtmount.evt_target.get()
                 if mtmount_target is None or not np.allclose(
                     [mtmount_target.elevation, mtmount_target.azimuth],
@@ -495,7 +534,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 "Timed out waiting for MTMount or MTRotator data to be seen by the CSC"
             )
 
-    def set_speed_factor(self, speed_factor):
+    def set_speed_factor(self, speed_factor: float) -> None:
         """Multiply the speed of each actuator by a specified factor.
 
         Useful for speeding up motions and thus test execution times.
@@ -506,7 +545,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         for actuator in self.csc.mock_ctrl.hexapod.actuators:
             actuator.speed *= speed_factor
 
-    async def test_bin_script(self):
+    async def test_bin_script(self) -> None:
         """Test running from the command line script."""
         await self.check_bin_script(
             name="MTHexapod",
@@ -515,7 +554,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             cmdline_args=["--simulate"],
         )
 
-    async def test_constructor_errors(self):
+    async def test_constructor_errors(self) -> None:
         for bad_index in (0, 3):
             with pytest.raises(ValueError):
                 mthexapod.HexapodCsc(
@@ -528,7 +567,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         # Bad simulation_mode, initial_state, and config_dir
         # are tested in ts_hexrotcomm.
 
-    async def test_standard_state_transitions(self):
+    async def test_standard_state_transitions(self) -> None:
         async with self.make_csc(initial_state=salobj.State.STANDBY, simulation_mode=1):
             enabled_commands = (
                 "configureVelocity",
@@ -544,7 +583,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 enabled_commands=enabled_commands
             )
 
-    async def test_configure_acceleration(self):
+    async def test_configure_acceleration(self) -> None:
         """Test the configureAcceleration command."""
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             data = await self.remote.evt_configuration.next(
@@ -567,7 +606,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                             acceleration=bad_acceleration, timeout=STD_TIMEOUT
                         )
 
-    def assert_dataclasses_almost_equal(self, dataclass1, dataclass2):
+    def assert_dataclasses_almost_equal(
+        self, dataclass1: types.SimpleNamespace, dataclass2: types.SimpleNamespace
+    ) -> None:
         """Assert two dataclasses or other instances that support vars
         have the same field names and nearly equal values for each field.
         """
@@ -580,7 +621,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 vars2[name]
             ), f"{type(dataclass1).__name__}.{name}"
 
-    async def test_configure_limits(self):
+    async def test_configure_limits(self) -> None:
         """Test the configureLimits command."""
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
             await self.assert_next_sample(
@@ -661,10 +702,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                                 timeout=STD_TIMEOUT,
                             )
 
-    async def test_configure_velocity(self):
+    async def test_configure_velocity(self) -> None:
         """Test the configureVelocity command."""
 
-        def get_velocity_limits(data):
+        def get_velocity_limits(
+            data: salobj.BaseMsgType,
+        ) -> tuple[float, float, float, float]:
             """Get the velocity limits from a configuration sample."""
             return (
                 data.maxVelocityXY,
@@ -761,7 +804,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                             timeout=STD_TIMEOUT,
                         )
 
-    async def test_electrical_telemetry(self):
+    async def test_electrical_telemetry(self) -> None:
         """Test motor current and velocity with a simple move.
 
         Note that the mock controller always reports
@@ -811,7 +854,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             np.testing.assert_array_less([0] * 6, data.motorCurrent)
             assert_allclose(data.busVoltage, expected_bus_voltage)
 
-    async def test_move_no_compensation_no_compensation_inputs(self):
+    async def test_move_no_compensation_no_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
         no compensation inputs (which it should allow).
         """
@@ -835,7 +878,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_compensated_position(uncompensated_position)
             await self.assert_next_application(desired_position=uncompensated_position)
 
-    async def test_move_no_compensation_with_compensation_inputs(self):
+    async def test_move_no_compensation_with_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
         compensation inputs (which it should ignore).
         """
@@ -863,7 +906,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_compensated_position(uncompensated_position)
             await self.assert_next_application(desired_position=uncompensated_position)
 
-    async def test_move_with_compensation_with_initial_compensation_inputs(self):
+    async def test_move_with_compensation_with_initial_compensation_inputs(
+        self,
+    ) -> None:
         """Test move with compensation enabled."""
         async with self.make_csc(
             initial_state=salobj.State.ENABLED,
@@ -961,7 +1006,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 topic=self.remote.evt_compensationMode, enabled=False
             )
 
-    async def test_move_with_compensation_no_initial_compensation_inputs(self):
+    async def test_move_with_compensation_no_initial_compensation_inputs(self) -> None:
         """Test move with compensation enabled but no compensation inputs.
 
         This should act like an uncompensated move.
@@ -998,7 +1043,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 topic=self.remote.evt_compensationMode, enabled=False
             )
 
-    async def test_move_interrupt_move_after_delay(self):
+    async def test_move_interrupt_move_after_delay(self) -> None:
         """Test that one move can interrupt another
         after the first move is reported to have begun.
         """
@@ -1063,7 +1108,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             self.assert_positions_close(data.demand, desired_position)
 
-    async def test_move_interrupt_move_immediately(self):
+    async def test_move_interrupt_move_immediately(self) -> None:
         """Test that one move can interrupt another right away."""
         positions_data = (
             (0, 0, -1000, 0, 0, 0),
@@ -1122,7 +1167,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # uncertain how many transitions will have occurred
             # during the consecutive moves.
 
-    async def test_offset_no_compensation(self):
+    async def test_offset_no_compensation(self) -> None:
         """Test offset with compensation disabled."""
         first_uncompensated_position = mthexapod.Position(
             100, 200, -300, 0.01, 0.02, -0.015
@@ -1146,7 +1191,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 desired_position=desired_uncompensated_position
             )
 
-    async def test_offset_with_compensation(self):
+    async def test_offset_with_compensation(self) -> None:
         """Test offset with compensation enabled."""
         first_uncompensated_position = mthexapod.Position(
             100, 200, -300, 0.01, 0.02, -0.015
@@ -1210,11 +1255,11 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # Stop the compensation loop task
             await self.remote.cmd_stop.set_start(timeout=STD_TIMEOUT)
 
-    async def test_set_pivot(self):
+    async def test_set_pivot(self) -> None:
         """Test the setPivot command."""
         axis_names = ("x", "y", "z")
 
-        def get_pivot(config):
+        def get_pivot(config: types.SimpleNamespace) -> dict:
             return {
                 name: getattr(config, f"pivot{name.upper()}") for name in axis_names
             }
@@ -1239,7 +1284,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             for name in axis_names:
                 assert new_pivot[name] == pytest.approx(commanded_pivot[name])
 
-    async def test_stop_move_after_delay(self):
+    async def test_stop_move_after_delay(self) -> None:
         """Test stopping a move after giving it time to start."""
         # Command a move that moves all actuators equally
         position = mthexapod.Position(0, 0, 1000, 0, 0, 0)
@@ -1281,7 +1326,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             ]
             assert not np.allclose(cmd_lengths, stopped_lengths, atol=1e-7)
 
-    async def test_stop_move_immediately(self):
+    async def test_stop_move_immediately(self) -> None:
         """Test that stop can interrupt a move right away."""
         position = copy.copy(ZERO_POSITION)
         position.z = 1000
