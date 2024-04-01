@@ -720,20 +720,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             error=pos_error,
         )
 
-        # This is to keep the backward compatibility of ts_xml v20.0.0 that
-        # does not have the 'copleyFaultStatus' defined in xml.
-        # TODO: Remove this after ts_xml v20.1.0.
         electrical = dict(
             copleyStatusWordDrive=client.telemetry.status_word,
             copleyLatchingFaultStatus=client.telemetry.latching_fault_status_register,
+            copleyFaultStatus=client.telemetry.copley_fault_status_register,
             motorCurrent=client.telemetry.motor_current,
             busVoltage=client.telemetry.bus_voltage,
         )
-        if hasattr(self.tel_electrical.DataType(), "copleyFaultStatus"):
-            electrical["copleyFaultStatus"] = (
-                client.telemetry.copley_fault_status_register
-            )
-
         await self.tel_electrical.set_write(**electrical)
 
         in_position = (

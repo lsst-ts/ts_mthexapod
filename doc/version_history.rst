@@ -11,6 +11,7 @@ v1.1.2
 
 * Reformat code with black.
 * Update the version of ts-conda-build to 0.4 in the conda recipe.
+* Remove the workaround code of backward compatibility.
 
 v1.1.1
 ------
