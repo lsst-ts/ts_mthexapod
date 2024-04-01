@@ -730,9 +730,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             busVoltage=client.telemetry.bus_voltage,
         )
         if hasattr(self.tel_electrical.DataType(), "copleyFaultStatus"):
-            electrical[
-                "copleyFaultStatus"
-            ] = client.telemetry.copley_fault_status_register
+            electrical["copleyFaultStatus"] = (
+                client.telemetry.copley_fault_status_register
+            )
 
         await self.tel_electrical.set_write(**electrical)
 
