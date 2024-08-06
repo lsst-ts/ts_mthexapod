@@ -49,6 +49,7 @@ class Config(ctypes.Structure):
         ("max_velocity_strut", ctypes.c_double),
         ("pos_limits", ctypes.c_double * 6),
         ("pivot", ctypes.c_double * 3),
+        ("drives_enabled", ctypes.c_bool),
     ]
 
 
@@ -103,12 +104,9 @@ class Telemetry(ctypes.Structure):
         # CommandFinalPos_n in telemetryStreamStructure_t
         ("strut_commanded_final_pos", ctypes.c_double * 6),
         ("command_valid", ctypes.c_double),
-        ("track_mode", ctypes.c_double),
         # simulink telemetry
         ("state", ctypes.c_double),
         ("enabled_substate", ctypes.c_double),
-        ("offline_substate", ctypes.c_double),
-        ("test_state", ctypes.c_double),
         # Position following error (microns)
         # PosErrorn in telemetryStreamStructure_t
         ("strut_pos_error", ctypes.c_double * 6),
@@ -126,12 +124,6 @@ class Telemetry(ctypes.Structure):
         # EstVel_n (n = 1-6) is the estimated strut velocity after the
         # low-pass filter is applied. The unit is meters/s (NOT microns/s).
         ("estimated_posfiltvel", PosFiltVel * 6),
-        # LinearEncodern in telemetryStreamStructure_t
-        # Do not use: these are redundant and may be removed.
-        ("_strut_linear_encoder", ctypes.c_double * 6),
-        # LinearEncoderVelocityn in telemetryStreamStructure_t
-        # Do not use: these may be removed.
-        ("_strut_linear_encoder_velocity", ctypes.c_double * 6),
         # Commanded hexapod position.
         # hexCmd_mic_deg in telemetryStreamStructure_t
         ("commanded_pos", ctypes.c_double * 6),

@@ -246,7 +246,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         client : `lsst.ts.hexrotcomm.CommandTelemetryClient`
             TCP/IP client.
         """
-        await self.evt_configuration.set_write(
+
+        # This is to keep the backward compatibility of ts_xml v22.0.0 that
+        # does not have the 'drivesEnabled' defined in xml.
+        # TODO: Remove this after ts_xml v22.1.0.
+        configuration = dict(
             maxXY=client.config.pos_limits[0],
             minZ=client.config.pos_limits[1],
             maxZ=client.config.pos_limits[2],
@@ -264,6 +268,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             maxVelocityStrut=client.config.max_velocity_strut,
             accelerationStrut=client.config.acceleration_strut,
         )
+        if hasattr(self.evt_configuration.DataType(), "drivesEnabled"):
+            configuration["drivesEnabled"] = client.config.drives_enabled
+
+        await self.evt_configuration.set_write(**configuration)
+
         self.current_pos_limits = base.PositionLimits.from_struct(
             self.evt_configuration.data
         )
@@ -684,12 +693,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
         tai_unix = client.header.tai_sec + client.header.tai_nsec / 1e9
 
-        # Strangely telemetry.state, offline_substate and enabled_substate
+        # Strangely telemetry.state and enabled_substate
         # are all floats from the controller. But they should only have
         # integer value, so I output them as integers.
         await self.evt_controllerState.set_write(
             controllerState=int(client.telemetry.state),
-            offlineSubstate=int(client.telemetry.offline_substate),
             enabledSubstate=int(client.telemetry.enabled_substate),
             applicationStatus=client.telemetry.application_status,
         )
@@ -750,14 +758,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.n_telemetry += 1
         self.telemetry_event.set()
 
-    def make_mock_controller(
-        self, initial_ctrl_state: ControllerState
-    ) -> mock_controller.MockMTHexapodController:
+    def make_mock_controller(self) -> mock_controller.MockMTHexapodController:
         return mock_controller.MockMTHexapodController(
             log=self.log,
             index=self.salinfo.index,
             port=0,
-            initial_state=initial_ctrl_state,
+            initial_state=ControllerState.STANDBY,
         )
 
     def _make_position_set_command(self, position: base.Position) -> hexrotcomm.Command:

@@ -6,6 +6,16 @@
 Version History
 ###############
 
+v1.2.0
+------
+
+* Adapt the simplified state machine and updated interface with the controller.
+
+Requires:
+
+* ts_hexapod_controller 1.6.0
+* ts_hexrotcomm 1.3.0
+
 v1.1.2
 ------
 
