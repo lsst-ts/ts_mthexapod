@@ -9,7 +9,7 @@ Version History
 v1.2.0
 ------
 
-* Adapt the simplified state machine and updated interface with the controller.
+* Adapt the simplified state machine and update interface with the controller.
 
 Requires:
 

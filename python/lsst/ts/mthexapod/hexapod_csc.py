@@ -247,9 +247,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             TCP/IP client.
         """
 
-        # This is to keep the backward compatibility of ts_xml v22.0.0 that
+        # This is to keep the backward compatibility with ts_xml v22.0.0 that
         # does not have the 'drivesEnabled' defined in xml.
-        # TODO: Remove this after ts_xml v22.1.0.
+        # TODO: Remove this after ts_xml v22.1.0. (DM-45603)
         configuration = dict(
             maxXY=client.config.pos_limits[0],
             minZ=client.config.pos_limits[1],
