@@ -590,6 +590,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
             initial_limit = data.accelerationStrut
+
+            self.remote.evt_configuration.flush()
+
             new_limit = initial_limit - 0.1
             await self.remote.cmd_configureAcceleration.set_start(
                 acceleration=new_limit, timeout=STD_TIMEOUT
@@ -635,6 +638,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
             initial_limits = mthexapod.PositionLimits.from_struct(data)
+
+            self.remote.evt_configuration.flush()
 
             # Use small limits for our extreme moves,
             # so we don't exceed the actuator length limits.
@@ -722,6 +727,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             initial_vel_limits = get_velocity_limits(data)
             new_vel_limits = tuple(lim - 0.01 for lim in initial_vel_limits)
+
+            self.remote.evt_configuration.flush()
+
             await self.remote.cmd_configureVelocity.set_start(
                 xy=new_vel_limits[0],
                 uv=new_vel_limits[1],
@@ -1269,6 +1277,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False, timeout=STD_TIMEOUT
             )
             old_pivot = get_pivot(initial_config)
+
+            self.remote.evt_configuration.flush()
 
             commanded_pivot = {name: val + 10 for name, val in old_pivot.items()}
             await self.remote.cmd_setPivot.set_start(
