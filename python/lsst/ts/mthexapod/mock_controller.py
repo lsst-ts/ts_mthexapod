@@ -115,7 +115,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         index: int,
         log: logging.Logger,
         port: int = 0,
-        initial_state: ControllerState = ControllerState.OFFLINE,
+        initial_state: ControllerState = ControllerState.STANDBY,
     ) -> None:
         index = enums.SalIndex(index)
         self.max_pos_limits = constants.MAX_POSITION_LIMITS[index]
@@ -164,12 +164,6 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             (
                 enums.CommandCode.SET_ENABLED_SUBSTATE,
                 enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-            ): self.do_move_point_to_point,
-            # Note: the mock controller ignores the lookup table,
-            # so MOVE_LUT is identical to MOVE_POINT_TO_POINT
-            (
-                enums.CommandCode.SET_ENABLED_SUBSTATE,
-                enums.SetEnabledSubstateParam.MOVE_LUT,
             ): self.do_move_point_to_point,
             (
                 enums.CommandCode.SET_ENABLED_SUBSTATE,
@@ -314,9 +308,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             )
             self.telemetry.bus_voltage[:] = [BUS_VOLTAGE] * 3
 
-            # state, enabled_substate and offline_substate
+            # state and enabled_substate
             # are all set by set_state
-            self.telemetry.test_state = 0
             current_lengths = [
                 actuator.position(curr_tai) for actuator in self.hexapod.actuators
             ]

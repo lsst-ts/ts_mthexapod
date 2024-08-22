@@ -36,6 +36,7 @@ class CommandCode(enum.IntEnum):
     enum ``cmdType``. I have reworded them for clarity.
     """
 
+    ENABLE_DRIVES = 0x7000
     SET_STATE = 0x8000
     SET_ENABLED_SUBSTATE = 0x8001
     POSITION_SET = 0x8004
@@ -50,11 +51,5 @@ class SetEnabledSubstateParam(enum.IntEnum):
     """Substates for the ENABLED state."""
 
     ENABLED_INVALID = 0
-    MOVE_POINT_TO_POINT = enum.auto()
-    TRACK = enum.auto()
-    STOP = enum.auto()
-    INITIALIZE = enum.auto()
-    RELATIVE = enum.auto()
-    CONST_VEL = enum.auto()
-    SPARE2 = enum.auto()
-    MOVE_LUT = enum.auto()
+    MOVE_POINT_TO_POINT = 1
+    STOP = 3
