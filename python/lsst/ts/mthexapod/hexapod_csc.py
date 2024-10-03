@@ -219,10 +219,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # perhaps something like:
         # self.eas = salobj.Remote(domain=self.domain, name="EAS", include=[?])
         self.mtmount = salobj.Remote(
-            domain=self.domain, name="MTMount", include=["target"]
+            domain=self.domain,
+            name="MTMount",
+            include=["target", "elevation", "azimuth"],
         )
         self.mtrotator = salobj.Remote(
-            domain=self.domain, name="MTRotator", include=["target"]
+            domain=self.domain, name="MTRotator", include=["target", "rotation"]
         )
 
     @property
@@ -451,22 +453,23 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         compensation_inputs : `CompensationInputs` or `None`
             The compensation inputs, if all inputs are available, else `None`.
         """
-        mount_target = self.mtmount.evt_target.get()
+        mount_elevation_azimuth = self._get_mount_elevation_azimuth()
+
         missing_inputs = []
         nan_inputs = []
-        if mount_target is None:
-            missing_inputs.append("MTMount.target.elevation, azimuth")
+        if mount_elevation_azimuth is None:
+            missing_inputs.append("MTMount.elevation, azimuth")
         else:
-            if math.isnan(mount_target.elevation):
-                nan_inputs.append("MTMount.target.elevation")
-            if math.isnan(mount_target.azimuth):
-                nan_inputs.append("MTMount.target.azimuth")
+            if math.isnan(mount_elevation_azimuth[0]):
+                nan_inputs.append("MTMount.elevation")
+            if math.isnan(mount_elevation_azimuth[1]):
+                nan_inputs.append("MTMount.azimuth")
 
-        rotator_target = self.mtrotator.evt_target.get()
-        if rotator_target is None:
-            missing_inputs.append("MTRotator.target.position")
-        elif math.isnan(rotator_target.position):
-            nan_inputs.append("MTRotator.target.position")
+        rotator_position = self._get_rotator_position()
+        if rotator_position is None:
+            missing_inputs.append("MTRotator.position")
+        elif math.isnan(rotator_position):
+            nan_inputs.append("MTRotator.position")
 
         # TODO DM-28005: update this code:
         temperature = 0
@@ -486,12 +489,58 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         self.bad_inputs_str = ""
 
+        # Workaround the mypy check
+        assert mount_elevation_azimuth is not None
+        assert rotator_position is not None
+
         return base.CompensationInputs(
-            elevation=mount_target.elevation,
-            azimuth=mount_target.azimuth,
-            rotation=rotator_target.position,
+            elevation=mount_elevation_azimuth[0],
+            azimuth=mount_elevation_azimuth[1],
+            rotation=rotator_position,
             temperature=temperature,
         )
+
+    def _get_mount_elevation_azimuth(self) -> None | tuple[float, float]:
+        """Get the mount elevation and azimuth.
+
+        Returns
+        -------
+        None or `tuple` [`float`, `float`]
+            Mount elevation and azimuth.
+        """
+
+        mount_target = self.mtmount.evt_target.get()
+        if mount_target is None:
+            mount_elevation = self.mtmount.tel_elevation.get()
+            mount_azimuth = self.mtmount.tel_azimuth.get()
+
+            if (mount_elevation is not None) and (mount_azimuth is not None):
+                return (mount_elevation.actualPosition, mount_azimuth.actualPosition)
+
+        else:
+            return (mount_target.elevation, mount_target.azimuth)
+
+        return None
+
+    def _get_rotator_position(self) -> None | float:
+        """Get the rotator position.
+
+        Returns
+        -------
+        None or `float`
+            Rotator position.
+        """
+
+        rotator_target = self.mtrotator.evt_target.get()
+        if rotator_target is None:
+            rotator_rotation = self.mtrotator.tel_rotation.get()
+            if rotator_rotation is not None:
+                return rotator_rotation.actualPosition
+
+        else:
+            return rotator_target.position
+
+        return None
 
     async def do_configureAcceleration(self, data: salobj.BaseMsgType) -> None:
         """Specify the acceleration limit."""
