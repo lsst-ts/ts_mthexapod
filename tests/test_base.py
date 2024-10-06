@@ -135,7 +135,7 @@ class BaseTestCase(unittest.TestCase):
             "minW",
             "maxW",
         )
-        data = dict(maxXY=1, minZ=-2, maxZ=3, maxUV=4, minW=-5, maxW=6)
+        data = dict(maxXY=1.0, minZ=-2.0, maxZ=3.0, maxUV=4.0, minW=-5.0, maxW=6.0)
         poslim1 = mthexapod.PositionLimits(**data)
         poslim2 = mthexapod.PositionLimits(*data.values())
         poslim3 = mthexapod.PositionLimits.from_struct(types.SimpleNamespace(**data))
@@ -144,10 +144,10 @@ class BaseTestCase(unittest.TestCase):
         self.assert_dataclass_data_equal(poslim3, data)
 
         for bad_items in (
-            dict(maxXY=0),
+            dict(maxXY=0.0),
             dict(maxXY=-0.001),
             dict(minZ=data["maxZ"]),
-            dict(maxUV=0),
+            dict(maxUV=0.0),
             dict(maxUV=-0.001),
             dict(minW=data["maxW"]),
         ):
