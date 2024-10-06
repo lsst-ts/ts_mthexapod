@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v1.2.1
+------
+
+* Subscribe the telemetry of rotator and mount in compensation mode.
+If the target event is not available, the CSC will use the telemetry instead.
+
 v1.2.0
 ------
 

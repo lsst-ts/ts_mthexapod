@@ -862,6 +862,37 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             np.testing.assert_array_less([0] * 6, data.motorCurrent)
             assert_allclose(data.busVoltage, expected_bus_voltage)
 
+    async def test_get_mount_elevation_azimuth_use_telemetry(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            assert self.csc._get_mount_elevation_azimuth() is None
+
+            # Use the telemetry data
+            await self.mtmount_controller.tel_elevation.set_write(actualPosition=0.1)
+            await self.csc.mtmount.tel_elevation.next(flush=True, timeout=STD_TIMEOUT)
+
+            await self.mtmount_controller.tel_azimuth.set_write(actualPosition=0.2)
+            await self.csc.mtmount.tel_azimuth.next(flush=True, timeout=STD_TIMEOUT)
+
+            assert self.csc._get_mount_elevation_azimuth() == (0.1, 0.2)
+
+    async def test_get_rotator_position_use_telemetry(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            assert self.csc._get_rotator_position() is None
+
+            # Use the telemetry data
+            await self.mtrotator_controller.tel_rotation.set_write(actualPosition=0.4)
+            await self.csc.mtrotator.tel_rotation.next(flush=True, timeout=STD_TIMEOUT)
+
+            assert self.csc._get_rotator_position() == 0.4
+
     async def test_move_no_compensation_no_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
         no compensation inputs (which it should allow).
@@ -981,9 +1012,9 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # TODO DM-28005: add temperature
             prev_bad_inputs_str = self.csc.bad_inputs_str
             for input_name, input_descr in (
-                ("elevation", "MTMount.target.elevation"),
-                ("azimuth", "MTMount.target.azimuth"),
-                ("rotation", "MTRotator.target.position"),
+                ("elevation", "MTMount.elevation"),
+                ("azimuth", "MTMount.azimuth"),
+                ("rotation", "MTRotator.position"),
             ):
                 with self.subTest(input_name=input_name, input_descr=input_descr):
                     nan_compensation_inputs = copy.copy(compensation_inputs)
