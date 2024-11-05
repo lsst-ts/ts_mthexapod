@@ -122,6 +122,11 @@ definitions:
           Above this temperature, terms above the first order are ignored;
           see RangedPolynomial for details.
         type: number
+      enable_lut_temperature:
+        description: >-
+          Use temperature LUT to compensate the deformation caused by
+          temperature gradients or not.
+        type: boolean
       host:
         description: IP address of the TCP/IP interface.
         type: string
@@ -139,6 +144,7 @@ definitions:
       - min_compensation_adjustment
       - min_temperature
       - max_temperature
+      - enable_lut_temperature
       - host
       - port
     additionalProperties: false
