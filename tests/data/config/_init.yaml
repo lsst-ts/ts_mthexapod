@@ -44,6 +44,7 @@ camera_config:
     - 1.0e-4
   min_temperature: -20
   max_temperature: 25
+  enable_lut_temperature: True
   host: 127.0.0.1
   port: 5560
 m2_config:
@@ -84,5 +85,6 @@ m2_config:
     - 1.0e-4
   min_temperature: -21
   max_temperature: 26
+  enable_lut_temperature: True
   host: 127.0.0.1
   port: 5550

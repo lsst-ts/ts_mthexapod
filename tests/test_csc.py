@@ -43,8 +43,6 @@ ZERO_POSITION = mthexapod.Position(0, 0, 0, 0, 0, 0)
 
 logging.basicConfig()
 
-index_gen = utils.index_generator(imin=1, imax=2)
-
 TEST_CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
@@ -57,7 +55,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         simulation_mode: int = 1,
     ) -> mthexapod.HexapodCsc:
         return mthexapod.HexapodCsc(
-            index=next(index_gen),
+            index=1,
             initial_state=initial_state,
             override=override,
             simulation_mode=simulation_mode,
@@ -73,7 +71,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         simulation_mode: int = 1,
         log_level: int | None = None,
     ) -> mthexapod.HexapodCsc:
-        # TODO DM-28005: add a controller for the temperature
         async with super().make_csc(
             initial_state=initial_state,
             config_dir=config_dir,
@@ -84,9 +81,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             name="MTMount",
         ) as self.mtmount_controller, salobj.Controller(
             name="MTRotator",
-        ) as self.mtrotator_controller:
+        ) as self.mtrotator_controller, salobj.Controller(
+            name="ESS",
+            index=1,
+        ) as self.ess_camhex_controller:
             # self.mtmount_controller = mtmount_controller
             # self.mtrotator_controller = mtrotator_controller
+            # self.ess_camhex_controller = ess_camhex_controller
             yield
 
     async def assert_next_application(
@@ -146,8 +147,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         assert data.elevation == pytest.approx(compensation_inputs.elevation)
         assert data.azimuth == pytest.approx(compensation_inputs.azimuth)
         assert data.rotation == pytest.approx(compensation_inputs.rotation)
-        # TODO DM-28005: check specified temperature
-        assert data.temperature == pytest.approx(0)
+        assert data.temperature == pytest.approx(compensation_inputs.temperature)
 
         for i, name in enumerate(("x", "y", "z", "u", "v", "w")):
             assert getattr(data, name) == pytest.approx(getattr(offset, name))
@@ -331,19 +331,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             or abs(data.elevation - compensation_inputs.elevation) > EPSILON
             or abs(data.azimuth - compensation_inputs.azimuth) > EPSILON
             or abs(data.rotation - compensation_inputs.rotation) > EPSILON
-            # TODO DM-28005: check specified temperature
+            or abs(data.temperature - compensation_inputs.temperature) > EPSILON
         ):
             data = await self.remote.evt_compensationOffset.next(
                 flush=False, timeout=STD_TIMEOUT
             )
 
-        # TODO DM-28005: use compensation_inputs directly,
-        # once we have temperature inputs.
-        hacked_compensation_inputs = copy.copy(compensation_inputs)
-        hacked_compensation_inputs.temperature = 0
-        compensation_offset = self.csc.compensation.get_offset(
-            hacked_compensation_inputs
-        )
+        compensation_offset = self.csc.compensation.get_offset(compensation_inputs)
         if update_inputs:
             # We set the compensation inputs, so we know compensation
             # should be nonzero in at least one axis.
@@ -483,9 +477,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         timeout : `float`
             Time limit (sec) for detecting that the CSC has read
             the new values.
-
-        Warning: the temperature parameter is ignored.
-        TODO DM-28005: write the temperature
         """
         if (elevation is None) != (azimuth is None):
             self.fail(
@@ -501,6 +492,15 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         if rotation is not None:
             did_something = True
             await self.mtrotator_controller.evt_target.set_write(position=rotation)
+        if temperature is not None:
+            did_something = True
+
+            temperatureItem = [np.nan] * 16
+            temperatureItem[0:6] = [temperature] * 6
+            await self.ess_camhex_controller.tel_temperature.set_write(
+                temperatureItem=temperatureItem
+            )
+
         if not did_something:
             self.fail("Must specify at least one non-None input")
 
@@ -547,12 +547,13 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
     async def test_bin_script(self) -> None:
         """Test running from the command line script."""
-        await self.check_bin_script(
-            name="MTHexapod",
-            index=next(index_gen),
-            exe_name="run_mthexapod",
-            cmdline_args=["--simulate"],
-        )
+        for idx in (1, 2):
+            await self.check_bin_script(
+                name="MTHexapod",
+                index=idx,
+                exe_name="run_mthexapod",
+                cmdline_args=["--simulate"],
+            )
 
     async def test_constructor_errors(self) -> None:
         for bad_index in (0, 3):
@@ -893,6 +894,27 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             assert self.csc._get_rotator_position() == 0.4
 
+    async def test_get_temperature_use_telemetry(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            # No data yet
+            assert self.csc._get_temperature() == 0.0
+
+            # New telemetry data
+            await self.set_compensation_inputs(
+                elevation=0, azimuth=0, rotation=0, temperature=23
+            )
+
+            assert self.csc._get_temperature() == 23.0
+
+            # Disable the temperature LUT
+            self.csc.config.camera_config["enable_lut_temperature"] = False
+
+            assert self.csc._get_temperature() == 0.0
+
     async def test_move_no_compensation_no_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
         no compensation inputs (which it should allow).
@@ -1009,7 +1031,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # input_name is the name of the item in CompensationInputs;
             # input_descr is the description of the field that the CSC uses,
             # which includes the name of the CSC, event, and field.
-            # TODO DM-28005: add temperature
             prev_bad_inputs_str = self.csc.bad_inputs_str
             for input_name, input_descr in (
                 ("elevation", "MTMount.elevation"),

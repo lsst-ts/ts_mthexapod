@@ -202,6 +202,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Maxes out at MAX_N_TELEMETRY.
         self.n_telemetry = 0
 
+        self._is_camera_hexapod = index == enums.SalIndex.CAMERA_HEXAPOD
+
         super().__init__(
             name="MTHexapod",
             index=index,
@@ -215,9 +217,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             simulation_mode=simulation_mode,
         )
 
-        # TODO DM-28005: add a suitable Remote from which to get temperature;
-        # perhaps something like:
-        # self.eas = salobj.Remote(domain=self.domain, name="EAS", include=[?])
         self.mtmount = salobj.Remote(
             domain=self.domain,
             name="MTMount",
@@ -225,6 +224,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         self.mtrotator = salobj.Remote(
             domain=self.domain, name="MTRotator", include=["target", "rotation"]
+        )
+
+        # See the ts_config_ocs/ESS
+        self.ess_camhex = salobj.Remote(
+            domain=self.domain, name="ESS", index=1, include=["temperature"]
         )
 
     @property
@@ -239,6 +243,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     def compensation_mode(self) -> bool:
         """Return True if moves are compensated, False otherwise."""
         return self.evt_compensationMode.data.enabled
+
+    @property
+    def enable_lut_temperature(self) -> bool:
+        """Enable the LUT temperature compensation or not.
+
+        Returns
+        -------
+        `bool`
+            True if the LUT temperature compensation is enabled, False
+            otherwise.
+        """
+        return getattr(self.config, self.subconfig_name)["enable_lut_temperature"]
 
     async def config_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs configuration.
@@ -326,6 +342,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             min_temperature=subconfig.min_temperature,
             max_temperature=subconfig.max_temperature,
         )
+
+        if self._is_camera_hexapod:
+            self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
+        else:
+            self.log.info(
+                "No temperature data for the M2 hexapod. Ignore the enable_lut_temperature."
+            )
 
     async def compensation_loop(self) -> None:
         """Apply compensation at regular intervals.
@@ -467,8 +490,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         elif math.isnan(rotator_position):
             nan_inputs.append("MTRotator.position")
 
-        # TODO DM-28005: update this code:
-        temperature = 0
+        temperature = self._get_temperature()
 
         bad_inputs_items = []
         if missing_inputs:
@@ -537,6 +559,29 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             return rotator_target.position
 
         return None
+
+    def _get_temperature(self) -> float:
+        """Get the temperature.
+
+        Returns
+        -------
+        `float`
+            Temperature. Return 0.0 if the temperature is not available.
+        """
+
+        if (
+            self._is_camera_hexapod
+            and self.enable_lut_temperature
+            and self.ess_camhex.tel_temperature.has_data
+        ):
+            temperatures = np.array(
+                self.ess_camhex.tel_temperature.get().temperatureItem
+            )
+
+            # Only the first 6 elements are used
+            return np.mean(temperatures[0:6])
+
+        return 0.0
 
     async def do_configureAcceleration(self, data: salobj.BaseMsgType) -> None:
         """Specify the acceleration limit."""
