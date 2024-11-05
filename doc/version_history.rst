@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v1.2.3
+------
+
+* Add the ``enable_lut_temperature`` to the **config_schema.py**.
+* Read the temperature sensor data for the camera hexapod.
+
 v1.2.2
 ------
 
