@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/main/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v3
+title: MTHexapod v4
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -127,6 +127,27 @@ definitions:
           Use temperature LUT to compensate the deformation caused by
           temperature gradients or not.
         type: boolean
+      camera:
+        description: >-
+          Camera name.
+          Used to select the correct configuration.
+        type: string
+        enum: ["CCCamera", "MTCamera"]
+      filter_offsets:
+        description: >-
+          Filter offsets with specific z_offset for each filter.
+        type: object
+        patternProperties:
+          "^[a-zA-Z0-9_]+$":
+            type: object
+            properties:
+              z_offset:
+                description: >-
+                  Z-offset value for the filter.
+                type: number
+            required:
+              - z_offset
+        additionalProperties: false
       host:
         description: IP address of the TCP/IP interface.
         type: string

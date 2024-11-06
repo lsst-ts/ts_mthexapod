@@ -180,6 +180,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         #        self.compensation_loop_task.cancel()
         self.compensation_loop_task = make_done_future()
 
+        # Task for the camera filter monitor.
+        self.camera_filter_monitor_task = make_done_future()
+
         # Record missing compensation inputs we have warned about,
         # to avoid duplicate warnings.
         self.bad_inputs_str = ""
@@ -203,6 +206,16 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.n_telemetry = 0
 
         self._is_camera_hexapod = index == enums.SalIndex.CAMERA_HEXAPOD
+        # Initialize filter offset
+        zero_offset = types.SimpleNamespace(
+            x=0,
+            y=0,
+            z=0,
+            u=0,
+            v=0,
+            w=0,
+        )
+        self.filter_offset = base.Position.from_struct(zero_offset)
 
         super().__init__(
             name="MTHexapod",
@@ -342,6 +355,46 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             min_temperature=subconfig.min_temperature,
             max_temperature=subconfig.max_temperature,
         )
+        if not self.camera_filter_monitor_task.done():
+            self.log.info("Camera filter monitor task still running. Restarting.")
+            self.camera_filter_monitor_task.cancel()
+            try:
+                await self.camera_filter_monitor_task
+            except asyncio.CancelledError:
+                pass
+
+        if hasattr(subconfig, "camera"):
+            self.camera_filter_monitor_task = asyncio.create_task(
+                self.monitor_camera_filter(subconfig.camera)
+            )
+            self.filter_offsets_dict = subconfig.filter_offsets
+
+    async def monitor_camera_filter(self, camera: str) -> None:
+        """Monitor the camera filter and apply compensation as needed.
+
+        Parameters
+        ----------
+        camera : `str`
+            Camera name.
+        """
+        async with self.Remote(
+            domain=self.domain,
+            name=camera,
+            read_only=True,
+            include=["endSetFilter"],
+        ) as camera_remote:
+            camera_remote.evt_endSetFilter.flush()
+            try:
+                end_set_filter = await camera_remote.evt_endSetFilter.aget(
+                    timeout=MAXIMUM_STOP_TIME
+                )
+                await self.handle_camera_filter(end_set_filter.filterName)
+            except asyncio.TimeoutError:
+                self.log.warning("No initial camera filter information. Ignoring.")
+
+            while self.disabled_or_enabled:
+                end_set_filter = await camera_remote.evt_endSetFilter.next(flush=False)
+                await self.handle_camera_filter(end_set_filter.filterName)
 
         if self._is_camera_hexapod:
             self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
@@ -448,7 +501,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             compensation_inputs = self.get_compensation_inputs()
             if compensation_inputs is not None:
                 compensation_offset = self.compensation.get_offset(compensation_inputs)
-                compensated_pos = uncompensated_pos + compensation_offset
+                compensated_pos = (
+                    uncompensated_pos + compensation_offset + self.filter_offset
+                )
                 utils.check_position(
                     position=compensated_pos,
                     limits=self.current_pos_limits,
@@ -673,6 +728,48 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
         )
         await self.move_task
+
+    def get_filter_offset(self, filter_name: str) -> base.Position:
+        """Get the z offset for a given filter name.
+
+        Parameters
+        ----------
+        filter_name : `str`
+            Camera filter name.
+
+        Returns
+        -------
+        filter_offset : `Position`
+            Filter offset.
+        """
+        if not self.filter_offsets_dict:
+            z_offset = 0
+
+        filter_object = self.filter_offsets_dict.get(filter_name)
+        if filter_object:
+            z_offset = filter_object.get("z_offset", 0)
+
+        data = types.SimpleNamespace(
+            x=0,
+            y=0,
+            z=z_offset,
+            u=0,
+            v=0,
+            w=0,
+        )
+        filter_offset = base.Position.from_struct(data)
+
+        return filter_offset
+
+    async def handle_camera_filter(self, filter_name: str) -> None:
+        """Move the hexapod in focusZ to account for the filter thickness.
+
+        Parameters
+        ----------
+        filter_name : `str`
+            Camera filter name.
+        """
+        self.filter_offset = self.get_filter_offset(filter_name)
 
     async def do_offset(self, data: salobj.BaseMsgType) -> None:
         """Move by a specified offset in position and orientation.
