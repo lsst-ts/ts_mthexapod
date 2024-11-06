@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.3.0
+------
+
+* Add filter_offsets to account for filter thickness defocus.
+
 v1.2.3
 ------
 
