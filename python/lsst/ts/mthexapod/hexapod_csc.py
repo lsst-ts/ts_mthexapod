@@ -416,7 +416,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                         current_filter = end_set_filter.filterName
                         await self.handle_camera_filter(current_filter)
                     else:
-                        self.log.info("Already in {current_filter}.")
+                        self.log.info(f"Already in {current_filter}.")
                 self.log.info("Camera filter monitor ending.")
         except Exception:
             self.log.exception("Error in camera filter monitor.")
