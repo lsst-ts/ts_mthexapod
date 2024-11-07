@@ -390,7 +390,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             async with salobj.Remote(
                 domain=self.domain,
                 name=camera,
-                read_only=True,
+                readonly=True,
                 include=["endSetFilter"],
             ) as camera_remote:
                 camera_remote.evt_endSetFilter.flush()
