@@ -384,24 +384,43 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         camera : `str`
             Camera name.
         """
-        async with self.Remote(
-            domain=self.domain,
-            name=camera,
-            read_only=True,
-            include=["endSetFilter"],
-        ) as camera_remote:
-            camera_remote.evt_endSetFilter.flush()
-            try:
-                end_set_filter = await camera_remote.evt_endSetFilter.aget(
-                    timeout=MAXIMUM_STOP_TIME
-                )
-                await self.handle_camera_filter(end_set_filter.filterName)
-            except asyncio.TimeoutError:
-                self.log.warning("No initial camera filter information. Ignoring.")
+        self.log.info(f"Starting camera filter monitor for {camera}.")
 
-            while self.disabled_or_enabled:
-                end_set_filter = await camera_remote.evt_endSetFilter.next(flush=False)
-                await self.handle_camera_filter(end_set_filter.filterName)
+        try:
+            async with self.Remote(
+                domain=self.domain,
+                name=camera,
+                read_only=True,
+                include=["endSetFilter"],
+            ) as camera_remote:
+                camera_remote.evt_endSetFilter.flush()
+                try:
+                    end_set_filter = await camera_remote.evt_endSetFilter.aget(
+                        timeout=MAXIMUM_STOP_TIME
+                    )
+                    current_filter = end_set_filter.filterName
+                    self.log.info(f"Initial camera filter {current_filter}.")
+                    await self.handle_camera_filter(current_filter)
+                except asyncio.TimeoutError:
+                    self.log.warning("No initial camera filter information. Ignoring.")
+
+                self.log.info("Camera filter monitor loop starting.")
+                while self.disabled_or_enabled:
+                    end_set_filter = await camera_remote.evt_endSetFilter.next(
+                        flush=False
+                    )
+                    if current_filter != end_set_filter.filterName:
+                        self.log.info(
+                            f"Updating camera filter {current_filter} -> {end_set_filter.filterName}."
+                        )
+                        current_filter = end_set_filter.filterName
+                        await self.handle_camera_filter(current_filter)
+                    else:
+                        self.log.info("Already in {current_filter}.")
+                self.log.info("Camera filter monitor ending.")
+        except Exception:
+            self.log.exception("Error in camera filter monitor.")
+            await self.fault(code=-1, report="Error in camera filter monitor.")
 
     async def compensation_loop(self) -> None:
         """Apply compensation at regular intervals.
