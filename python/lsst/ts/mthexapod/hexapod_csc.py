@@ -519,10 +519,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         if self.compensation_mode:
             compensation_inputs = self.get_compensation_inputs()
             if compensation_inputs is not None:
-                compensation_offset = self.compensation.get_offset(compensation_inputs)
-                compensated_pos = (
-                    uncompensated_pos + compensation_offset + self.filter_offset
+                compensation_offset = (
+                    self.compensation.get_offset(compensation_inputs)
+                    + self.filter_offset
                 )
+
+                compensated_pos = uncompensated_pos + compensation_offset
                 utils.check_position(
                     position=compensated_pos,
                     limits=self.current_pos_limits,
