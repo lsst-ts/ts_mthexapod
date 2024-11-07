@@ -369,6 +369,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
             self.filter_offsets_dict = subconfig.filter_offsets
 
+        if self._is_camera_hexapod:
+            self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
+        else:
+            self.log.info(
+                "No temperature data for the M2 hexapod. Ignore the enable_lut_temperature."
+            )
+
     async def monitor_camera_filter(self, camera: str) -> None:
         """Monitor the camera filter and apply compensation as needed.
 
@@ -395,13 +402,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             while self.disabled_or_enabled:
                 end_set_filter = await camera_remote.evt_endSetFilter.next(flush=False)
                 await self.handle_camera_filter(end_set_filter.filterName)
-
-        if self._is_camera_hexapod:
-            self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
-        else:
-            self.log.info(
-                "No temperature data for the M2 hexapod. Ignore the enable_lut_temperature."
-            )
 
     async def compensation_loop(self) -> None:
         """Apply compensation at regular intervals.
