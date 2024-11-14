@@ -763,10 +763,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         filter_offset : `Position`
             Filter offset.
         """
-        if not self.filter_offsets_dict:
-            z_offset = 0
 
-        filter_object = self.filter_offsets_dict.get(filter_name)
+        z_offset = 0
+
+        filter_object = self.filter_offsets_dict.get(filter_name, "")
         if filter_object:
             z_offset = filter_object.get("z_offset", 0)
 
