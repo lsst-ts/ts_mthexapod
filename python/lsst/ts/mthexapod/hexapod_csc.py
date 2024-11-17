@@ -448,8 +448,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     is_compensation_loop=True,
                 )
             except Exception:
-                self.log.exception("Compensation failed; turning off compensation mode")
-                await self.evt_compensationMode.set_write(enabled=False)
+                self.log.exception("Compensation failed; CSC going to Fault.")
+                # TODO: (DM-47671): Update MTHexapod to use new error codes
+                # from ts-xml enumeration
+                await self.fault(-2, report="Compensation failed.")
                 return
 
     async def compensation_wait(self) -> None:
