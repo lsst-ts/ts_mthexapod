@@ -6,6 +6,29 @@
 Version History
 ###############
 
+v1.3.2
+------
+
+* In hexapod_csc:
+
+  * Move code that was wrongly put in monitor_camera_filter back into configure, where it belongs.
+  
+  * Add some logging and error handling in monitor_camera_filter.
+  
+  * Fix monitor_camera_filter use of self.Remote, instead of salobj.Remote.
+  
+  * Fix how filter offset is applied.
+  
+    Instead of adding it to the compensated position, add it to the compensation offset.
+  
+  * Fix issue in get_filter_offset with variable not being defined.
+  
+  * Update compensation_loop to send the CSC to Fault if compensation fails.
+  
+    This current behavior is actually not correct, CSCs should go to Fault if something unnexpected happens.
+    This was causing issues at night as we were operating for long periods with compensation off and having it get enabled by a slew operation, causing the hexapod to jump position.
+    See OBS-648 for more information.
+
 v1.3.1
 ------
 
