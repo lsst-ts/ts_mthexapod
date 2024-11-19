@@ -1140,7 +1140,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
                 param2=int(sync),
             )
-            await self.run_multiple_commands(cmd1, cmd2)
+            # Need to wait some time between two commands for the Simulink
+            # model to transition the state correctly with the appropriate
+            # parameter.
+            await self.run_multiple_commands(cmd1, cmd2, delay=0.1)
 
             await self.evt_uncompensatedPosition.set_write(**vars(uncompensated_pos))
             await self.evt_compensatedPosition.set_write(
