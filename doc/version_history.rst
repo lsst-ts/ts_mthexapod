@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.3.1
+------
+
+* Fix the race condition in ``HexapodCsc._move()``.
+
 v1.3.0
 ------
 
