@@ -420,6 +420,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.log.info("Camera filter monitor ending.")
         except Exception:
             self.log.exception("Error in camera filter monitor.")
+            # TODO: (DM-47671): Update MTHexapod to use new error codes from
+            # ts-xml enumeration
             await self.fault(code=-1, report="Error in camera filter monitor.")
 
     async def compensation_loop(self) -> None:
