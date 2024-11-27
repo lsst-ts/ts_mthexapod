@@ -1,0 +1,16 @@
+camera_config:
+  camera: 'CCCamera'
+  filter_offsets:
+    r_03:
+      z_offset: 0.0
+    i_06:
+      z_offset: -657.301
+    g_01:
+      z_offset: 9.289
+    u_02:
+      z_offset: 20.430
+    y_04:
+      z_offset: -660.399
+    z_03:
+      z_offset: -658.855
+
