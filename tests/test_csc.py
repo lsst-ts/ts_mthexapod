@@ -28,12 +28,15 @@ import math
 import pathlib
 import time
 import types
+import typing
 import unittest
 
 import numpy as np
 import pytest
+import yaml
 from lsst.ts import hexrotcomm, mthexapod, salobj, utils
 from lsst.ts.xml.enums.MTHexapod import ControllerState, EnabledSubstate
+from lsst.ts.xml.sal_enums import State
 from numpy.testing import assert_allclose
 
 STD_TIMEOUT = 10  # timeout for command ack
@@ -1447,3 +1450,95 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             # Do not test the controllerState event because it is
             # uncertain how many transitions will have occurred.
+
+    async def test_filter_offset(self) -> None:
+
+        async with self.cccamera_controller(
+            initial_filter="r_03"
+        ) as cccamera, self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="with_filter_offset.yaml",
+            simulation_mode=1,
+        ):
+            compensation_inputs = mthexapod.CompensationInputs(
+                elevation=32, azimuth=44, rotation=-5, temperature=15
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs))
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+
+            uncompensated_position = mthexapod.Position(
+                500, -300, 200, 0.03, -0.02, 0.03
+            )
+            await self.check_move(
+                uncompensated_position=uncompensated_position,
+                est_move_duration=1,
+            )
+
+            # Test with the initial filter.
+            update_inputs = False
+            await self.check_compensation(
+                uncompensated_position=uncompensated_position,
+                compensation_inputs=compensation_inputs,
+                update_inputs=update_inputs,
+            )
+
+            with open(TEST_CONFIG_DIR / "with_filter_offset.yaml") as fp:
+                with_filter_offset_config = yaml.safe_load(fp.read())
+                filter_offset = with_filter_offset_config["camera_config"][
+                    "filter_offsets"
+                ]
+            # now test with the other available filters
+            compensated_position_initial_filter = (
+                await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
+            )
+
+            for filter_name in ["i_06", "g_01", "u_02", "y_04", "z_03"]:
+                with self.subTest(filter_name=filter_name):
+                    self.remote.evt_compensatedPosition.flush()
+                    await cccamera.evt_endSetFilter.set_write(filterName=filter_name)
+                    await self.assert_next_sample(self.remote.evt_compensatedPosition)
+
+                    data = await self.remote.tel_application.next(
+                        flush=True, timeout=STD_TIMEOUT
+                    )
+                    compensated_position_initial_filter.position[2] += filter_offset[
+                        filter_name
+                    ]["z_offset"]
+                    self.assert_positions_close(
+                        compensated_position_initial_filter.position,
+                        data.position,
+                        pos_atol=1,
+                        ang_atol=1e-5,
+                    )
+                    compensated_position_initial_filter.position[2] -= filter_offset[
+                        filter_name
+                    ]["z_offset"]
+
+            # Send a filter that is not in the list and check CSC goes to Fault
+            self.remote.evt_summaryState.flush()
+            await cccamera.evt_endSetFilter.set_write(filterName="NotAFilter")
+            await self.assert_next_sample(
+                self.remote.evt_summaryState,
+                summaryState=State.FAULT,
+                flush=False,
+                timeout=STD_TIMEOUT,
+            )
+
+    @contextlib.asynccontextmanager
+    async def cccamera_controller(
+        self, initial_filter: str
+    ) -> typing.AsyncGenerator[salobj.Controller, None]:
+        async with salobj.Controller("CCCamera") as cccamera:
+            await cccamera.evt_endSetFilter.set_write(filterName=initial_filter)
+            yield cccamera
