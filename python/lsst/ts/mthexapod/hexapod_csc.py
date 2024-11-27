@@ -1101,14 +1101,29 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         if self.client.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError()
 
-        while (
-            self.n_telemetry < n_telemetry
-            or self.client.telemetry.enabled_substate != EnabledSubstate.STATIONARY
-        ):
+        self.log.debug(
+            f"Waiting for at least {n_telemetry} consecutive telemetry samples with stationary state."
+        )
+
+        n_telemetry_stopped = 0
+        while n_telemetry_stopped < n_telemetry:
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
             if self.client.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
+            if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
+                n_telemetry_stopped += 1
+                self.log.debug(
+                    f"[{n_telemetry_stopped}/{n_telemetry}]: Hexapod stationary."
+                )
+            else:
+                if n_telemetry_stopped > 0:
+                    self.log.warning(
+                        f"[{n_telemetry_stopped}/{n_telemetry}]: "
+                        "Hexapod became non-stationary after stationary state and waiting for it to stop. "
+                        "Reset counter."
+                    )
+                n_telemetry_stopped = 0
 
         return True
 
