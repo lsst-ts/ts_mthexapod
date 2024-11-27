@@ -22,10 +22,12 @@
 __all__ = ["HexapodCsc", "run_mthexapod"]
 
 import asyncio
+import contextlib
 import copy
 import dataclasses
 import math
 import types
+import typing
 from pathlib import Path
 
 import numpy as np
@@ -418,11 +420,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     else:
                         self.log.info(f"Already in {current_filter}.")
                 self.log.info("Camera filter monitor ending.")
-        except Exception:
+        except Exception as e:
             self.log.exception("Error in camera filter monitor.")
             # TODO: (DM-47671): Update MTHexapod to use new error codes from
             # ts-xml enumeration
-            await self.fault(code=-1, report="Error in camera filter monitor.")
+            async with self.csc_level_fault():
+                await self.fault(
+                    code=-1, report=f"Error in camera filter monitor: {e!r}"
+                )
 
     async def compensation_loop(self) -> None:
         """Apply compensation at regular intervals.
@@ -453,7 +458,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.log.exception("Compensation failed; CSC going to Fault.")
                 # TODO: (DM-47671): Update MTHexapod to use new error codes
                 # from ts-xml enumeration
-                await self.fault(-2, report="Compensation failed.")
+                async with self.csc_level_fault():
+                    await self.fault(-2, report="Compensation failed.")
                 return
 
     async def compensation_wait(self) -> None:
@@ -867,6 +873,29 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # shortly after issuing a move command.
         # I would much rather just issue the stop command!
         await self.stop_motion()
+
+    @contextlib.asynccontextmanager
+    async def csc_level_fault(self) -> typing.AsyncIterator[None]:
+        """Context manager to handle CSC level fault."""
+        try:
+            await self.stop_motion()
+        except Exception:
+            self.log.exception(
+                "Stop motion failed while handling csc level fault. Continuing."
+            )
+
+        try:
+            await self.run_command(
+                code=self.CommandCode.SET_STATE,  # type: ignore[attr-defined]
+                param1=hexrotcomm.enums.SetStateParam.STANDBY,
+            )
+            await self._enable_drives(False)
+        except Exception:
+            self.log.exception(
+                "Sending controller to standby failed while handling csc level fault."
+            )
+
+        yield
 
     async def basic_run_command(self, command: hexrotcomm.Command) -> None:
         # Overload of lsst.ts.hexrotcomm.BaseCsc's version
