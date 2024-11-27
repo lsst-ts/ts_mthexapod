@@ -776,9 +776,16 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         z_offset = 0
 
-        filter_object = self.filter_offsets_dict.get(filter_name, "")
-        if filter_object:
-            z_offset = filter_object.get("z_offset", 0)
+        filter_object = self.filter_offsets_dict.get(filter_name, None)
+        if filter_object is not None:
+            z_offset = filter_object.get("z_offset", 0.0)
+        else:
+            available_filters = ", ".join(self.filter_offsets_dict)
+            raise RuntimeError(
+                f"Filter {filter_name} not in the list of available filters: {available_filters}. "
+                "Make sure all mounted filters are properly configured with a filter offset in "
+                "the hexapod configuration."
+            )
 
         data = types.SimpleNamespace(
             x=0,
