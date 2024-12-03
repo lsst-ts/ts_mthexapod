@@ -22,10 +22,12 @@
 __all__ = ["HexapodCsc", "run_mthexapod"]
 
 import asyncio
+import contextlib
 import copy
 import dataclasses
 import math
 import types
+import typing
 from pathlib import Path
 
 import numpy as np
@@ -369,6 +371,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
             self.filter_offsets_dict = subconfig.filter_offsets
 
+        if self._is_camera_hexapod:
+            self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
+        else:
+            self.log.info(
+                "No temperature data for the M2 hexapod. Ignore the enable_lut_temperature."
+            )
+
     async def monitor_camera_filter(self, camera: str) -> None:
         """Monitor the camera filter and apply compensation as needed.
 
@@ -377,31 +386,48 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         camera : `str`
             Camera name.
         """
-        async with self.Remote(
-            domain=self.domain,
-            name=camera,
-            read_only=True,
-            include=["endSetFilter"],
-        ) as camera_remote:
-            camera_remote.evt_endSetFilter.flush()
-            try:
-                end_set_filter = await camera_remote.evt_endSetFilter.aget(
-                    timeout=MAXIMUM_STOP_TIME
+        self.log.info(f"Starting camera filter monitor for {camera}.")
+
+        try:
+            async with salobj.Remote(
+                domain=self.domain,
+                name=camera,
+                readonly=True,
+                include=["endSetFilter"],
+            ) as camera_remote:
+                camera_remote.evt_endSetFilter.flush()
+                try:
+                    end_set_filter = await camera_remote.evt_endSetFilter.aget(
+                        timeout=MAXIMUM_STOP_TIME
+                    )
+                    current_filter = end_set_filter.filterName
+                    self.log.info(f"Initial camera filter {current_filter}.")
+                    await self.handle_camera_filter(current_filter)
+                except asyncio.TimeoutError:
+                    self.log.warning("No initial camera filter information. Ignoring.")
+
+                self.log.info("Camera filter monitor loop starting.")
+                while self.disabled_or_enabled:
+                    end_set_filter = await camera_remote.evt_endSetFilter.next(
+                        flush=False
+                    )
+                    if current_filter != end_set_filter.filterName:
+                        self.log.info(
+                            f"Updating camera filter {current_filter} -> {end_set_filter.filterName}."
+                        )
+                        current_filter = end_set_filter.filterName
+                        await self.handle_camera_filter(current_filter)
+                    else:
+                        self.log.info(f"Already in {current_filter}.")
+                self.log.info("Camera filter monitor ending.")
+        except Exception as e:
+            self.log.exception("Error in camera filter monitor.")
+            # TODO: (DM-47671): Update MTHexapod to use new error codes from
+            # ts-xml enumeration
+            async with self.csc_level_fault():
+                await self.fault(
+                    code=-1, report=f"Error in camera filter monitor: {e!r}"
                 )
-                await self.handle_camera_filter(end_set_filter.filterName)
-            except asyncio.TimeoutError:
-                self.log.warning("No initial camera filter information. Ignoring.")
-
-            while self.disabled_or_enabled:
-                end_set_filter = await camera_remote.evt_endSetFilter.next(flush=False)
-                await self.handle_camera_filter(end_set_filter.filterName)
-
-        if self._is_camera_hexapod:
-            self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
-        else:
-            self.log.info(
-                "No temperature data for the M2 hexapod. Ignore the enable_lut_temperature."
-            )
 
     async def compensation_loop(self) -> None:
         """Apply compensation at regular intervals.
@@ -429,8 +455,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     is_compensation_loop=True,
                 )
             except Exception:
-                self.log.exception("Compensation failed; turning off compensation mode")
-                await self.evt_compensationMode.set_write(enabled=False)
+                self.log.exception("Compensation failed; CSC going to Fault.")
+                # TODO: (DM-47671): Update MTHexapod to use new error codes
+                # from ts-xml enumeration
+                async with self.csc_level_fault():
+                    await self.fault(-2, report="Compensation failed.")
                 return
 
     async def compensation_wait(self) -> None:
@@ -500,10 +529,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         if self.compensation_mode:
             compensation_inputs = self.get_compensation_inputs()
             if compensation_inputs is not None:
-                compensation_offset = self.compensation.get_offset(compensation_inputs)
-                compensated_pos = (
-                    uncompensated_pos + compensation_offset + self.filter_offset
+                compensation_offset = (
+                    self.compensation.get_offset(compensation_inputs)
+                    + self.filter_offset
                 )
+
+                compensated_pos = uncompensated_pos + compensation_offset
                 utils.check_position(
                     position=compensated_pos,
                     limits=self.current_pos_limits,
@@ -742,12 +773,19 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         filter_offset : `Position`
             Filter offset.
         """
-        if not self.filter_offsets_dict:
-            z_offset = 0
 
-        filter_object = self.filter_offsets_dict.get(filter_name)
-        if filter_object:
-            z_offset = filter_object.get("z_offset", 0)
+        z_offset = 0
+
+        filter_object = self.filter_offsets_dict.get(filter_name, None)
+        if filter_object is not None:
+            z_offset = filter_object.get("z_offset", 0.0)
+        else:
+            available_filters = ", ".join(self.filter_offsets_dict)
+            raise RuntimeError(
+                f"Filter {filter_name} not in the list of available filters: {available_filters}. "
+                "Make sure all mounted filters are properly configured with a filter offset in "
+                "the hexapod configuration."
+            )
 
         data = types.SimpleNamespace(
             x=0,
@@ -842,6 +880,29 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # shortly after issuing a move command.
         # I would much rather just issue the stop command!
         await self.stop_motion()
+
+    @contextlib.asynccontextmanager
+    async def csc_level_fault(self) -> typing.AsyncIterator[None]:
+        """Context manager to handle CSC level fault."""
+        try:
+            await self.stop_motion()
+        except Exception:
+            self.log.exception(
+                "Stop motion failed while handling csc level fault. Continuing."
+            )
+
+        try:
+            await self.run_command(
+                code=self.CommandCode.SET_STATE,  # type: ignore[attr-defined]
+                param1=hexrotcomm.enums.SetStateParam.STANDBY,
+            )
+            await self._enable_drives(False)
+        except Exception:
+            self.log.exception(
+                "Sending controller to standby failed while handling csc level fault."
+            )
+
+        yield
 
     async def basic_run_command(self, command: hexrotcomm.Command) -> None:
         # Overload of lsst.ts.hexrotcomm.BaseCsc's version
@@ -1076,14 +1137,29 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         if self.client.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError()
 
-        while (
-            self.n_telemetry < n_telemetry
-            or self.client.telemetry.enabled_substate != EnabledSubstate.STATIONARY
-        ):
+        self.log.debug(
+            f"Waiting for at least {n_telemetry} consecutive telemetry samples with stationary state."
+        )
+
+        n_telemetry_stopped = 0
+        while n_telemetry_stopped < n_telemetry:
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
             if self.client.telemetry.state != ControllerState.ENABLED:
                 raise asyncio.CancelledError()
+            if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
+                n_telemetry_stopped += 1
+                self.log.debug(
+                    f"[{n_telemetry_stopped}/{n_telemetry}]: Hexapod stationary."
+                )
+            else:
+                if n_telemetry_stopped > 0:
+                    self.log.warning(
+                        f"[{n_telemetry_stopped}/{n_telemetry}]: "
+                        "Hexapod became non-stationary after stationary state and waiting for it to stop. "
+                        "Reset counter."
+                    )
+                n_telemetry_stopped = 0
 
         return True
 
