@@ -185,6 +185,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Task for the camera filter monitor.
         self.camera_filter_monitor_task = make_done_future()
 
+        # Task to monitor the hexapod is in idle or not under the enabled
+        # state.
+        self.idle_time_monitor_task = make_done_future()
+
         # Record missing compensation inputs we have warned about,
         # to avoid duplicate warnings.
         self.bad_inputs_str = ""
@@ -197,6 +201,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Set in `config_callback` but we need an initial value.
         # 61.74 is the value for the mock controller as of 2021-04-15.
         self.max_move_duration = 65
+
+        # Asynchronous lock for the idle time in the enabled state.
+        self._lock_idle_time = asyncio.Lock()
+        self._idle_time_in_enabled_state = 0.0
 
         # Event set when a telemetry message is received from
         # the low-level controller, after it has been parsed.
@@ -270,6 +278,28 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             otherwise.
         """
         return getattr(self.config, self.subconfig_name)["enable_lut_temperature"]
+
+    @property
+    def high_current_threshold(self) -> float:
+        """High current threshold in Ampere.
+
+        Returns
+        -------
+        `float`
+            Threshold in Ampere.
+        """
+        return getattr(self.config, self.subconfig_name)["high_current_threshold"]
+
+    @property
+    def no_movement_timeout(self) -> float:
+        """Time limit for no movement in seconds under the Enabled state.
+
+        Returns
+        -------
+        `float`
+            Time limit in seconds.
+        """
+        return getattr(self.config, self.subconfig_name)["no_movement_timeout"]
 
     async def config_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs configuration.
@@ -918,7 +948,77 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             async with self.write_lock:
                 self.move_task.cancel()
                 self.compensation_loop_task.cancel()
+            self.idle_time_monitor_task.cancel()
             await self.evt_compensationMode.set_write(enabled=False)
+
+        if self.summary_state == salobj.State.ENABLED:
+            self.idle_time_monitor_task = asyncio.create_task(self.idle_time_monitor())
+
+    async def idle_time_monitor(self, period: float = 1.0, max_count: int = 10) -> None:
+        """Idle time monitor under the enabled state.
+
+        Parameters
+        ----------
+        period : `float`, optional
+            Polling period. (the default is 1.0)
+        max_count : `int`, optional
+            Maximum count of the polling. When the count reachs the maximum,
+            the idle time will be updated. This is to save the system resource
+            to acquire/release the asynchronous lock. (the default is 10)
+        """
+
+        self.log.info(
+            "Start the task to monitor the idle time under the enabled state."
+        )
+
+        count = 0
+        while self.summary_state == salobj.State.ENABLED:
+            await asyncio.sleep(period)
+
+            if self.client.telemetry.state == ControllerState.ENABLED:
+                count += 1
+            else:
+                count = 0
+
+            if count >= max_count:
+                await self._update_idle_time(count * period)
+
+                if self._idle_time_in_enabled_state >= self.no_movement_timeout:
+                    await self.standby_controller()
+
+                    self.log.info(
+                        "Standby the controller after the timeout of no movement when enabled."
+                    )
+
+                    # This is to keep the backward compatibility with ts_xml
+                    # v22.1.0 that does not have the 'transitionToIdle' event
+                    # defined in xml.
+                    # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
+                    if hasattr(self, "evt_transitionToIdle"):
+                        await self.evt_transitionToIdle.set_write(transitionToIdle=True)
+
+                count = 0
+
+        # Reset the idle time when not monitoring
+        await self._update_idle_time(0.0)
+
+        self.log.info("End the task to monitor the idle time under the enabled state.")
+
+    async def _update_idle_time(self, offset: float) -> None:
+        """Update the idle time.
+
+        Parameters
+        ----------
+        offset : `float`
+            Offset to add to the current idle time. If 0, the idle time will be
+            reset.
+        """
+
+        async with self._lock_idle_time:
+            if offset == 0.0:
+                self._idle_time_in_enabled_state = 0.0
+            else:
+                self._idle_time_in_enabled_state += offset
 
     async def start(self) -> None:
         await super().start()
@@ -980,6 +1080,26 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             busVoltage=client.telemetry.bus_voltage,
         )
         await self.tel_electrical.set_write(**electrical)
+
+        # Check the motor current is high or not
+        if self.config is not None:
+            # The motor current might be >= threshold in the normal operation.
+            # Therefore, we need to consider the idle time here as
+            # well. We just randomly to divide the timeout by 2. Once the idle
+            # time reaches the timeout, the self.idle_time_monitor() will
+            # standby the controller.
+            exist_high_current = any(
+                [
+                    abs(current) >= self.high_current_threshold
+                    for current in client.telemetry.motor_current
+                ]
+            ) and (self._idle_time_in_enabled_state >= (self.no_movement_timeout / 2))
+
+            # This is to keep the backward compatibility with ts_xml v22.1.0
+            # that does not have the 'highCurrent' event defined in xml.
+            # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
+            if hasattr(self, "evt_highCurrent"):
+                await self.evt_highCurrent.set_write(highCurrent=exist_high_current)
 
         in_position = (
             client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
@@ -1182,6 +1302,22 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             * Do not restart the compensation loop.
         """
         try:
+            # Enable the controller state first if it is not. Note that it
+            # might be put into the Standby state when the CSC is under the
+            # Enabled state without the movement after the timeout by the
+            # self.idle_time_monitor().
+            if self.client.telemetry.state != ControllerState.ENABLED:
+                await self.enable_controller()
+
+                self.log.info("Re-enable the controller from the idle.")
+
+                # This is to keep the backward compatibility with ts_xml
+                # v22.1.0 that does not have the 'transitionToIdle' event
+                # defined in xml.
+                # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
+                if hasattr(self, "evt_transitionToIdle"):
+                    await self.evt_transitionToIdle.set_write(transitionToIdle=False)
+
             compensation_info = self.compute_compensation(uncompensated_pos)
 
             if is_compensation_loop:
@@ -1243,6 +1379,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         if self.compensation_mode and not is_compensation_loop:
             self.compensation_loop_task = asyncio.create_task(self.compensation_loop())
+
+        await self._update_idle_time(0.0)
 
 
 def run_mthexapod() -> None:
