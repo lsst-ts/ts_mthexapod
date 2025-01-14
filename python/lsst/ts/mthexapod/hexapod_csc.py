@@ -892,11 +892,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
 
         try:
-            await self.run_command(
-                code=self.CommandCode.SET_STATE,  # type: ignore[attr-defined]
-                param1=hexrotcomm.enums.SetStateParam.STANDBY,
-            )
-            await self._enable_drives(False)
+            await self.standby_controller()
         except Exception:
             self.log.exception(
                 "Sending controller to standby failed while handling csc level fault."
