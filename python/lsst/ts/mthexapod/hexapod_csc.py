@@ -280,18 +280,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         return getattr(self.config, self.subconfig_name)["enable_lut_temperature"]
 
     @property
-    def high_current_threshold(self) -> float:
-        """High current threshold in Ampere.
-
-        Returns
-        -------
-        `float`
-            Threshold in Ampere.
-        """
-        return getattr(self.config, self.subconfig_name)["high_current_threshold"]
-
-    @property
-    def no_movement_timeout(self) -> float:
+    def no_movement_idle_time(self) -> float:
         """Time limit for no movement in seconds under the Enabled state.
 
         Returns
@@ -299,7 +288,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         `float`
             Time limit in seconds.
         """
-        return getattr(self.config, self.subconfig_name)["no_movement_timeout"]
+        return getattr(self.config, self.subconfig_name)["no_movement_idle_time"]
 
     async def config_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs configuration.
@@ -983,19 +972,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             if count >= max_count:
                 await self._update_idle_time(count * period)
 
-                if self._idle_time_in_enabled_state >= self.no_movement_timeout:
+                if self._idle_time_in_enabled_state >= self.no_movement_idle_time:
                     await self.standby_controller()
 
                     self.log.info(
                         "Standby the controller after the timeout of no movement when enabled."
                     )
-
-                    # This is to keep the backward compatibility with ts_xml
-                    # v22.1.0 that does not have the 'transitionToIdle' event
-                    # defined in xml.
-                    # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
-                    if hasattr(self, "evt_transitionToIdle"):
-                        await self.evt_transitionToIdle.set_write(transitionToIdle=True)
 
                 count = 0
 
@@ -1080,26 +1062,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             busVoltage=client.telemetry.bus_voltage,
         )
         await self.tel_electrical.set_write(**electrical)
-
-        # Check the motor current is high or not
-        if self.config is not None:
-            # The motor current might be >= threshold in the normal operation.
-            # Therefore, we need to consider the idle time here as
-            # well. We just randomly to divide the timeout by 2. Once the idle
-            # time reaches the timeout, the self.idle_time_monitor() will
-            # standby the controller.
-            exist_high_current = any(
-                [
-                    abs(current) >= self.high_current_threshold
-                    for current in client.telemetry.motor_current
-                ]
-            ) and (self._idle_time_in_enabled_state >= (self.no_movement_timeout / 2))
-
-            # This is to keep the backward compatibility with ts_xml v22.1.0
-            # that does not have the 'highCurrent' event defined in xml.
-            # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
-            if hasattr(self, "evt_highCurrent"):
-                await self.evt_highCurrent.set_write(highCurrent=exist_high_current)
 
         in_position = (
             client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
@@ -1310,13 +1272,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 await self.enable_controller()
 
                 self.log.info("Re-enable the controller from the idle.")
-
-                # This is to keep the backward compatibility with ts_xml
-                # v22.1.0 that does not have the 'transitionToIdle' event
-                # defined in xml.
-                # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
-                if hasattr(self, "evt_transitionToIdle"):
-                    await self.evt_transitionToIdle.set_write(transitionToIdle=False)
 
             compensation_info = self.compute_compensation(uncompensated_pos)
 

@@ -1557,17 +1557,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             assert self.csc.idle_time_monitor_task.done() is False
 
             # Controller shoudld be put into the idle after the timeout
-            self.csc.config.camera_config["no_movement_timeout"] = 9.0
+            self.csc.config.camera_config["no_movement_idle_time"] = 9.0
             await asyncio.sleep(10.0)
-
-            # This is to keep the backward compatibility with ts_xml
-            # v22.1.0 that does not have the 'transitionToIdle' event
-            # defined in xml.
-            # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
-            if hasattr(self.remote, "evt_transitionToIdle"):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_transitionToIdle, transitionToIdle=True
-                )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
@@ -1577,15 +1568,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             # Do the movement
             await self.remote.cmd_move.set_start(x=10)
-
-            # This is to keep the backward compatibility with ts_xml
-            # v22.1.0 that does not have the 'transitionToIdle' event
-            # defined in xml.
-            # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
-            if hasattr(self.remote, "evt_transitionToIdle"):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_transitionToIdle, transitionToIdle=False
-                )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_controllerState,
@@ -1598,26 +1580,3 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await asyncio.sleep(2.0)
 
             assert self.csc.idle_time_monitor_task.done() is True
-
-    async def test_event_high_current(self) -> None:
-
-        async with self.make_csc(
-            initial_state=salobj.State.ENABLED,
-            override="",
-            simulation_mode=1,
-        ):
-            # This is to keep the backward compatibility with ts_xml
-            # v22.1.0 that does not have the 'highCurrent' event
-            # defined in xml.
-            # TODO: Remove this after ts_xml v23.0.0. (DM-48161)
-            if hasattr(self.remote, "evt_highCurrent"):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_highCurrent, highCurrent=False
-                )
-
-                self.csc.config.camera_config["high_current_threshold"] = 0.0
-                self.csc.config.camera_config["no_movement_timeout"] = 18.0
-
-                await self.assert_next_sample(
-                    topic=self.remote.evt_highCurrent, highCurrent=True
-                )

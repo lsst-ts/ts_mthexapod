@@ -45,8 +45,7 @@ camera_config:
   min_temperature: -20
   max_temperature: 25
   enable_lut_temperature: True
-  high_current_threshold: 4.5
-  no_movement_timeout: 1200
+  no_movement_idle_time: 1200
   host: 127.0.0.1
   port: 5560
 m2_config:
@@ -88,7 +87,6 @@ m2_config:
   min_temperature: -21
   max_temperature: 26
   enable_lut_temperature: True
-  high_current_threshold: 4.5
-  no_movement_timeout: 1200
+  no_movement_idle_time: 1200
   host: 127.0.0.1
   port: 5550

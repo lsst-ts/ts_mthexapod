@@ -127,11 +127,7 @@ definitions:
           Use temperature LUT to compensate the deformation caused by
           temperature gradients or not.
         type: boolean
-      high_current_threshold:
-        description: >-
-          High current threshold in Ampere.
-        type: number
-      no_movement_timeout:
+      no_movement_idle_time:
         description: >-
           Time limit for no movement in seconds under the Enabled state.
         type: number
@@ -175,8 +171,7 @@ definitions:
       - min_temperature
       - max_temperature
       - enable_lut_temperature
-      - high_current_threshold
-      - no_movement_timeout
+      - no_movement_idle_time
       - host
       - port
     additionalProperties: false
