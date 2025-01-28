@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.3.3
+------
+
+* Idle (disable) the controller automatically.
+
 v1.3.2
 ------
 
