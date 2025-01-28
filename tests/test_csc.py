@@ -1542,3 +1542,41 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         async with salobj.Controller("CCCamera") as cccamera:
             await cccamera.evt_endSetFilter.set_write(filterName=initial_filter)
             yield cccamera
+
+    async def test_idle_time_monitor(self) -> None:
+
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            # Flush the event
+            self.remote.evt_controllerState.flush()
+
+            # Task should be running
+            assert self.csc.idle_time_monitor_task.done() is False
+
+            # Controller shoudld be put into the idle after the timeout
+            self.csc.config.camera_config["no_movement_idle_time"] = 9.0
+            await asyncio.sleep(10.0)
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_controllerState,
+                controllerState=ControllerState.STANDBY,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+
+            # Do the movement
+            await self.remote.cmd_move.set_start(x=10)
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_controllerState,
+                controllerState=ControllerState.ENABLED,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+
+            # The monitor task should be done after disabling the CSC
+            await salobj.set_summary_state(self.remote, salobj.State.DISABLED)
+            await asyncio.sleep(2.0)
+
+            assert self.csc.idle_time_monitor_task.done() is True
