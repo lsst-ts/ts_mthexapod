@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.3.4
+------
+
+* Remove the **ts_idl**.
+
 v1.3.3
 ------
 
