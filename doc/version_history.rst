@@ -10,6 +10,7 @@ v1.3.4
 ------
 
 * Remove the **ts_idl**.
+* Improve the tests.
 
 v1.3.3
 ------
