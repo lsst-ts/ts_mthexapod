@@ -577,7 +577,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         compensation_inputs : `CompensationInputs` or `None`
             The compensation inputs, if all inputs are available, else `None`.
         """
-        mount_elevation_azimuth = self._get_mount_elevation_azimuth()
+
+        mount_target = self.mtmount.evt_target.get()
+        mount_elevation = self.mtmount.tel_elevation.get()
+        mount_azimuth = self.mtmount.tel_azimuth.get()
+        mount_elevation_azimuth = self._get_mount_elevation_azimuth(
+            mount_target, mount_elevation, mount_azimuth
+        )
 
         missing_inputs = []
         nan_inputs = []
@@ -589,7 +595,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             if math.isnan(mount_elevation_azimuth[1]):
                 nan_inputs.append("MTMount.azimuth")
 
-        rotator_position = self._get_rotator_position()
+        rotator_target = self.mtrotator.evt_target.get()
+        rotator_rotation = self.mtrotator.tel_rotation.get()
+        rotator_position = self._get_rotator_position(rotator_target, rotator_rotation)
         if rotator_position is None:
             missing_inputs.append("MTRotator.position")
         elif math.isnan(rotator_position):
@@ -623,8 +631,22 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             temperature=temperature,
         )
 
-    def _get_mount_elevation_azimuth(self) -> None | tuple[float, float]:
+    def _get_mount_elevation_azimuth(
+        self,
+        mount_target: salobj.BaseMsgType,
+        mount_elevation: salobj.BaseMsgType,
+        mount_azimuth: salobj.BaseMsgType,
+    ) -> None | tuple[float, float]:
         """Get the mount elevation and azimuth.
+
+        Parameters
+        ----------
+        mount_target : `salobj.BaseMsgType`
+            Mount target event.
+        mount_elevation : `salobj.BaseMsgType`
+            Mount elevation telemetry.
+        mount_azimuth : `salobj.BaseMsgType`
+            Mount azimuth telemetry.
 
         Returns
         -------
@@ -632,11 +654,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             Mount elevation and azimuth.
         """
 
-        mount_target = self.mtmount.evt_target.get()
         if mount_target is None:
-            mount_elevation = self.mtmount.tel_elevation.get()
-            mount_azimuth = self.mtmount.tel_azimuth.get()
-
             if (mount_elevation is not None) and (mount_azimuth is not None):
                 return (mount_elevation.actualPosition, mount_azimuth.actualPosition)
 
@@ -645,8 +663,19 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         return None
 
-    def _get_rotator_position(self) -> None | float:
+    def _get_rotator_position(
+        self,
+        rotator_target: salobj.BaseMsgType,
+        rotator_rotation: salobj.BaseMsgType,
+    ) -> None | float:
         """Get the rotator position.
+
+        Parameters
+        ----------
+        rotator_target : `salobj.BaseMsgType`
+            Rotator target event.
+        rotator_rotation : `salobj.BaseMsgType`
+            Rotator rotation telemetry.
 
         Returns
         -------
@@ -654,9 +683,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             Rotator position.
         """
 
-        rotator_target = self.mtrotator.evt_target.get()
         if rotator_target is None:
-            rotator_rotation = self.mtrotator.tel_rotation.get()
             if rotator_rotation is not None:
                 return rotator_rotation.actualPosition
 
