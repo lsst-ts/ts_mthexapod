@@ -25,8 +25,10 @@ import typing
 import numpy as np
 import numpy.typing
 from lsst.ts import simactuators
+from scipy.optimize import minimize
 
 from . import utils
+from .constants import NUM_STRUT
 
 
 class SimpleHexapod:
@@ -317,3 +319,85 @@ class SimpleHexapod:
             mirror_positions.append(mirror_pos)
 
         return mirror_positions
+
+    @staticmethod
+    def inverse_kinematics(
+        positions: numpy.typing.NDArray[np.float64],
+        mirror_positions: numpy.typing.NDArray[np.float64],
+        base_positions: numpy.typing.NDArray[np.float64],
+        pivot: numpy.typing.NDArray[np.float64],
+    ) -> numpy.typing.NDArray[np.float64]:
+        # Do the inverse kinematics to change the hexapod positions to delta
+        # strut lengths.
+        x = positions[0]
+        y = positions[1]
+        z = positions[2]
+        rx = positions[3]
+        ry = positions[4]
+        rz = positions[5]
+
+        # Rotation matrix.
+        rot_x = np.array(
+            [[1, 0, 0], [0, np.cos(rx), -np.sin(rx)], [0, np.sin(rx), np.cos(rx)]]
+        )
+        rot_y = np.array(
+            [[np.cos(ry), 0, np.sin(ry)], [0, 1, 0], [-np.sin(ry), 0, np.cos(ry)]]
+        )
+        rot_z = np.array(
+            [[np.cos(rz), -np.sin(rz), 0], [np.sin(rz), np.cos(rz), 0], [0, 0, 1]]
+        )
+        rot_xyz = rot_x.dot(rot_y).dot(rot_z)
+
+        # Consider the rotation part
+        rotation_projection = rot_xyz.dot(
+            base_positions
+            - np.kron(
+                pivot.reshape(3, -1),
+                np.ones(NUM_STRUT),
+            )
+        )
+
+        # Consider the translation part
+        translation = np.kron(
+            (np.array([x, y, z]) + pivot).reshape(3, -1),
+            np.ones(NUM_STRUT),
+        )
+
+        delta_location = translation + rotation_projection - mirror_positions
+
+        # Calculate the delta strut lengths.
+        strut_length_total = np.sqrt(np.sum(delta_location**2, axis=0))
+
+        strut_length_norm = np.sqrt(
+            np.sum((mirror_positions - base_positions) ** 2, axis=0)
+        )
+        strut_length_delta = strut_length_total - strut_length_norm
+
+        return strut_length_delta
+
+    @staticmethod
+    def forward_kinematics(
+        initial_guess: numpy.typing.NDArray[np.float64],
+        strut_length_delta: numpy.typing.NDArray[np.float64],
+        mirror_positions: numpy.typing.NDArray[np.float64],
+        base_positions: numpy.typing.NDArray[np.float64],
+        pivot: numpy.typing.NDArray[np.float64],
+    ) -> numpy.typing.NDArray[np.float64]:
+        res = minimize(
+            lambda x: np.sum(
+                (
+                    SimpleHexapod.inverse_kinematics(
+                        x,
+                        mirror_positions,
+                        base_positions,
+                        pivot,
+                    )
+                    - strut_length_delta
+                )
+                ** 2
+            ),
+            initial_guess,
+            method="Nelder-Mead",
+            tol=1e-6,
+        )
+        return res.x
