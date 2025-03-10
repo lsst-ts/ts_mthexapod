@@ -82,30 +82,50 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     # "CAMERA HEXAPOD STRUT FLEXURE COORDINATES.xlsx"
     # (a copy is in the doc directory)
     # received from John Andrew 2020-02-13.
-    actuator_base_positions = [
-        np.array([-227647, 653753, 0]),
-        np.array([227647, 653753, 0]),
-        np.array([679990, -129728, 0]),
-        np.array([452343, -524025, 0]),
-        np.array([-452343, -524025, 0]),
-        np.array([-679990, -129728, 0]),
+    # Need to consider the geometry and coordinate system of the hexapod.
+    actuator_base_positions_camera = [
+        np.array([227600, 653800, -525000]),
+        np.array([-227600, 653800, -525000]),
+        np.array([-680000, -129700, -525000]),
+        np.array([-452300, -524000, -525000]),
+        np.array([452300, -524000, -525000]),
+        np.array([680000, -129700, -525000]),
     ]
-    actuator_mirror_positions = [
-        np.array([-472917, 512146, 403918]),
-        np.array([472917, 512146, 403918]),
-        np.array([679990, 153485, 403918]),
-        np.array([207073, -665631, 403918]),
-        np.array([-207073, -665631, 403918]),
-        np.array([-679990, 153485, 403918]),
+    actuator_mirror_positions_camera = [
+        np.array([472800, 512200, -121400]),
+        np.array([-472800, 512200, -121400]),
+        np.array([-680000, 153300, -121400]),
+        np.array([-207200, -665500, -121400]),
+        np.array([207200, -665500, -121400]),
+        np.array([680000, 153300, -121400]),
     ]
+
+    actuator_base_positions_m2 = [
+        np.array([0, 1701800, 114300]),
+        np.array([-1542350, -719210, 114300]),
+        np.array([1542350, -719210, 114300]),
+        np.array([790, 1460490, 228600]),
+        np.array([-1503370, 7660, 228600]),
+        np.array([1503370, 7660, 228600]),
+    ]
+    actuator_mirror_positions_m2 = [
+        np.array([0, 1701800, 607300]),
+        np.array([-1542350, -719210, 607300]),
+        np.array([1542350, -719210, 607300]),
+        np.array([493790, 1460490, 228600]),
+        np.array([-1256870, -419290, 228600]),
+        np.array([1256870, -419290, 228600]),
+    ]
+
     # Actuator position limits (µm) and speed (µm/second) from
     # https://github.com/lsst-ts/ts_mt_hexRot_middleware/blob/master/config/cam_hex/default.conf  # noqa
     actuator_max_length = 14100
     actuator_min_length = -14100
     actuator_speed = 500
 
-    # Default pivot position (µm). This is merely a guess.
-    pivot = (0, 0, 500_000)
+    # Default pivot position (µm).
+    pivot_camera = (0, 0, -2758400)
+    pivot_m2 = (0, 0, -703000)
 
     # Encoder resolution (counts/µm). This is merely a guess.
     actuator_encoder_resolution = 10
@@ -139,14 +159,29 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             constants.MAX_ANGULAR_VEL_LIMIT,
         )
         # Order: x, y, z, u, w, v
-        config.pivot = self.pivot
+        pivot = (
+            self.pivot_camera
+            if (index == enums.SalIndex.CAMERA_HEXAPOD)
+            else self.pivot_m2
+        )
+        config.pivot = pivot
         config.max_displacement_strut = self.actuator_max_length
         config.max_velocity_strut = self.actuator_speed
 
+        base_positions = (
+            self.actuator_base_positions_camera
+            if index == enums.SalIndex.CAMERA_HEXAPOD
+            else self.actuator_base_positions_m2
+        )
+        mirror_positions = (
+            self.actuator_mirror_positions_camera
+            if index == enums.SalIndex.CAMERA_HEXAPOD
+            else self.actuator_mirror_positions_m2
+        )
         self.hexapod = simple_hexapod.SimpleHexapod(
-            base_positions=self.actuator_base_positions,
-            mirror_positions=self.actuator_mirror_positions,
-            pivot=self.pivot,
+            base_positions=base_positions,
+            mirror_positions=mirror_positions,
+            pivot=pivot,
             min_length=self.actuator_min_length,
             max_length=self.actuator_max_length,
             speed=self.actuator_speed,
@@ -323,9 +358,10 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
 
             # self.telemetry.commanded_pos and commanded_length are both set
             # by MOVE and MOVE_LUT.
-            # self.telemetry.measured_xyz and uvw should be based on
-            # current position, but SimpleHexapod does not yet support
-            # determining orientation from actuator length.
+            # Although we could use the SimpleHexapod.forward_kinematics() to
+            # calculate the hexapod position, this would take too much
+            # system resource. Therefore, it is better to fake the telemetry
+            # directly with the commanded position.
             measured_xyz = np.copy(self.telemetry.commanded_pos[:3])
             measured_uvw = np.copy(self.telemetry.commanded_pos[3:])
             if self.telemetry.state == ControllerState.ENABLED:

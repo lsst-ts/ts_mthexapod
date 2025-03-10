@@ -863,7 +863,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             data = await self.remote.tel_electrical.next(
                 flush=True, timeout=STD_TIMEOUT
             )
-            np.testing.assert_array_less([0] * 6, data.motorCurrent)
+            np.testing.assert_array_less([0] * 6, np.abs(data.motorCurrent))
             assert_allclose(data.busVoltage, expected_bus_voltage)
 
     async def test_get_mount_elevation_azimuth_use_telemetry(self) -> None:
