@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v1.3.5
+------
+
+* Translate the Simulink calculation between the hexapod position and strut position.
+* Add the **kinematics.rst** and **trajectory.rst**.
+
 v1.3.4
 ------
 
