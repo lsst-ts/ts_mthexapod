@@ -160,6 +160,10 @@ Algorithm
     algorithm/kinematics
     :maxdepth: 1
 
+.. toctree::
+    algorithm/trajectory
+    :maxdepth: 1
+
 Version History
 ===============
 
