@@ -23,6 +23,7 @@ __all__ = [
     "MAX_ACCEL_LIMIT",
     "MAX_LINEAR_VEL_LIMIT",
     "MAX_ANGULAR_VEL_LIMIT",
+    "NUM_STRUT",
     "MAX_POSITION_LIMITS",
     "IndexControllerConstants",
 ]
@@ -37,6 +38,9 @@ MAX_ACCEL_LIMIT = 500.0
 # Limits for the velocitySet command (deg/sec).
 MAX_LINEAR_VEL_LIMIT = 2000.0
 MAX_ANGULAR_VEL_LIMIT = 0.1146
+
+# 6 struts in the hexapod
+NUM_STRUT = 6
 
 # Position limits for the two hexapods
 MAX_POSITION_LIMITS = {
