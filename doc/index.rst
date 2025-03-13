@@ -153,6 +153,17 @@ Developer Guide
     developer_guide
     :maxdepth: 1
 
+Algorithm
+===============
+
+.. toctree::
+    algorithm/kinematics
+    :maxdepth: 1
+
+.. toctree::
+    algorithm/trajectory
+    :maxdepth: 1
+
 Version History
 ===============
 

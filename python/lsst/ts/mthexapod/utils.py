@@ -30,6 +30,7 @@ __all__ = [
     "rot_about_y",
     "rot_about_z",
     "RAD_PER_DEG",
+    "UM_TO_M",
 ]
 
 import math
@@ -41,6 +42,7 @@ import numpy.typing
 from .base import Position, PositionLimits
 
 RAD_PER_DEG = math.pi / 180
+UM_TO_M = 1e-6
 
 
 def check_positive_value(
