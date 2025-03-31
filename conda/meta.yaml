@@ -43,3 +43,4 @@ requirements:
     - ts-salobj {{ salobj_version }}
     - ts-hexrotcomm
     - ts-simactuators
+    - scipy
