@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.3.6
+------
+
+* Add scipy to conda recipe.
+
 v1.3.5
 ------
 
