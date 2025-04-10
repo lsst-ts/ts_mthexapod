@@ -6,6 +6,16 @@
 Version History
 ###############
 
+v1.3.7
+------
+
+* Improve the ``setup.py`` to support the version of Python 3.11 and 3.12.
+
+v1.3.6
+------
+
+* Add scipy to conda recipe.
+
 v1.3.5
 ------
 
