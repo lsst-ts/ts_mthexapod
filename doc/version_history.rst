@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.3.8
+------
+
+* Check the delta strut length before the movement.
+
 v1.3.7
 ------
 
