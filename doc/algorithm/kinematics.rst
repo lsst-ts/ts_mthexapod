@@ -94,7 +94,7 @@ See the following figures for these two hexapods:
 
   M2 hexapod coordinate system and actuator locations/numbering for the M2 hexapod.
 
-The related base and mirror positions are recorded in the ``MockMTHexapodController`` of `mock_controller.py <https://github.com/lsst-ts/ts_mthexapod/blob/develop/python/lsst/ts/mthexapod/mock_controller.py>`_ as a reference.
+The related base and mirror positions are recorded in the `constants.py <https://github.com/lsst-ts/ts_mthexapod/blob/develop/python/lsst/ts/mthexapod/constants.py>`_ as a reference.
 
 You can see their mechanical structures are different.
 For the camera hexapod, 6 struts move together to do the z-axis movement.

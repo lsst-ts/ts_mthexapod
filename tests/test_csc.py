@@ -927,6 +927,25 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             assert self.csc._get_temperature() == 0.0
 
+    async def test_check_position(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            # Normal condition
+            position_normal = mthexapod.Position(0.0, 0.0, -10000.0, -0.22, 0.0, 0.0)
+            self.csc._check_position(position_normal)
+
+            # Should fail because of the delta strut length is out of range
+            with self.assertRaises(salobj.ExpectedError):
+                position_bad = mthexapod.Position(0.0, 0.0, -10000.0, -0.29, 0.0, 0.0)
+                self.csc._check_position(position_bad)
+
+            with self.assertRaises(salobj.ExpectedError):
+                position_bad = mthexapod.Position(0.0, 0.0, -10000.0, 0.29, 0.0, 0.0)
+                self.csc._check_position(position_bad)
+
     async def test_move_no_compensation_no_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
         no compensation inputs (which it should allow).

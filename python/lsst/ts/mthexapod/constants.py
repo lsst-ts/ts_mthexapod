@@ -26,9 +26,20 @@ __all__ = [
     "NUM_STRUT",
     "MAX_POSITION_LIMITS",
     "IndexControllerConstants",
+    "ACTUATOR_BASE_POSITIONS_CAMERA",
+    "ACTUATOR_MIRROR_POSITIONS_CAMERA",
+    "ACTUATOR_BASE_POSITIONS_M2",
+    "ACTUATOR_MIRROR_POSITIONS_M2",
+    "PIVOT_CAMERA",
+    "PIVOT_M2",
+    "ACTUATOR_MAX_LENGTH",
+    "ACTUATOR_MIN_LENGTH",
+    "ACTUATOR_SPEED",
 ]
 
 import dataclasses
+
+import numpy as np
 
 from . import base, enums
 
@@ -85,3 +96,52 @@ IndexControllerConstants = {
         subconfig_name="m2_config",
     ),
 }
+
+# MTHexapod actuator positions (µm) from
+# "CAMERA HEXAPOD STRUT FLEXURE COORDINATES.xlsx"
+# (a copy is in the doc directory)
+# received from John Andrew 2020-02-13.
+# Need to consider the geometry and coordinate system of the hexapod.
+ACTUATOR_BASE_POSITIONS_CAMERA = [
+    np.array([227600, 653800, -525000]),
+    np.array([-227600, 653800, -525000]),
+    np.array([-680000, -129700, -525000]),
+    np.array([-452300, -524000, -525000]),
+    np.array([452300, -524000, -525000]),
+    np.array([680000, -129700, -525000]),
+]
+ACTUATOR_MIRROR_POSITIONS_CAMERA = [
+    np.array([472800, 512200, -121400]),
+    np.array([-472800, 512200, -121400]),
+    np.array([-680000, 153300, -121400]),
+    np.array([-207200, -665500, -121400]),
+    np.array([207200, -665500, -121400]),
+    np.array([680000, 153300, -121400]),
+]
+
+ACTUATOR_BASE_POSITIONS_M2 = [
+    np.array([0, 1701800, 114300]),
+    np.array([-1542350, -719210, 114300]),
+    np.array([1542350, -719210, 114300]),
+    np.array([790, 1460490, 228600]),
+    np.array([-1503370, 7660, 228600]),
+    np.array([1503370, 7660, 228600]),
+]
+ACTUATOR_MIRROR_POSITIONS_M2 = [
+    np.array([0, 1701800, 607300]),
+    np.array([-1542350, -719210, 607300]),
+    np.array([1542350, -719210, 607300]),
+    np.array([493790, 1460490, 228600]),
+    np.array([-1256870, -419290, 228600]),
+    np.array([1256870, -419290, 228600]),
+]
+
+# Default pivot position (µm).
+PIVOT_CAMERA = (0, 0, -2758400)
+PIVOT_M2 = (0, 0, -703000)
+
+# Actuator position limits (µm) and speed (µm/second) from
+# https://github.com/lsst-ts/ts_mt_hexRot_middleware/blob/master/config/cam_hex/default.conf  # noqa
+ACTUATOR_MAX_LENGTH = 14100
+ACTUATOR_MIN_LENGTH = -14100
+ACTUATOR_SPEED = 500
