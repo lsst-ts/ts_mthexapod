@@ -78,55 +78,6 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     * Acceleration is treated as instantanous.
     """
 
-    # MTHexapod actuator positions (µm) from
-    # "CAMERA HEXAPOD STRUT FLEXURE COORDINATES.xlsx"
-    # (a copy is in the doc directory)
-    # received from John Andrew 2020-02-13.
-    # Need to consider the geometry and coordinate system of the hexapod.
-    actuator_base_positions_camera = [
-        np.array([227600, 653800, -525000]),
-        np.array([-227600, 653800, -525000]),
-        np.array([-680000, -129700, -525000]),
-        np.array([-452300, -524000, -525000]),
-        np.array([452300, -524000, -525000]),
-        np.array([680000, -129700, -525000]),
-    ]
-    actuator_mirror_positions_camera = [
-        np.array([472800, 512200, -121400]),
-        np.array([-472800, 512200, -121400]),
-        np.array([-680000, 153300, -121400]),
-        np.array([-207200, -665500, -121400]),
-        np.array([207200, -665500, -121400]),
-        np.array([680000, 153300, -121400]),
-    ]
-
-    actuator_base_positions_m2 = [
-        np.array([0, 1701800, 114300]),
-        np.array([-1542350, -719210, 114300]),
-        np.array([1542350, -719210, 114300]),
-        np.array([790, 1460490, 228600]),
-        np.array([-1503370, 7660, 228600]),
-        np.array([1503370, 7660, 228600]),
-    ]
-    actuator_mirror_positions_m2 = [
-        np.array([0, 1701800, 607300]),
-        np.array([-1542350, -719210, 607300]),
-        np.array([1542350, -719210, 607300]),
-        np.array([493790, 1460490, 228600]),
-        np.array([-1256870, -419290, 228600]),
-        np.array([1256870, -419290, 228600]),
-    ]
-
-    # Actuator position limits (µm) and speed (µm/second) from
-    # https://github.com/lsst-ts/ts_mt_hexRot_middleware/blob/master/config/cam_hex/default.conf  # noqa
-    actuator_max_length = 14100
-    actuator_min_length = -14100
-    actuator_speed = 500
-
-    # Default pivot position (µm).
-    pivot_camera = (0, 0, -2758400)
-    pivot_m2 = (0, 0, -703000)
-
     # Encoder resolution (counts/µm). This is merely a guess.
     actuator_encoder_resolution = 10
 
@@ -160,31 +111,31 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         )
         # Order: x, y, z, u, w, v
         pivot = (
-            self.pivot_camera
+            constants.PIVOT_CAMERA
             if (index == enums.SalIndex.CAMERA_HEXAPOD)
-            else self.pivot_m2
+            else constants.PIVOT_M2
         )
         config.pivot = pivot
-        config.max_displacement_strut = self.actuator_max_length
-        config.max_velocity_strut = self.actuator_speed
+        config.max_displacement_strut = constants.ACTUATOR_MAX_LENGTH
+        config.max_velocity_strut = constants.ACTUATOR_SPEED
 
         base_positions = (
-            self.actuator_base_positions_camera
+            constants.ACTUATOR_BASE_POSITIONS_CAMERA
             if index == enums.SalIndex.CAMERA_HEXAPOD
-            else self.actuator_base_positions_m2
+            else constants.ACTUATOR_BASE_POSITIONS_M2
         )
         mirror_positions = (
-            self.actuator_mirror_positions_camera
+            constants.ACTUATOR_MIRROR_POSITIONS_CAMERA
             if index == enums.SalIndex.CAMERA_HEXAPOD
-            else self.actuator_mirror_positions_m2
+            else constants.ACTUATOR_MIRROR_POSITIONS_M2
         )
         self.hexapod = simple_hexapod.SimpleHexapod(
             base_positions=base_positions,
             mirror_positions=mirror_positions,
             pivot=pivot,
-            min_length=self.actuator_min_length,
-            max_length=self.actuator_max_length,
-            speed=self.actuator_speed,
+            min_length=constants.ACTUATOR_MIN_LENGTH,
+            max_length=constants.ACTUATOR_MAX_LENGTH,
+            speed=constants.ACTUATOR_SPEED,
         )
         self.move_commanded = False
 
