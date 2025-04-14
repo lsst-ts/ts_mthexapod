@@ -50,6 +50,7 @@ from . import (
     utils,
 )
 from .config_schema import CONFIG_SCHEMA
+from .simple_hexapod import SimpleHexapod
 
 # Maximum time to stop axes (seconds).
 # The minimum needed is time to acquire the write lock,
@@ -227,6 +228,29 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         self.filter_offset = base.Position.from_struct(zero_offset)
 
+        # Set the pivot
+        pivot = (
+            constants.PIVOT_CAMERA
+            if (index == enums.SalIndex.CAMERA_HEXAPOD)
+            else constants.PIVOT_M2
+        )
+        self._pivot = np.array(pivot) * utils.UM_TO_M
+
+        # Set the base and mirror positions for the hexapod
+        base_positions = (
+            constants.ACTUATOR_BASE_POSITIONS_CAMERA
+            if index == enums.SalIndex.CAMERA_HEXAPOD
+            else constants.ACTUATOR_BASE_POSITIONS_M2
+        )
+        mirror_positions = (
+            constants.ACTUATOR_MIRROR_POSITIONS_CAMERA
+            if index == enums.SalIndex.CAMERA_HEXAPOD
+            else constants.ACTUATOR_MIRROR_POSITIONS_M2
+        )
+
+        self._base_positions = np.array(base_positions).T * utils.UM_TO_M
+        self._mirror_positions = np.array(mirror_positions).T * utils.UM_TO_M
+
         super().__init__(
             name="MTHexapod",
             index=index,
@@ -320,6 +344,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
         await self.evt_configuration.set_write(**configuration)
+
+        # Update the internal pivot
+        for idx in range(3):
+            self._pivot[idx] = client.config.pivot[idx] * utils.UM_TO_M
 
         self.current_pos_limits = base.PositionLimits.from_struct(
             self.evt_configuration.data
@@ -535,11 +563,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         salobj.ExpectedError
             If uncompensated or compensated position is out of bounds.
         """
-        utils.check_position(
-            position=uncompensated_pos,
-            limits=self.current_pos_limits,
-            ExceptionClass=salobj.ExpectedError,
-        )
+        self._check_position(uncompensated_pos)
 
         compensation_inputs = None
         compensation_offset = None
@@ -554,17 +578,65 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 )
 
                 compensated_pos = uncompensated_pos + compensation_offset
-                utils.check_position(
-                    position=compensated_pos,
-                    limits=self.current_pos_limits,
-                    ExceptionClass=salobj.ExpectedError,
-                )
+                self._check_position(compensated_pos)
 
         return CompensationInfo(
             uncompensated_pos=uncompensated_pos,
             compensation_inputs=compensation_inputs,
             compensation_offset=compensation_offset,
         )
+
+    def _check_position(self, position: base.Position) -> None:
+        """Check the position is within limits or not.
+
+        Parameters
+        ----------
+        position : `Position`
+            Position to check.
+
+        Raises
+        ------
+        `salobj.ExpectedError`
+            If the position is out of bounds.
+        """
+
+        # Check the position for each degree of freedom
+        utils.check_position(
+            position,
+            self.current_pos_limits,
+            ExceptionClass=salobj.ExpectedError,
+        )
+
+        # Check the delta actuator displacement
+        positions = np.array(
+            [
+                position.x * utils.UM_TO_M,
+                position.y * utils.UM_TO_M,
+                position.z * utils.UM_TO_M,
+                np.deg2rad(position.u),
+                np.deg2rad(position.v),
+                np.deg2rad(position.w),
+            ]
+        )
+        delta_strut_length = SimpleHexapod.inverse_kinematics(
+            positions,
+            self._pivot,
+            self._mirror_positions,
+            self._base_positions,
+        )
+
+        idx_max = np.abs(delta_strut_length).argmax()
+        max_abs_delta_strut_length = delta_strut_length[idx_max] / utils.UM_TO_M
+
+        if not (
+            constants.ACTUATOR_MIN_LENGTH
+            < max_abs_delta_strut_length
+            < constants.ACTUATOR_MAX_LENGTH
+        ):
+            raise salobj.ExpectedError(
+                f"{max_abs_delta_strut_length=} not in range "
+                f"({constants.ACTUATOR_MIN_LENGTH}, {constants.ACTUATOR_MAX_LENGTH})"
+            )
 
     def get_compensation_inputs(self) -> base.CompensationInputs | None:
         """Return the current compensation inputs, or None if not available.
@@ -1127,11 +1199,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         position : `Position`
             Desired position.
         """
-        utils.check_position(
-            position=position,
-            limits=self.current_pos_limits,
-            ExceptionClass=salobj.ExpectedError,
-        )
+        self._check_position(position)
         command_kwargs = {
             f"param{i+1}": value
             for i, value in enumerate(dataclasses.astuple(position))
