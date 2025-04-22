@@ -29,6 +29,7 @@ __all__ = [
     "rot_about_x",
     "rot_about_y",
     "rot_about_z",
+    "get_next_position",
     "RAD_PER_DEG",
     "UM_TO_M",
 ]
@@ -334,3 +335,63 @@ def rot_about_z(
     x, y, z = xyzpos
     rotx, roty = rot2d((x, y), ang)
     return np.array((rotx, roty, z), dtype=float)
+
+
+def get_next_position(
+    position_current: Position,
+    position_target: Position,
+    step_size_xy: float,
+    step_size_z: float,
+    step_size_uv: float,
+    step_size_w: float,
+) -> Position:
+    """Get the next position.
+
+    Parameters
+    ----------
+    position_current : `Position`
+        Current position.
+    position_target : `Position`
+        Target position.
+    step_size_xy : `float`
+        Absolute maximum step size in the x, y direction in um. Put 0 if
+        you want to do the movement in a single step.
+    step_size_z : `float`
+        Absolute maximum step size in the z direction in um. Put 0 if you
+        want to do the movement in a single step.
+    step_size_uv : `float`
+        Absolute maximum step size in the rx, ry direction in deg. Put 0 if
+        you want to do the movement in a single step.
+    step_size_w : `float`
+        Absolute maximum step size in the rz direction in deg. Put 0 if
+        you want to do the movement in a single step.
+
+    Returns
+    -------
+    position_next : `Position`
+        Next position.
+    """
+
+    position_next = Position(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+    position_diff = position_target - position_current
+    limits = [
+        step_size_xy,
+        step_size_xy,
+        step_size_z,
+        step_size_uv,
+        step_size_uv,
+        step_size_w,
+    ]
+    for axis, limit in zip(position_current.field_names(), limits):
+        diff = getattr(position_diff, axis)
+        step = abs(limit) if (diff >= 0) else -abs(limit)
+
+        if (step == 0.0) or (abs(diff) <= abs(step)):
+            value = getattr(position_target, axis)
+        else:
+            value = getattr(position_current, axis) + step
+
+        setattr(position_next, axis, value)
+
+    return position_next
