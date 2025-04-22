@@ -583,8 +583,16 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 "setPivot",
                 "stop",
             )
+            # TODO: Put these skip commands to the enabled commands after the
+            # ts_xml v23.2.0 release. They are not available in the current
+            # ts_xml version.
+            skip_commands = (
+                "moveInSteps",
+                "offsetInSteps",
+            )
             await self.check_standard_state_transitions(
-                enabled_commands=enabled_commands
+                enabled_commands=enabled_commands,
+                skip_commands=skip_commands,
             )
 
     async def test_configure_acceleration(self) -> None:
@@ -969,6 +977,104 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.assert_next_compensated_position(uncompensated_position)
             await self.assert_next_application(desired_position=uncompensated_position)
+
+    async def test_move_in_steps(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            # TODO: Remove this after the release of ts_xml v23.2.0. The
+            # current ts_xml version does not have the "moveInSteps" command.
+            if hasattr(self.remote, "cmd_moveInSteps"):
+                self.remote.evt_inPosition.flush()
+
+                # Assign the step size
+                await self.remote.cmd_moveInSteps.set_start(
+                    x=100.0, z=500.0, v=0.1, stepSizeZ=79.0, stepSizeUV=0.013
+                )
+
+                await self.check_in_position_event_and_position_telemetry(
+                    pos_atol=1e-1,
+                    ang_atol=1e-6,
+                )
+
+                # Overwrite the step size from the configuration
+                await self.remote.cmd_moveInSteps.set_start(
+                    x=200.0, z=1000.0, overwriteStepSizeFromConfig=True
+                )
+
+                await self.check_in_position_event_and_position_telemetry(
+                    pos_atol=1e-1,
+                    ang_atol=1e-6,
+                )
+
+    async def check_in_position_event_and_position_telemetry(
+        self,
+        pos_atol: float = 1e-2,
+        ang_atol: float = 1e-7,
+    ) -> None:
+        await self.assert_next_sample(
+            self.remote.evt_inPosition,
+            timeout=STD_TIMEOUT,
+            inPosition=False,
+        )
+        await self.assert_next_sample(
+            self.remote.evt_inPosition,
+            timeout=STD_TIMEOUT,
+            inPosition=True,
+        )
+
+        data = await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
+        self.assert_positions_close(
+            data.position,
+            data.demand,
+            pos_atol=pos_atol,
+            ang_atol=ang_atol,
+        )
+
+    async def test_offset_in_steps(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            # TODO: Remove this after the release of ts_xml v23.2.0. The
+            # current ts_xml version does not have the "offsetInSteps" command.
+            if hasattr(self.remote, "cmd_offsetInSteps"):
+                self.remote.evt_inPosition.flush()
+
+                # Assign the step size
+
+                # First offset
+                await self.remote.cmd_offsetInSteps.set_start(
+                    x=100.0, z=500.0, v=0.1, stepSizeZ=79.0, stepSizeUV=0.013
+                )
+
+                await self.check_in_position_event_and_position_telemetry(
+                    pos_atol=1e-1,
+                    ang_atol=1e-6,
+                )
+
+                # Second offset
+                await self.remote.cmd_offsetInSteps.set_start(
+                    x=-10.0, z=-100.0, v=0.009, stepSizeZ=79.0, stepSizeUV=0.013
+                )
+
+                await self.check_in_position_event_and_position_telemetry(
+                    pos_atol=1e-1,
+                    ang_atol=1e-6,
+                )
+
+                # Overwrite the step size from the configuration
+                await self.remote.cmd_offsetInSteps.set_start(
+                    x=-10.0, z=-100.0, v=0.009, overwriteStepSizeFromConfig=True
+                )
+
+                await self.check_in_position_event_and_position_telemetry(
+                    pos_atol=1e-1,
+                    ang_atol=1e-6,
+                )
 
     async def test_move_no_compensation_with_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
@@ -1533,8 +1639,20 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             for filter_name in ["i_06", "g_01", "u_02", "y_04", "z_03"]:
                 with self.subTest(filter_name=filter_name):
                     self.remote.evt_compensatedPosition.flush()
+                    self.remote.evt_inPosition.flush()
                     await cccamera.evt_endSetFilter.set_write(filterName=filter_name)
                     await self.assert_next_sample(self.remote.evt_compensatedPosition)
+
+                    await self.assert_next_sample(
+                        self.remote.evt_inPosition,
+                        timeout=STD_TIMEOUT,
+                        inPosition=False,
+                    )
+                    await self.assert_next_sample(
+                        self.remote.evt_inPosition,
+                        timeout=STD_TIMEOUT,
+                        inPosition=True,
+                    )
 
                     data = await self.remote.tel_application.next(
                         flush=True, timeout=STD_TIMEOUT
