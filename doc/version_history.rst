@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.4.0
+------
+
+* Update the CSC to support the movements in steps.
+
 v1.3.8
 ------
 
