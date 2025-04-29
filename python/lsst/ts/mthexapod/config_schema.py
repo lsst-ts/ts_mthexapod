@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/main/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v4
+title: MTHexapod v5
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -132,6 +132,26 @@ definitions:
           Time limit for no movement in seconds under the Enabled state.
         type: number
         exclusiveMinimum: 0
+      step_size_xy:
+        description: >-
+          Absolute maximum step size in the x, y direction in um. Put 0 if you
+          want to do the movement in a single step.
+        type: number
+      step_size_z:
+        description: >-
+          Absolute maximum step size in the z direction in um. Put 0 if you
+          want to do the movement in a single step.
+        type: number
+      step_size_uv:
+        description: >-
+          Absolute maximum step size in the rx, ry rotation in deg. Put 0 if
+          you want to do the movement in a single step.
+        type: number
+      step_size_w:
+        description: >-
+          Absolute maximum step size in the rz rotation in deg. Put 0 if you
+          want to do the movement in a single step.
+        type: number
       camera:
         description: >-
           Camera name.
@@ -172,6 +192,10 @@ definitions:
       - max_temperature
       - enable_lut_temperature
       - no_movement_idle_time
+      - step_size_xy
+      - step_size_z
+      - step_size_uv
+      - step_size_w
       - host
       - port
     additionalProperties: false

@@ -126,6 +126,10 @@ class BaseTestCase(unittest.TestCase):
         pred_data = {name: 0 for name, value in data.items()}
         self.assert_dataclass_data_almost_equal(zero_pos, pred_data)
 
+        # Test the equivalence
+        assert (pos1 == pos1) is True
+        assert (pos1 == zero_pos) is False
+
     def test_position_limits(self) -> None:
         assert mthexapod.PositionLimits.field_names() == (
             "maxXY",
