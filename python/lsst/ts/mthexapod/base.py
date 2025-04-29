@@ -126,6 +126,11 @@ class Position:
         }
         return Position(**kwargs)  # type: ignore[return-value]
 
+    def __eq__(self, other: object) -> bool:
+        return all(
+            getattr(self, name) == getattr(other, name) for name in self.field_names()
+        )
+
 
 @dataclasses.dataclass
 class PositionLimits:

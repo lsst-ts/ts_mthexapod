@@ -172,6 +172,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         #        self.compensation_loop_task.cancel()
         self.move_task = make_done_future()
 
+        # Task to do the movement in steps.
+        self.move_steps_task = make_done_future()
+
+        # Events used by the self.move_steps_task
+        self.move_steps_in_position_event = asyncio.Event()
+        self.move_steps_start_event = asyncio.Event()
+
         # Event that is set when a move or offset command is received.
         # This is intended for unit tests, which may clear the event
         # and wait for it to be set to know the command has been received.
@@ -262,6 +269,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             initial_state=initial_state,
             override=override,
             simulation_mode=simulation_mode,
+            extra_commands={"moveInSteps", "offsetInSteps"},
         )
 
         self.mtmount = salobj.Remote(
@@ -313,6 +321,54 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             Time limit in seconds.
         """
         return getattr(self.config, self.subconfig_name)["no_movement_idle_time"]
+
+    @property
+    def step_size_xy(self) -> float:
+        """Absolute maximum step size in the x, y direction in um. 0 means to
+        do the movement in a single step.
+
+        Returns
+        -------
+        `float`
+            Step size xy in um.
+        """
+        return getattr(self.config, self.subconfig_name)["step_size_xy"]
+
+    @property
+    def step_size_z(self) -> float:
+        """Absolute maximum step size in the z direction in um. 0 means to do
+        the movement in a single step.
+
+        Returns
+        -------
+        `float`
+            Step size z in um.
+        """
+        return getattr(self.config, self.subconfig_name)["step_size_z"]
+
+    @property
+    def step_size_uv(self) -> float:
+        """Absolute maximum step size in the rx, ry rotation in deg. 0 means to
+        do the movement in a single step.
+
+        Returns
+        -------
+        `float`
+            Step size uv in deg.
+        """
+        return getattr(self.config, self.subconfig_name)["step_size_uv"]
+
+    @property
+    def step_size_w(self) -> float:
+        """Absolute maximum step size in the rz rotation in deg. 0 means to do
+        the movement in a single step.
+
+        Returns
+        -------
+        `float`
+            Step size w in deg.
+        """
+        return getattr(self.config, self.subconfig_name)["step_size_w"]
 
     async def config_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs configuration.
@@ -500,6 +556,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     uncompensated_pos=uncompensated_pos,
                     sync=True,
                     is_compensation_loop=True,
+                    overwrite_step_size_from_config=True,
                 )
             except Exception:
                 self.log.exception("Compensation failed; CSC going to Fault.")
@@ -857,26 +914,107 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_move(self, data: salobj.BaseMsgType) -> None:
         """Move to a specified position and orientation.
 
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Data of the SAL message.
+        """
+        # TODO: Remove the overwrite_step_size_from_config=True after we
+        # release the ts_xml v23.2.0.
+        await self._move_hexapod(
+            base.Position.from_struct(data),
+            data.sync,
+            overwrite_step_size_from_config=True,
+        )
+
+    async def _move_hexapod(
+        self,
+        uncompensated_pos: base.Position,
+        sync: bool,
+        overwrite_step_size_from_config: bool = False,
+        step_size_xy: float = 0.0,
+        step_size_z: float = 0.0,
+        step_size_uv: float = 0.0,
+        step_size_w: float = 0.0,
+    ) -> None:
+        """Move the hexapod.
+
         Check the target before and after compensation (if applied).
         Both the target and the compensated position (if compensating)
         should be in range, so we can turn off compensation at will.
         If compensation mode is off we do not test compensated position,
         as it allows running with invalid compensation coefficients or inputs.
+
+        Parameters
+        ----------
+        uncompensated_pos : `base.Position`
+            Uncompensated position.
+        sync : `bool`
+            Should this be a synchronized move? Usually True.
+        overwrite_step_size_from_config : `bool`, optional
+            If True then the step size passed to this function are overwritten
+            from the configuration. (the default is False)
+        step_size_xy : `float`, optional
+            Absolute maximum step size in the x, y direction in um. Put 0 if
+            you want to do the movement in a single step. (default is 0.0)
+        step_size_z : `float`, optional
+            Absolute maximum step size in the z direction in um. Put 0 if you
+            want to do the movement in a single step. (default is 0.0)
+        step_size_uv : `float`, optional
+            Absolute maximum step size in the rx, ry direction in deg. Put 0 if
+            you want to do the movement in a single step. (default is 0.0)
+        step_size_w : `float`, optional
+            Absolute maximum step size in the rz direction in deg. Put 0 if
+            you want to do the movement in a single step. (default is 0.0)
         """
+
         self.assert_enabled()
         self.move_command_received_event.set()
-        uncompensated_pos = base.Position.from_struct(data)
 
         # Check the new position _before_ cancelling the current move (if any)
         # and starting a new move.
         self.compute_compensation(uncompensated_pos)
         async with self.write_lock:
+            self.move_steps_task.cancel()
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
         self.move_task = asyncio.create_task(
-            self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
+            self._move(
+                uncompensated_pos=uncompensated_pos,
+                sync=sync,
+                overwrite_step_size_from_config=overwrite_step_size_from_config,
+                step_size_xy=step_size_xy,
+                step_size_z=step_size_z,
+                step_size_uv=step_size_uv,
+                step_size_w=step_size_w,
+            )
         )
         await self.move_task
+
+    async def do_moveInSteps(self, data: salobj.BaseMsgType) -> None:
+        """Move to a specified position and orientation in steps.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Data of the SAL message.
+        """
+
+        if data.overwriteStepSizeFromConfig:
+            await self._move_hexapod(
+                base.Position.from_struct(data),
+                data.sync,
+                overwrite_step_size_from_config=True,
+            )
+        else:
+            await self._move_hexapod(
+                base.Position.from_struct(data),
+                data.sync,
+                step_size_xy=data.stepSizeXY,
+                step_size_z=data.stepSizeZ,
+                step_size_uv=data.stepSizeUV,
+                step_size_w=data.stepSizeW,
+            )
 
     def get_filter_offset(self, filter_name: str) -> base.Position:
         """Get the z offset for a given filter name.
@@ -930,29 +1068,68 @@ class HexapodCsc(hexrotcomm.BaseCsc):
     async def do_offset(self, data: salobj.BaseMsgType) -> None:
         """Move by a specified offset in position and orientation.
 
-        See note for do_move regarding checking the target position.
+        See note for self._move_hexapod() regarding checking the target
+        position.
         """
-        self.assert_enabled()
-        self.move_command_received_event.set()
-        curr_uncompensated_pos = self._get_uncompensated_position()
-        offset = base.Position.from_struct(data)
-        uncompensated_pos = curr_uncompensated_pos + offset
 
-        # Check the new position _before_ cancelling the current move (if any)
-        # and starting a new move.
-        self.compute_compensation(uncompensated_pos)
-        async with self.write_lock:
-            self.move_task.cancel()
-            self.compensation_loop_task.cancel()
-        self.move_task = asyncio.create_task(
-            self._move(uncompensated_pos=uncompensated_pos, sync=data.sync)
+        uncompensated_pos = self._get_uncompensated_position_with_offset(
+            base.Position.from_struct(data)
         )
-        await self.move_task
+
+        # TODO: Remove the overwrite_step_size_from_config=True after we
+        # release the ts_xml v23.2.0.
+        await self._move_hexapod(
+            uncompensated_pos, data.sync, overwrite_step_size_from_config=True
+        )
+
+    def _get_uncompensated_position_with_offset(
+        self, offset: base.Position
+    ) -> base.Position:
+        """Get the uncompensated position with the offset applied.
+
+        Parameters
+        ----------
+        offset : `base.Position`
+            Position offset.
+
+        Returns
+        -------
+        `base.Position`
+            Uncompensated position with the offset applied
+        """
+
+        curr_uncompensated_pos = self._get_uncompensated_position()
+        return curr_uncompensated_pos + offset
+
+    async def do_offsetInSteps(self, data: salobj.BaseMsgType) -> None:
+        """Move by a specified offset in position and orientation in steps.
+
+        See note for self._move_hexapod() regarding checking the target
+        position.
+        """
+
+        uncompensated_pos = self._get_uncompensated_position_with_offset(
+            base.Position.from_struct(data)
+        )
+        if data.overwriteStepSizeFromConfig:
+            await self._move_hexapod(
+                uncompensated_pos, data.sync, overwrite_step_size_from_config=True
+            )
+        else:
+            await self._move_hexapod(
+                uncompensated_pos,
+                data.sync,
+                step_size_xy=data.stepSizeXY,
+                step_size_z=data.stepSizeZ,
+                step_size_uv=data.stepSizeUV,
+                step_size_w=data.stepSizeW,
+            )
 
     async def do_setCompensationMode(self, data: salobj.BaseMsgType) -> None:
         self.assert_enabled()
         await self.evt_compensationMode.set_write(enabled=data.enable)
         async with self.write_lock:
+            self.move_steps_task.cancel()
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
         if not self._has_uncompensated_position():
@@ -974,7 +1151,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         else:
             self.log.info("Removing compensation from the current target position")
         self.move_task = asyncio.create_task(
-            self._move(uncompensated_pos=uncompensated_pos, sync=True)
+            self._move(
+                uncompensated_pos=uncompensated_pos,
+                sync=True,
+                overwrite_step_size_from_config=True,
+            )
         )
 
     async def do_setPivot(self, data: salobj.BaseMsgType) -> None:
@@ -991,6 +1172,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """Halt tracking or any other motion."""
         self.assert_enabled()
         async with self.write_lock:
+            self.move_steps_task.cancel()
             self.move_task.cancel()
             self.compensation_loop_task.cancel()
         # This seems to be necessary for the low-level controller
@@ -1034,6 +1216,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await super().handle_summary_state()
         if self.summary_state != salobj.State.ENABLED:
             async with self.write_lock:
+                self.move_steps_task.cancel()
                 self.move_task.cancel()
                 self.compensation_loop_task.cancel()
             self.idle_time_monitor_task.cancel()
@@ -1121,11 +1304,17 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Strangely telemetry.state and enabled_substate
         # are all floats from the controller. But they should only have
         # integer value, so I output them as integers.
+        enabled_substate = int(client.telemetry.enabled_substate)
         await self.evt_controllerState.set_write(
             controllerState=int(client.telemetry.state),
-            enabledSubstate=int(client.telemetry.enabled_substate),
+            enabledSubstate=enabled_substate,
             applicationStatus=client.telemetry.application_status,
         )
+
+        if (not self.move_steps_start_event.is_set()) and (
+            enabled_substate == EnabledSubstate.MOVING_POINT_TO_POINT.value
+        ):
+            self.move_steps_start_event.set()
 
         pos_error = [
             client.telemetry.measured_xyz[i] - client.telemetry.commanded_pos[i]
@@ -1165,7 +1354,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         in_position = (
             client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         )
-        await self.evt_inPosition.set_write(inPosition=in_position)
+        if (not self.move_steps_in_position_event.is_set()) and in_position:
+            self.move_steps_in_position_event.set()
+
+        # Only publish the inPosition event when the self.move_steps_task is
+        # done. This is to avoid the interference of the results of each small
+        # step movement.
+        if self.move_steps_task.done() and in_position:
+            await self.evt_inPosition.set_write(inPosition=True)
 
         await self.evt_commandableByDDS.set_write(
             state=bool(
@@ -1246,6 +1442,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await self.wait_n_telemetry()
         if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
             return
+
+        # Cancel the self.move_steps_task if it is running
+        if not self.move_steps_task.done():
+            self.move_steps_task.cancel()
 
         await self.run_command(
             code=enums.CommandCode.SET_ENABLED_SUBSTATE,
@@ -1341,6 +1541,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         uncompensated_pos: base.Position,
         sync: bool,
         is_compensation_loop: bool = False,
+        overwrite_step_size_from_config: bool = False,
+        step_size_xy: float = 0.0,
+        step_size_z: float = 0.0,
+        step_size_uv: float = 0.0,
+        step_size_w: float = 0.0,
     ) -> None:
         """Command a move and output appropriate events.
 
@@ -1357,6 +1562,21 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             * Check the amount of compensation and only move if at least one
               axis has changed by at least self.min_compensation_adjustment.
             * Do not restart the compensation loop.
+        overwrite_step_size_from_config : `bool`, optional
+            If True then the step size passed to this function are overwritten
+            from the configuration (the default is False).
+        step_size_xy : `float`, optional
+            Absolute maximum step size in the x, y direction in um. Put 0 if
+            you want to do the movement in a single step. (the default is 0.0)
+        step_size_z : `float`, optional
+            Absolute maximum step size in the z direction in um. Put 0 if you
+            want to do the movement in a single step. (the default is 0.0)
+        step_size_uv : `float`, optional
+            Absolute maximum step size in the rx, ry direction in deg. Put 0 if
+            you want to do the movement in a single step. (the default is 0.0)
+        step_size_w : `float`, optional
+            Absolute maximum step size in the rz direction in deg. Put 0 if
+            you want to do the movement in a single step. (the default is 0.0)
         """
         try:
             # Enable the controller state first if it is not. Note that it
@@ -1391,17 +1611,31 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             # Stop the current motion, if any, and wait for it to stop.
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
 
-            # Command the new motion.
-            cmd1 = self._make_position_set_command(compensation_info.compensated_pos)
-            cmd2 = self.make_command(
-                code=enums.CommandCode.SET_ENABLED_SUBSTATE,
-                param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-                param2=int(sync),
+            # Get the step size from the configuration if needed.
+            step_size_xy_final = (
+                self.step_size_xy if overwrite_step_size_from_config else step_size_xy
             )
-            # Need to wait some time between two commands for the Simulink
-            # model to transition the state correctly with the appropriate
-            # parameter.
-            await self.run_multiple_commands(cmd1, cmd2, delay=0.1)
+            step_size_z_final = (
+                self.step_size_z if overwrite_step_size_from_config else step_size_z
+            )
+            step_size_uv_final = (
+                self.step_size_uv if overwrite_step_size_from_config else step_size_uv
+            )
+            step_size_w_final = (
+                self.step_size_w if overwrite_step_size_from_config else step_size_w
+            )
+
+            # Command the new motion.
+            self.move_steps_task = asyncio.create_task(
+                self._command_controller_to_move_hexapod(
+                    compensation_info.compensated_pos,
+                    sync,
+                    step_size_xy=step_size_xy_final,
+                    step_size_z=step_size_z_final,
+                    step_size_uv=step_size_uv_final,
+                    step_size_w=step_size_w_final,
+                )
+            )
 
             await self.evt_uncompensatedPosition.set_write(**vars(uncompensated_pos))
             await self.evt_compensatedPosition.set_write(
@@ -1431,6 +1665,148 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.compensation_loop_task = asyncio.create_task(self.compensation_loop())
 
         await self._update_idle_time(0.0)
+
+    async def _command_controller_to_move_hexapod(
+        self,
+        position_target: base.Position,
+        sync: bool,
+        step_size_xy: float = 0.0,
+        step_size_z: float = 0.0,
+        step_size_uv: float = 0.0,
+        step_size_w: float = 0.0,
+    ) -> None:
+        """Command the controller to move the hexapod.
+
+        Parameters
+        ----------
+        position_target : `base.Position`
+            Target position.
+        sync : `bool`
+            Should this be a synchronized move? Usually True.
+        step_size_xy : `float`, optional
+            Absolute maximum step size in the x, y direction in um. Put 0 if
+            you want to do the movement in a single step. (the default is 0.0)
+        step_size_z : `float`, optional
+            Absolute maximum step size in the z direction in um. Put 0 if you
+            want to do the movement in a single step. (the default is 0.0)
+        step_size_uv : `float`, optional
+            Absolute maximum step size in the rx, ry direction in deg. Put 0 if
+            you want to do the movement in a single step. (the default is 0.0)
+        step_size_w : `float`, optional
+            Absolute maximum step size in the rz direction in deg. Put 0 if
+            you want to do the movement in a single step. (the default is 0.0)
+        """
+
+        await self.evt_inPosition.set_write(inPosition=False)
+
+        position_next = self._get_next_position(
+            position_target,
+            step_size_xy,
+            step_size_z,
+            step_size_uv,
+            step_size_w,
+        )
+        while position_next != position_target:
+            # Use this event to know the hexapod begins the movement or not.
+            self.move_steps_start_event.clear()
+
+            await self._internal_commands_to_controller(position_next, sync)
+
+            await self.move_steps_start_event.wait()
+
+            # Wait for the in_position event for the step-movement.
+            self.move_steps_in_position_event.clear()
+            await self.move_steps_in_position_event.wait()
+
+            position_next = self._get_next_position(
+                position_target,
+                step_size_xy,
+                step_size_z,
+                step_size_uv,
+                step_size_w,
+            )
+
+        # Issue the final movement outside the above while loop to let the CSC
+        # can publish the inPosition event.
+        await self._internal_commands_to_controller(position_next, sync)
+
+    def _get_next_position(
+        self,
+        position_target: base.Position,
+        step_size_xy: float,
+        step_size_z: float,
+        step_size_uv: float,
+        step_size_w: float,
+    ) -> base.Position:
+        """Get the next position.
+
+        Parameters
+        ----------
+        position_target : `base.Position`
+            Target position.
+        step_size_xy : `float`
+            Absolute maximum step size in the x, y direction in um. Put 0 if
+            you want to do the movement in a single step.
+        step_size_z : `float`
+            Absolute maximum step size in the z direction in um. Put 0 if you
+            want to do the movement in a single step.
+        step_size_uv : `float`
+            Absolute maximum step size in the rx, ry direction in deg. Put 0 if
+            you want to do the movement in a single step.
+        step_size_w : `float`
+            Absolute maximum step size in the rz direction in deg. Put 0 if
+            you want to do the movement in a single step.
+
+        Returns
+        -------
+        `base.Position`
+            The next position.
+        """
+        measured_xyz = self.client.telemetry.measured_xyz
+        measured_uvw = self.client.telemetry.measured_uvw
+        position_current = base.Position(
+            x=measured_xyz[0],
+            y=measured_xyz[1],
+            z=measured_xyz[2],
+            u=measured_uvw[0],
+            v=measured_uvw[1],
+            w=measured_uvw[2],
+        )
+
+        return utils.get_next_position(
+            position_current,
+            position_target,
+            step_size_xy,
+            step_size_z,
+            step_size_uv,
+            step_size_w,
+        )
+
+    async def _internal_commands_to_controller(
+        self, position: base.Position, sync: bool, delay: float = 0.1
+    ) -> None:
+        """Issue the internal commands to the controller.
+
+        Parameters
+        ----------
+        position : `base.Position`
+            Position.
+        sync : `bool`
+            Should this be a synchronized move? Usually True.
+        delay : `float`, optional
+            Delay time between the commands. (the default is 0.1)
+        """
+
+        cmd1 = self._make_position_set_command(position)
+        cmd2 = self.make_command(
+            code=enums.CommandCode.SET_ENABLED_SUBSTATE,
+            param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
+            param2=int(sync),
+        )
+        # Need to wait some time between two commands for the Simulink
+        # model to transition the state correctly with the appropriate
+        # parameter.
+        await self.run_multiple_commands(cmd1, cmd2, delay=delay)
 
 
 def run_mthexapod() -> None:
