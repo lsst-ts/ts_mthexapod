@@ -1374,6 +1374,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             client.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
         )
         await self.evt_interlock.set_write(engaged=safety_interlock)
+        if (self.summary_state == salobj.State.FAULT) and safety_interlock:
+            # TODO: Use the ErrorCode.INTERLOCK_OPEN in ts_xml v23.2.0
+            await self.evt_errorCode.set_write(
+                errorCode=-3,
+                errorReport="Safety interlock open",
+            )
 
         if self.n_telemetry < MAX_N_TELEMETRY:
             self.n_telemetry += 1
