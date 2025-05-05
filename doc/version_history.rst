@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.4.1
+------
+
+* Publish the error code event of interlock-open when the CSC is in fault.
+
 v1.4.0
 ------
 
