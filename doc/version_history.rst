@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.4.2
+------
+
+* Support the ESS temperature sensor for M2 hexapod.
+
 v1.4.1
 ------
 
