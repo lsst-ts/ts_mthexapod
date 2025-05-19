@@ -87,10 +87,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         ) as self.mtrotator_controller, salobj.Controller(
             name="ESS",
             index=1,
-        ) as self.ess_camhex_controller:
+        ) as self.ess_temperature_controller:
             # self.mtmount_controller = mtmount_controller
             # self.mtrotator_controller = mtrotator_controller
-            # self.ess_camhex_controller = ess_camhex_controller
+            # self.ess_temperature_controller = ess_temperature_controller
             yield
 
     async def assert_next_application(
@@ -500,7 +500,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             temperatureItem = [np.nan] * 16
             temperatureItem[0:6] = [temperature] * 6
-            await self.ess_camhex_controller.tel_temperature.set_write(
+            await self.ess_temperature_controller.tel_temperature.set_write(
                 temperatureItem=temperatureItem
             )
 

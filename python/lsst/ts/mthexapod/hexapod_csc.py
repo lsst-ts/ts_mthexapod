@@ -223,7 +223,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Maxes out at MAX_N_TELEMETRY.
         self.n_telemetry = 0
 
-        self._is_camera_hexapod = index == enums.SalIndex.CAMERA_HEXAPOD
         # Initialize filter offset
         zero_offset = types.SimpleNamespace(
             x=0,
@@ -282,8 +281,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
         # See the ts_config_ocs/ESS
-        self.ess_camhex = salobj.Remote(
-            domain=self.domain, name="ESS", index=1, include=["temperature"]
+        self.ess_temperature = salobj.Remote(
+            domain=self.domain, name="ESS", index=index.value, include=["temperature"]
         )
 
     @property
@@ -474,12 +473,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
             self.filter_offsets_dict = subconfig.filter_offsets
 
-        if self._is_camera_hexapod:
-            self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
-        else:
-            self.log.info(
-                "No temperature data for the M2 hexapod. Ignore the enable_lut_temperature."
-            )
+        self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
 
     async def monitor_camera_filter(self, camera: str) -> None:
         """Monitor the camera filter and apply compensation as needed.
@@ -831,12 +825,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         """
 
         if (
-            self._is_camera_hexapod
-            and self.enable_lut_temperature
-            and self.ess_camhex.tel_temperature.has_data
+            self.enable_lut_temperature
+            and self.ess_temperature.tel_temperature.has_data
         ):
             temperatures = np.array(
-                self.ess_camhex.tel_temperature.get().temperatureItem
+                self.ess_temperature.tel_temperature.get().temperatureItem
             )
 
             # Only the first 6 elements are used
