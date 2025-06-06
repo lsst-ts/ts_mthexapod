@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.4.3
+------
+
+* Improve the way to trigger the new movement in the compensation mode.
+
 v1.4.2
 ------
 
