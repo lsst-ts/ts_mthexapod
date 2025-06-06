@@ -1593,15 +1593,17 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 if compensation_info.compensation_offset is None:
                     return
                 names = base.Position.field_names()
-                compensation_offset_list = [
-                    getattr(compensation_info.compensation_offset, name)
-                    for name in names
+                compensated_pos_list = [
+                    getattr(compensation_info.compensated_pos, name) for name in names
                 ]
-                prior_compensation_offset_list = [
-                    getattr(self.evt_compensationOffset.data, name) for name in names
+                current_position = self._get_current_position()
+                current_position_list = [
+                    getattr(current_position, name) for name in names
                 ]
+
                 delta = np.subtract(
-                    compensation_offset_list, prior_compensation_offset_list
+                    compensated_pos_list,
+                    current_position_list,
                 )
                 if np.all(np.abs(delta) < self.min_compensation_adjustment):
                     self.log.debug("Compensation offset too small to apply: %s", delta)
@@ -1761,24 +1763,32 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         `base.Position`
             The next position.
         """
+        return utils.get_next_position(
+            self._get_current_position(),
+            position_target,
+            step_size_xy,
+            step_size_z,
+            step_size_uv,
+            step_size_w,
+        )
+
+    def _get_current_position(self) -> base.Position:
+        """Get the current position.
+
+        Returns
+        -------
+        `base.Position`
+            The current position.
+        """
         measured_xyz = self.client.telemetry.measured_xyz
         measured_uvw = self.client.telemetry.measured_uvw
-        position_current = base.Position(
+        return base.Position(
             x=measured_xyz[0],
             y=measured_xyz[1],
             z=measured_xyz[2],
             u=measured_uvw[0],
             v=measured_uvw[1],
             w=measured_uvw[2],
-        )
-
-        return utils.get_next_position(
-            position_current,
-            position_target,
-            step_size_xy,
-            step_size_z,
-            step_size_uv,
-            step_size_w,
         )
 
     async def _internal_commands_to_controller(
