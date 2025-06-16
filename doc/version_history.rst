@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v1.4.4
+------
+
+* Simplify the ``setup.py``.
+
 v1.4.3
 ------
 
