@@ -185,6 +185,34 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
         self.assert_dataclasses_almost_equal(position, read_position)
 
+    async def assert_initial_compensation_values(self) -> None:
+        """Check that the CSC resets compensation information when enabled."""
+
+        compensation_offset = await self.assert_next_sample(
+            topic=self.remote.evt_compensationOffset,
+        )
+        compensation_position = await self.assert_next_sample(
+            topic=self.remote.evt_compensatedPosition,
+        )
+        uncompensation_position = await self.assert_next_sample(
+            topic=self.remote.evt_uncompensatedPosition,
+        )
+
+        names = mthexapod.base.Position.field_names()
+
+        assert math.isnan(compensation_offset.elevation)
+        assert math.isnan(compensation_offset.azimuth)
+        assert math.isnan(compensation_offset.rotation)
+        assert math.isnan(compensation_offset.temperature)
+        for name in names:
+            assert math.isnan(getattr(compensation_offset, name))
+
+        for name in names:
+            assert math.isnan(getattr(compensation_position, name))
+
+        for name in names:
+            assert math.isnan(getattr(uncompensation_position, name))
+
     def assert_positions_close(
         self,
         position1: mthexapod.Position | tuple[float, float, float, float, float, float],
@@ -644,6 +672,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 controllerState=ControllerState.ENABLED,
                 enabledSubstate=EnabledSubstate.STATIONARY,
             )
+            await self.assert_initial_compensation_values()
+
             self.set_speed_factor(20)
 
             data = await self.remote.evt_configuration.next(
@@ -964,6 +994,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_initial_compensation_values()
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
@@ -984,6 +1015,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             override="",
             simulation_mode=1,
         ):
+            await self.assert_initial_compensation_values()
             # TODO: Remove this after the release of ts_xml v23.2.0. The
             # current ts_xml version does not have the "moveInSteps" command.
             if hasattr(self.remote, "cmd_moveInSteps"):
@@ -1039,6 +1071,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             override="",
             simulation_mode=1,
         ):
+            await self.assert_initial_compensation_values()
             # TODO: Remove this after the release of ts_xml v23.2.0. The
             # current ts_xml version does not have the "offsetInSteps" command.
             if hasattr(self.remote, "cmd_offsetInSteps"):
@@ -1085,6 +1118,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             override="",
             simulation_mode=1,
         ):
+            await self.assert_initial_compensation_values()
             await self.set_compensation_inputs(
                 elevation=45, azimuth=-50, rotation=88, temperature=23
             )
@@ -1113,6 +1147,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             override="",
             simulation_mode=1,
         ):
+            await self.assert_initial_compensation_values()
             compensation_inputs_list = (
                 mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=15
@@ -1213,6 +1248,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             override="",
             simulation_mode=1,
         ):
+            await self.assert_initial_compensation_values()
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
@@ -1257,6 +1293,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
+            await self.assert_initial_compensation_values()
 
             await self.assert_next_application(desired_position=ZERO_POSITION)
             await self.assert_next_sample(
@@ -1375,6 +1412,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             await self.assert_next_application(desired_position=ZERO_POSITION)
+            await self.assert_initial_compensation_values()
             await self.check_offset(
                 first_uncompensated_position=first_uncompensated_position,
                 offset=offset,
@@ -1398,6 +1436,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             override="",
             simulation_mode=1,
         ):
+            await self.assert_initial_compensation_values()
             compensation_inputs_list = (
                 mthexapod.CompensationInputs(
                     elevation=32, azimuth=44, rotation=-5, temperature=15
@@ -1601,6 +1640,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await self.assert_next_sample(
                 topic=self.remote.evt_compensationMode, enabled=False
             )
+            await self.assert_initial_compensation_values()
             await self.remote.cmd_setCompensationMode.set_start(
                 enable=True, timeout=STD_TIMEOUT
             )
