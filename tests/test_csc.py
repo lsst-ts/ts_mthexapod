@@ -1625,8 +1625,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
     async def test_filter_offset(self) -> None:
 
+        initial_filter = "r_03"
+
         async with self.cccamera_controller(
-            initial_filter="r_03"
+            initial_filter=initial_filter
         ) as cccamera, self.make_csc(
             initial_state=salobj.State.ENABLED,
             override="with_filter_offset.yaml",
@@ -1719,6 +1721,90 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 flush=False,
                 timeout=STD_TIMEOUT,
             )
+
+            # Enable the CSC and ensure filter offset still works.
+            await cccamera.evt_endSetFilter.set_write(filterName=initial_filter)
+
+            self.remote.evt_controllerState.flush()
+            self.remote.evt_compensationOffset.flush()
+            self.remote.evt_compensatedPosition.flush()
+            self.remote.evt_uncompensatedPosition.flush()
+
+            await salobj.set_summary_state(
+                self.remote,
+                salobj.State.ENABLED,
+                override="with_filter_offset.yaml",
+            )
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=False
+            )
+
+            await self.assert_initial_compensation_values()
+
+            await self.remote.cmd_setCompensationMode.set_start(
+                enable=True, timeout=STD_TIMEOUT
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_compensationMode, enabled=True
+            )
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+
+            uncompensated_position = mthexapod.Position(
+                500, -300, 200, 0.03, -0.02, 0.03
+            )
+            await self.check_move(
+                uncompensated_position=uncompensated_position,
+                est_move_duration=1,
+            )
+
+            # Test with the initial filter.
+            update_inputs = False
+            await self.check_compensation(
+                uncompensated_position=uncompensated_position,
+                compensation_inputs=compensation_inputs,
+                update_inputs=update_inputs,
+            )
+
+            # now test with the other available filters
+            compensated_position_initial_filter = (
+                await self.remote.tel_application.next(flush=True, timeout=STD_TIMEOUT)
+            )
+
+            for filter_name in ["i_06", "g_01", "u_02", "y_04", "z_03"]:
+                with self.subTest(filter_name=filter_name):
+                    self.remote.evt_compensatedPosition.flush()
+                    self.remote.evt_inPosition.flush()
+                    await cccamera.evt_endSetFilter.set_write(filterName=filter_name)
+                    await self.assert_next_sample(self.remote.evt_compensatedPosition)
+
+                    await self.assert_next_sample(
+                        self.remote.evt_inPosition,
+                        timeout=STD_TIMEOUT,
+                        inPosition=False,
+                    )
+                    await self.assert_next_sample(
+                        self.remote.evt_inPosition,
+                        timeout=STD_TIMEOUT,
+                        inPosition=True,
+                    )
+
+                    data = await self.remote.tel_application.next(
+                        flush=True, timeout=STD_TIMEOUT
+                    )
+                    compensated_position_initial_filter.position[2] += filter_offset[
+                        filter_name
+                    ]["z_offset"]
+                    self.assert_positions_close(
+                        compensated_position_initial_filter.position,
+                        data.position,
+                        pos_atol=1,
+                        ang_atol=1e-5,
+                    )
+                    compensated_position_initial_filter.position[2] -= filter_offset[
+                        filter_name
+                    ]["z_offset"]
 
     @contextlib.asynccontextmanager
     async def cccamera_controller(
