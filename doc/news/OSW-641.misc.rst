@@ -1,0 +1,1 @@
+Updated ``HexapodCSC.configure`` to include some additional logging and change the order of operations where it sets the filter offset and initialize the focus offset loop.
