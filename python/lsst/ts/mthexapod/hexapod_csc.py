@@ -189,6 +189,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         #     async with self.write_lock:
         #        self.compensation_loop_task.cancel()
         self.compensation_loop_task = make_done_future()
+        self.initial_compensation_offset_applied = False
 
         # Task for the camera filter monitor.
         self.camera_filter_monitor_task = make_done_future()
@@ -1235,6 +1236,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         if self.summary_state == salobj.State.ENABLED:
             self.idle_time_monitor_task = asyncio.create_task(self.idle_time_monitor())
+            self.initial_compensation_offset_applied = False
 
     async def idle_time_monitor(self, period: float = 1.0, max_count: int = 10) -> None:
         """Idle time monitor under the enabled state.
@@ -1624,9 +1626,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     current_position_list,
                 )
                 if np.all(np.abs(delta) < self.min_compensation_adjustment):
-                    self.log.debug("Compensation offset too small to apply: %s", delta)
-                    return
+                    if not self.initial_compensation_offset_applied:
+                        self.log.info(
+                            f"Compensation offset too small: {delta}. "
+                            "However this is the initial compensation offset so applying it anyway."
+                        )
+                    else:
+                        self.log.debug(
+                            "Compensation offset too small to apply: %s", delta
+                        )
+                        return
 
+                self.initial_compensation_offset_applied = True
             # Stop the current motion, if any, and wait for it to stop.
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
 
