@@ -1441,8 +1441,20 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             If the current uncompensated position has never been reported.
         """
         uncompensated_data = self.evt_uncompensatedPosition.data
+        current_position = self._get_current_position()
+
         if uncompensated_data is None:
             raise salobj.ExpectedError("No uncompensated position to offset from")
+
+        names = base.Position.field_names()
+
+        for name in names:
+            if math.isnan(getattr(uncompensated_data, name)):
+                setattr(
+                    uncompensated_data,
+                    name,
+                    getattr(current_position, name),
+                )
         return base.Position.from_struct(uncompensated_data)
 
     async def stop_motion(self) -> None:
