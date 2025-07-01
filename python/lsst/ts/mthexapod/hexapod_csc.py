@@ -1218,6 +1218,20 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.compensation_loop_task.cancel()
             self.idle_time_monitor_task.cancel()
             await self.evt_compensationMode.set_write(enabled=False)
+            names = base.Position.field_names()
+            await self.evt_compensationOffset.set_write(
+                elevation=math.nan,
+                azimuth=math.nan,
+                rotation=math.nan,
+                temperature=math.nan,
+                **dict((name, math.nan) for name in names),
+            )
+            await self.evt_uncompensatedPosition.set_write(
+                **dict((name, math.nan) for name in names),
+            )
+            await self.evt_compensatedPosition.set_write(
+                **dict((name, math.nan) for name in names),
+            )
 
         if self.summary_state == salobj.State.ENABLED:
             self.idle_time_monitor_task = asyncio.create_task(self.idle_time_monitor())
