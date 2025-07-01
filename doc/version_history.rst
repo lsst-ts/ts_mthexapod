@@ -6,10 +6,7 @@
 Version History
 ###############
 
-v1.4.4
-------
-
-* Simplify the ``setup.py``.
+.. towncrier release notes start
 
 v1.4.3
 ------
