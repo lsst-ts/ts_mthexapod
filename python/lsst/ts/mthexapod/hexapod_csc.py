@@ -445,6 +445,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.log.info(f"max_move_duration={self.max_move_duration}")
 
     async def configure(self, config: types.SimpleNamespace) -> None:
+        self.log.info("Configure started...")
         await super().configure(config)
         self.compensation_interval = config.compensation_interval
         subconfig = types.SimpleNamespace(**getattr(config, self.subconfig_name))
@@ -468,12 +469,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 pass
 
         if hasattr(subconfig, "camera"):
+            self.log.info("Starting camera filter monitor task.")
+            self.filter_offsets_dict = subconfig.filter_offsets
             self.camera_filter_monitor_task = asyncio.create_task(
                 self.monitor_camera_filter(subconfig.camera)
             )
-            self.filter_offsets_dict = subconfig.filter_offsets
 
-        self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
+        self.log.info(
+            f"Enable LUT temperature: {self.enable_lut_temperature}. Configure done."
+        )
 
     async def monitor_camera_filter(self, camera: str) -> None:
         """Monitor the camera filter and apply compensation as needed.
