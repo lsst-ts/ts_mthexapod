@@ -1,0 +1,1 @@
+Updated ``HexapodCSC`` to force compensation to be applied the first time it is initialized, even if the offsets are too small.
