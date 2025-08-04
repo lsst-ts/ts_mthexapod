@@ -1125,6 +1125,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_setCompensationMode(self, data: salobj.BaseMsgType) -> None:
         self.assert_enabled()
+        self.initial_compensation_offset_applied = False
         await self.evt_compensationMode.set_write(enabled=data.enable)
         async with self.write_lock:
             self.move_steps_task.cancel()
