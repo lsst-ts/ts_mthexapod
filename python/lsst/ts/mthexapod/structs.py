@@ -53,16 +53,6 @@ class Config(ctypes.Structure):
     ]
 
 
-class PosVel(ctypes.Structure):
-    """Handle annoying order of strut_commanded_posvel telemetry fields."""
-
-    _pack_ = 1
-    _fields_ = [
-        ("pos", ctypes.c_double),
-        ("vel", ctypes.c_double),
-    ]
-
-
 class PosFiltVel(ctypes.Structure):
     """Handle annoying order of strut_measured_posfiltvel telemetry fields."""
 
@@ -97,8 +87,6 @@ class Telemetry(ctypes.Structure):
         ("dt", ctypes.c_double),
         # StrutPosition_1 in telemetryStreamStructure_t in meter
         ("strut_commanded_delta_pos_m", ctypes.c_double * 6),
-        # CommandPos_n, CommandVel_n in telemetryStreamStructure_t
-        ("strut_commanded_posvel", PosVel * 6),
         # CommandAccel_n in telemetryStreamStructure_t
         ("strut_commanded_accel", ctypes.c_double * 6),
         # CommandFinalPos_n in telemetryStreamStructure_t
