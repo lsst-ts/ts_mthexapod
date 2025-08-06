@@ -8,6 +8,25 @@ Version History
 
 .. towncrier release notes start
 
+v1.5.0 (2025-08-06)
+===================
+
+New Features
+------------
+
+- Updated ``HexapodCSC`` to force compensation to be applied the first time it is initialized, even if the offsets are too small. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+- Updated ``MTHexapodCSC._get_uncompensated_position`` to handle condition when compensation is not set. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+- Updated ``HexapodCSC.configure`` to reset the compensation offsets, compensated and uncompensated positions when performing state transitions. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+- Update the structs.py to reflect the interface change in ts_hexapod_controller v1.8.0. (`OSW-676 <https://rubinobs.atlassian.net//browse/OSW-676>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Simplified setup.py. (`OSW-274 <https://rubinobs.atlassian.net//browse/OSW-274>`_)
+- Updated ``HexapodCSC.configure`` to include some additional logging and change the order of operations where it sets the filter offset and initialize the focus offset loop. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+
+
 v1.4.3
 ------
 

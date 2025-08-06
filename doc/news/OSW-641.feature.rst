@@ -1,1 +1,0 @@
-Updated ``HexapodCSC.configure`` to reset the compensation offsets, compensated and uncompensated positions when performing state transitions.
