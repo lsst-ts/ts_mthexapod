@@ -1,1 +1,0 @@
- Update the structs.py to reflect the interface change in ts_hexapod_controller v1.8.0.
