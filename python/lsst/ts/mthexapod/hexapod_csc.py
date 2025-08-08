@@ -189,6 +189,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         #     async with self.write_lock:
         #        self.compensation_loop_task.cancel()
         self.compensation_loop_task = make_done_future()
+        self.initial_compensation_offset_applied = False
 
         # Task for the camera filter monitor.
         self.camera_filter_monitor_task = make_done_future()
@@ -445,6 +446,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.log.info(f"max_move_duration={self.max_move_duration}")
 
     async def configure(self, config: types.SimpleNamespace) -> None:
+        self.log.info("Configure started...")
         await super().configure(config)
         self.compensation_interval = config.compensation_interval
         subconfig = types.SimpleNamespace(**getattr(config, self.subconfig_name))
@@ -468,12 +470,15 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 pass
 
         if hasattr(subconfig, "camera"):
+            self.log.info("Starting camera filter monitor task.")
+            self.filter_offsets_dict = subconfig.filter_offsets
             self.camera_filter_monitor_task = asyncio.create_task(
                 self.monitor_camera_filter(subconfig.camera)
             )
-            self.filter_offsets_dict = subconfig.filter_offsets
 
-        self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}")
+        self.log.info(
+            f"Enable LUT temperature: {self.enable_lut_temperature}. Configure done."
+        )
 
     async def monitor_camera_filter(self, camera: str) -> None:
         """Monitor the camera filter and apply compensation as needed.
@@ -1120,6 +1125,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
     async def do_setCompensationMode(self, data: salobj.BaseMsgType) -> None:
         self.assert_enabled()
+        self.initial_compensation_offset_applied = False
         await self.evt_compensationMode.set_write(enabled=data.enable)
         async with self.write_lock:
             self.move_steps_task.cancel()
@@ -1214,9 +1220,24 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.compensation_loop_task.cancel()
             self.idle_time_monitor_task.cancel()
             await self.evt_compensationMode.set_write(enabled=False)
+            names = base.Position.field_names()
+            await self.evt_compensationOffset.set_write(
+                elevation=math.nan,
+                azimuth=math.nan,
+                rotation=math.nan,
+                temperature=math.nan,
+                **dict((name, math.nan) for name in names),
+            )
+            await self.evt_uncompensatedPosition.set_write(
+                **dict((name, math.nan) for name in names),
+            )
+            await self.evt_compensatedPosition.set_write(
+                **dict((name, math.nan) for name in names),
+            )
 
         if self.summary_state == salobj.State.ENABLED:
             self.idle_time_monitor_task = asyncio.create_task(self.idle_time_monitor())
+            self.initial_compensation_offset_applied = False
 
     async def idle_time_monitor(self, period: float = 1.0, max_count: int = 10) -> None:
         """Idle time monitor under the enabled state.
@@ -1421,8 +1442,20 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             If the current uncompensated position has never been reported.
         """
         uncompensated_data = self.evt_uncompensatedPosition.data
+        current_position = self._get_current_position()
+
         if uncompensated_data is None:
             raise salobj.ExpectedError("No uncompensated position to offset from")
+
+        names = base.Position.field_names()
+
+        for name in names:
+            if math.isnan(getattr(uncompensated_data, name)):
+                setattr(
+                    uncompensated_data,
+                    name,
+                    getattr(current_position, name),
+                )
         return base.Position.from_struct(uncompensated_data)
 
     async def stop_motion(self) -> None:
@@ -1606,9 +1639,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     current_position_list,
                 )
                 if np.all(np.abs(delta) < self.min_compensation_adjustment):
-                    self.log.debug("Compensation offset too small to apply: %s", delta)
-                    return
+                    if not self.initial_compensation_offset_applied:
+                        self.log.info(
+                            f"Compensation offset too small: {delta}. "
+                            "However this is the initial compensation offset so applying it anyway."
+                        )
+                    else:
+                        self.log.debug(
+                            "Compensation offset too small to apply: %s", delta
+                        )
+                        return
 
+                self.initial_compensation_offset_applied = True
             # Stop the current motion, if any, and wait for it to stop.
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
 

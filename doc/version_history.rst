@@ -6,60 +6,91 @@
 Version History
 ###############
 
+.. towncrier release notes start
+
+v1.5.0 (2025-08-06)
+===================
+
+New Features
+------------
+
+- Updated ``HexapodCSC`` to force compensation to be applied the first time it is initialized, even if the offsets are too small. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+- Updated ``MTHexapodCSC._get_uncompensated_position`` to handle condition when compensation is not set. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+- Updated ``HexapodCSC.configure`` to reset the compensation offsets, compensated and uncompensated positions when performing state transitions. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+- Update the structs.py to reflect the interface change in ts_hexapod_controller v1.8.0. (`OSW-676 <https://rubinobs.atlassian.net//browse/OSW-676>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Simplified setup.py. (`OSW-274 <https://rubinobs.atlassian.net//browse/OSW-274>`_)
+- Updated ``HexapodCSC.configure`` to include some additional logging and change the order of operations where it sets the filter offset and initialize the focus offset loop. (`OSW-641 <https://rubinobs.atlassian.net//browse/OSW-641>`_)
+
+
 v1.4.3
-------
+======
 
 * Improve the way to trigger the new movement in the compensation mode.
 
+
 v1.4.2
-------
+======
 
 * Support the ESS temperature sensor for M2 hexapod.
 
+
 v1.4.1
-------
+======
 
 * Publish the error code event of interlock-open when the CSC is in fault.
 
+
 v1.4.0
-------
+======
 
 * Update the CSC to support the movements in steps.
 
+
 v1.3.8
-------
+======
 
 * Check the delta strut length before the movement.
 
+
 v1.3.7
-------
+======
 
 * Improve the ``setup.py`` to support the version of Python 3.11 and 3.12.
 
+
 v1.3.6
-------
+======
 
 * Add scipy to conda recipe.
 
+
 v1.3.5
-------
+======
 
 * Translate the Simulink calculation between the hexapod position and strut position.
 * Add the **kinematics.rst** and **trajectory.rst**.
 
+
 v1.3.4
-------
+======
 
 * Remove the **ts_idl**.
 * Improve the tests.
 
+
 v1.3.3
-------
+======
 
 * Idle (disable) the controller automatically.
 
+
 v1.3.2
-------
+======
 
 * In hexapod_csc:
 
@@ -91,35 +122,41 @@ v1.3.2
     
     This will cause the CSC to go to Fault, instead of falling back to having a 0.0 offset for an undefined filter.
 
+
 v1.3.1
-------
+======
 
 * Fix the race condition in ``HexapodCsc._move()``.
 
+
 v1.3.0
-------
+======
 
 * Add filter_offsets to account for filter thickness defocus.
 
+
 v1.2.3
-------
+======
 
 * Add the ``enable_lut_temperature`` to the **config_schema.py**.
 * Read the temperature sensor data for the camera hexapod.
 
+
 v1.2.2
-------
+======
 
 * Remove the workaround of ts_xml backward compatibility.
 
+
 v1.2.1
-------
+======
 
 * Subscribe the telemetry of rotator and mount in compensation mode.
 If the target event is not available, the CSC will use the telemetry instead.
 
+
 v1.2.0
-------
+======
 
 * Adapt the simplified state machine and update interface with the controller.
 
@@ -128,38 +165,44 @@ Requires:
 * ts_hexapod_controller 1.6.0
 * ts_hexrotcomm 1.3.0
 
+
 v1.1.2
-------
+======
 
 * Reformat code with black.
 * Update the version of ts-conda-build to 0.4 in the conda recipe.
 * Remove the workaround code of backward compatibility.
 
+
 v1.1.1
-------
+======
 
 * Support the **mypy**.
 
+
 v1.1.0
-------
+======
 
 * Fix the telemetry.
 * Update the ``.ts_pre_commit_config.yaml``.
 * Import the enums from **ts_xml** instead of **ts_idl**.
 
+
 v1.0.4
-------
+======
 
 * Fix the test case: ``test_offset_with_compensation()`` when using Python 3.11.
 * Improve the test case: ``test_move_translate()``.
 
+
 v1.0.3
-------
+======
 
 * Add {{python}} to conda recipe.
 
+
 v1.0.2
-------
+======
 
 * Temporarily disable a unit test case that hangs on Python 3.11.
 
@@ -171,8 +214,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 14.
 
+
 v1.0.1
-------
+======
 
 * `HexapodCsc`: assume that ``positionError`` is present in the ``actuators`` telemetry topic (DM-36424).
 
@@ -184,8 +228,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 14.
 
+
 v1.0.0
-------
+======
 
 * Use ts_pre_commit_conf.
 * ``Jenkinsfile``: use new shared library.
@@ -199,8 +244,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 14.
 
+
 v0.28.1
--------
+=======
 
 * pre-commit: update black to 23.1.0, isort to 5.12.0, mypy to 1.0.0, and pre-commit-hooks to v4.4.0.
 * ``Jenkinsfile``: do not run as root.
@@ -213,8 +259,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
 
+
 v0.28.0
--------
+=======
 
 * Write the ``positionError`` field of the actuators telemetry topic, if present.
   This field will be added to ts_xml 12.1.
@@ -230,8 +277,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
 
+
 v0.27.0
--------
+=======
 
 * Rename command-line scripts to remove ".py" suffix.
 * `HexapodCsc`: call ``super().start()`` at the beginning of the start method.
@@ -247,8 +295,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
 
+
 v0.26.0
--------
+=======
 
 * Update for ts_hexapod_controller 1.4.0, which is required.
   This version reports motor currents and bus voltages.
@@ -263,8 +312,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
 
+
 v0.25.0
--------
+=======
 
 * Update for ts_salobj v7, ts_xml 11, and ts_hexrotcomm 0.29, all of which are required.
 
@@ -276,8 +326,9 @@ Requires:
 * ts_idl 3.4
 * MTHexapod, MTMount, and MTRotator IDL files built from ts_xml 11.
 
+
 v0.24.0
--------
+=======
 
 * Update for ts_hexrotcomm 0.28 and ts_hexapod_controller 1.3.0:
 
@@ -296,8 +347,9 @@ Requires:
 * ts_xml 10.2
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.23.0
--------
+=======
 
 * `HexapodCsc`: changed the interlock event's field from ``detail`` (a string) to ``enabled`` (a boolean).
   Also change `applicationStatus` to a scalar (instead of an array with only the first element nonzero).
@@ -315,8 +367,9 @@ Requires:
 * ts_xml 10.2
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.22.1
--------
+=======
 
 * Update the command sync patterns for ts_hexapod_controller 1.2.4, which is required.
   This change also requires ts_hexrotcomm 0.25, because ts_hexapod_controller 1.2.4 acknowledges commands.
@@ -330,13 +383,15 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.22.0
--------
+=======
 
 * Update the default host addresses in the CSC config schema to match the new public addresses.
 
+
 v0.21.2
--------
+=======
 
 * `HexapodCommander`: make compatible with ts_xml 10.1 (while retaining backwards compatibility).
 
@@ -349,8 +404,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.21.1
--------
+=======
 
 * Improve handling of NaNs in compensation inputs.
   Treat them as missing data: report them once and keep running the compensation loop.
@@ -365,8 +421,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.21.0
--------
+=======
 
 * Update for ts_hexrotcomm v0.23.0, which is required.
 
@@ -392,8 +449,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.20.0
--------
+=======
 
 * Handle updated configuration and telemetry messages from low-level controller 1.1.8, which is required.
 * Set the ``timestamp`` field in ``encoders`` telemetry topic, if the field is present.
@@ -409,8 +467,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.19.0
--------
+=======
 
 Changes:
 
@@ -425,8 +484,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.18.0
--------
+=======
 
 Changes:
 
@@ -446,8 +506,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.17.1
--------
+=======
 
 Changes:
 
@@ -463,8 +524,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.17.0
--------
+=======
 
 Deprecations:
 
@@ -486,8 +548,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.16.0
--------
+=======
 
 Changes:
 
@@ -502,8 +565,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.15.1
--------
+=======
 
 Changes:
 
@@ -518,8 +582,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.15.0
--------
+=======
 
 Changes:
 
@@ -536,8 +601,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.14.0
--------
+=======
 
 Changes:
 
@@ -557,8 +623,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.13.0
--------
+=======
 
 Changes:
 
@@ -573,8 +640,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.12.1
--------
+=======
 
 Changes:
 
@@ -589,8 +657,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod, MTMount, and MTRotator IDL files, e.g. made using ``make_idl_files.py MTHexapod MTMount MTRotator``
 
+
 v0.12.0
--------
+=======
 
 Changes:
 
@@ -611,8 +680,9 @@ Requires:
 * ts_xml 7.1
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
+
 v0.11.1
--------
+=======
 
 Changes:
 
@@ -627,8 +697,9 @@ Requires:
 * ts_xml 7
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
+
 v0.11.0
--------
+=======
 
 Changes:
 
@@ -644,8 +715,9 @@ Requires:
 * ts_xml 7
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
+
 v0.10.0
--------
+=======
 
 Changes:
 
@@ -663,8 +735,9 @@ Requires:
 * ts_xml 7
 * MTHexapod IDL files, e.g. made using ``make_idl_files.py MTHexapod``
 
+
 v0.9.0
-------
+======
 
 Changes:
 
@@ -683,8 +756,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators 2
 
+
 v0.8.0
-------
+======
 
 Major Changes:
 
@@ -710,8 +784,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators 2
 
+
 v0.7.0
-------
+======
 
 Changes:
 
@@ -726,8 +801,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators 2
 
+
 v0.6.0
-------
+======
 
 Changes:
 
@@ -742,8 +818,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators 2
 
+
 v0.5.4
-------
+======
 
 Changes:
 
@@ -758,8 +835,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators
 
+
 v0.5.3
-------
+======
 
 Changes:
 
@@ -776,8 +854,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators
 
+
 v0.5.2
-------
+======
 
 * Fix flake8 violations.
 * Add Jenkinsfile for CI job.
@@ -791,8 +870,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators
 
+
 v0.5.1
-------
+======
 
 * Include conda package build configuration.
 * Added a Jenkinsfile to support continuous integration and to build conda packages.
@@ -806,8 +886,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators
 
+
 v0.5.0
-------
+======
 
 Use `lsst.ts.simactuators.PointToPointActuator` instead of an internal copy.
 
@@ -820,8 +901,9 @@ Requires:
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 * ts_simactuators
 
+
 v0.4.0
-------
+======
 
 Major changes:
 
@@ -838,8 +920,9 @@ Requires:
 * ts_xml 4.6
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
+
 v0.3.1
-------
+======
 
 Version 0.3.1
 
@@ -854,8 +937,9 @@ Requires:
 * ts_xml 4.6
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
+
 v0.3.0
-------
+======
 
 Update for changes to the XML.
 
@@ -867,8 +951,9 @@ Requires:
 * ts_xml 4.6
 * Hexapod IDL files, e.g. made using ``make_idl_files.py Hexapod``
 
+
 v0.2.2
-------
+======
 
 The first version we tested against the real hexapod controller!
 
