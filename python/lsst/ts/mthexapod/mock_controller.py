@@ -102,11 +102,11 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         config.acceleration_strut = 500
         # Order: xy (um), minZ, max, uv (deg), minW, maxW
         config.pos_limits = dataclasses.astuple(self.max_pos_limits)
-        # Order: xy (deg/sec), xy rotation (um/sec), z, z rotation
+        # Order: xy (deg/sec), z, xy rotation (um/sec), z rotation
         config.vel_limits = (
             constants.MAX_LINEAR_VEL_LIMIT,
-            constants.MAX_ANGULAR_VEL_LIMIT,
             constants.MAX_LINEAR_VEL_LIMIT,
+            constants.MAX_ANGULAR_VEL_LIMIT,
             constants.MAX_ANGULAR_VEL_LIMIT,
         )
         # Order: x, y, z, u, w, v
@@ -208,8 +208,8 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         utils.check_positive_value(command.param4, "w", constants.MAX_ANGULAR_VEL_LIMIT)
         self.config.vel_limits = (
             command.param1,
-            command.param2,
             command.param3,
+            command.param2,
             command.param4,
         )
         await self.write_config()
