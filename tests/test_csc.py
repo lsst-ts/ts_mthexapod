@@ -758,8 +758,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             """Get the velocity limits from a configuration sample."""
             return (
                 data.maxVelocityXY,
-                data.maxVelocityUV,
                 data.maxVelocityZ,
+                data.maxVelocityUV,
                 data.maxVelocityW,
             )
 
@@ -774,8 +774,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             await self.remote.cmd_configureVelocity.set_start(
                 xy=new_vel_limits[0],
-                uv=new_vel_limits[1],
-                z=new_vel_limits[2],
+                z=new_vel_limits[1],
+                uv=new_vel_limits[2],
                 w=new_vel_limits[3],
                 timeout=STD_TIMEOUT,
             )

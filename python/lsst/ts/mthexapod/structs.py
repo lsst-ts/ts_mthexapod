@@ -43,7 +43,7 @@ class Config(ctypes.Structure):
     _pack_ = 1
     _fields_ = [
         ("acceleration_strut", ctypes.c_double),
-        # Order: xy, uv, z, w
+        # Order: xy, z, uv, w
         ("vel_limits", ctypes.c_double * 4),
         ("max_displacement_strut", ctypes.c_double),
         ("max_velocity_strut", ctypes.c_double),

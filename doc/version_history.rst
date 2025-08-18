@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v1.5.1 (2025-08-18)
+===================
+
+Bug Fixes
+---------
+
+- Fix the configuration event. (`OSW-883 <https://rubinobs.atlassian.net//browse/OSW-883>`_)
+
+
 v1.5.0 (2025-08-06)
 ===================
 
