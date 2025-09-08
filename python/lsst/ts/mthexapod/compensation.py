@@ -24,6 +24,7 @@ import numpy as np
 
 from . import base
 from functools import partial
+from numpy.polynomial.polynomial import polyval2d
 from .ranged_polynomial import RangedPolynomial
 
 NUM_AXES = 6  # x, y, z, u, v, w

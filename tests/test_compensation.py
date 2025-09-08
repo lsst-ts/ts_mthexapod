@@ -25,6 +25,7 @@ import unittest
 import numpy as np
 import pytest
 from lsst.ts import mthexapod
+from numpy.polynomial.polynomial import polyval2d
 
 
 class CompensationTestCase(unittest.TestCase):
@@ -110,7 +111,7 @@ class CompensationTestCase(unittest.TestCase):
             max_temperature=max_temperature,
         )
         elevation_rotation_polynomials = [
-            lambda elevation, rotation, coeffs=coeffs: polyval2d(elevation, rotation, coeffs)
+            partial(polyval2d, coeffs=coeffs)
             for coeffs in elevation_rotation_coeffs
         ]
         azimuth_polynomials = [
