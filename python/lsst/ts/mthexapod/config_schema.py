@@ -44,7 +44,10 @@ definitions:
           Rows are coefficients for x, y, z (um), u, v, w (deg).
           The first index corresponds to powers of elevation and
           the second index corresponds to powers of rotation.
-          Values are the coefficients in equation C0 + C1 el + C2 rot + C3 rot * el + ...,
+          Values are the coefficients in equation C_0_0
+          + C_0_1 * el + C_0_2 * el**2 + ... + C_1_0 * rot
+          + C_2_0 * rot**2 + ... + C_1_1 * el * rot
+          + C_1_2 * el**2 * rot + ... + C_2_1 * el * rot**2 + ...
           where el is in deg.
           Compensated value = uncompensated (user-specified) value
             + elevation compensation
