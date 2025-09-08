@@ -30,9 +30,12 @@ from lsst.ts import mthexapod
 class CompensationTestCase(unittest.TestCase):
     def test_constructor_errors(self) -> None:
         kwargs = dict(
-            elevation_coeffs=[[0]] * 6,
+            elevation_rotation_coeffs=[[
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0]
+            ]] * 6,
             azimuth_coeffs=[[0, 0]] * 6,
-            rotation_coeffs=[[0, 0, 0]] * 6,
             temperature_coeffs=[[0, 0, 0, 0]] * 6,
             min_temperature=-20,
             max_temperature=20,
@@ -50,9 +53,8 @@ class CompensationTestCase(unittest.TestCase):
         # Wrong number of coefficients
         for name, ncoeff in itertools.product(
             (
-                "elevation_coeffs",
+                "elevation_rotation_coeffs",
                 "azimuth_coeffs",
-                "rotation_coeffs",
                 "temperature_coeffs",
             ),
             (0, 1, 5, 7, 8),
@@ -70,8 +72,12 @@ class CompensationTestCase(unittest.TestCase):
                 mthexapod.Compensation(**bad_kwargs)
 
     def test_get_offset(self) -> None:
-        elevation_coeffs = [
-            [0.11, 0.12, 0.013, 0.0014],
+        elevation_rotation_coeffs = [
+            [
+                [0.11, 0.12, 0.013], 
+                [0.0014, 0.1, 0.0],
+                [0.0, 0.0, 0.0],
+            ],
             [0.21, 0.22, 0.023],
             [0.31, 0.32, -0.024],
             [0.41, 0.42],
@@ -86,14 +92,6 @@ class CompensationTestCase(unittest.TestCase):
             [0.51, 0.52],
             [0.61, 0.62],
         ]
-        rotation_coeffs = [
-            [0.11, 0.12],
-            [0.21, 0.22],
-            [0.31, 0.32, 0.013, 0.0014],
-            [0.41, 0.42, 0.023],
-            [0.51, 0.52, -0.013],
-            [0.61, 0.62],
-        ]
         temperature_coeffs = [
             [0.11, -0.12, 0.13],
             [0.21, -0.22, 0.23],
@@ -105,21 +103,18 @@ class CompensationTestCase(unittest.TestCase):
         min_temperature = -20
         max_temperature = 25
         compensation = mthexapod.Compensation(
-            elevation_coeffs=elevation_coeffs,
+            elevation_rotation_coeffs=elevation_rotation_coeffs,
             azimuth_coeffs=azimuth_coeffs,
-            rotation_coeffs=rotation_coeffs,
             temperature_coeffs=temperature_coeffs,
             min_temperature=min_temperature,
             max_temperature=max_temperature,
         )
-        elevation_polynomials = [
-            np.polynomial.Polynomial(coeffs) for coeffs in elevation_coeffs
+        elevation_rotation_polynomials = [
+            lambda elevation, rotation, coeffs=coeffs: polyval2d(elevation, rotation, coeffs)
+            for coeffs in elevation_rotation_coeffs
         ]
         azimuth_polynomials = [
             np.polynomial.Polynomial(coeffs) for coeffs in azimuth_coeffs
-        ]
-        rotation_polynomials = [
-            np.polynomial.Polynomial(coeffs) for coeffs in rotation_coeffs
         ]
         temperature_polynomials = [
             mthexapod.RangedPolynomial(
@@ -142,9 +137,8 @@ class CompensationTestCase(unittest.TestCase):
             offset = compensation.get_offset(comp_inputs)
             for i, (name, offset_value) in enumerate(vars(offset).items()):
                 offset_list = [
-                    elevation_polynomials[i](elevation),
+                    elevation_rotation_polynomials[i](elevation, rotation),
                     azimuth_polynomials[i](azimuth),
-                    rotation_polynomials[i](rotation),
                     temperature_polynomials[i](temperature),
                 ]
                 predicted_offset = sum(offset_list)

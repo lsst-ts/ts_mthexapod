@@ -74,28 +74,25 @@ class Compensation:
     def __init__(
         self,
         *,
-        elevation_coeffs: list[list[float]],
+        elevation_rotation_coeffs: list[list[[list[float]]]],
         azimuth_coeffs: list[list[float]],
-        rotation_coeffs: list[list[float]],
         temperature_coeffs: list[list[float]],
         min_temperature: float,
         max_temperature: float,
     ) -> None:
         for name, coeffs in (
-            ("elevation", elevation_coeffs),
+            ("elevation_rotation", elevation_rotation_coeffs),
             ("azimuth", azimuth_coeffs),
-            ("rotation", rotation_coeffs),
             ("temperature", temperature_coeffs),
         ):
             if len(coeffs) != 6:
                 raise ValueError(f"{name}={coeffs} must be 6 lists of coefficients")
-
-            if name != "temperature":
-                setattr(
-                    self,
-                    f"{name}_polys",
-                    [np.polynomial.Polynomial(coeffs[i]) for i in range(NUM_AXES)],
-                )
+        
+        self.elevation_rotation_polys = [
+            lambda elevation, rotation, coeffs=coeffs: polyval2d(elevation, rotation, elevation_rotation_coeffs[i])
+            for i in range(NUM_AXES)
+        ]
+        self.azimuth_polys = [np.polynomial.Polynomial(azimuth_coeffs[i]) for i in range(NUM_AXES)]
         self.temperature_polys = [
             RangedPolynomial(
                 coeffs=temperature_coeffs[i],
@@ -127,9 +124,8 @@ class Compensation:
         """
 
         offsets = [
-            self.elevation_polys[i](inputs.elevation)  # type: ignore[attr-defined]
+            self.elevation_rotation_polys[i](inputs.elevation, inputs.rotation)  # type: ignore[attr-defined]
             + self.azimuth_polys[i](inputs.azimuth)  # type: ignore[attr-defined]
-            + self.rotation_polys[i](inputs.rotation)  # type: ignore[attr-defined]
             + self.temperature_polys[i](inputs.temperature)  # type: ignore[attr-defined]
             for i in range(NUM_AXES)
         ]
