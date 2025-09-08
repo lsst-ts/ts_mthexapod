@@ -25,6 +25,7 @@ import unittest
 import numpy as np
 import pytest
 from lsst.ts import mthexapod
+from functools import partial
 from numpy.polynomial.polynomial import polyval2d
 
 
