@@ -23,6 +23,7 @@ __all__ = ["Compensation"]
 import numpy as np
 
 from . import base
+from functools import partial
 from .ranged_polynomial import RangedPolynomial
 
 NUM_AXES = 6  # x, y, z, u, v, w
