@@ -177,9 +177,8 @@ definitions:
           The command port is one larger.
         type: integer
     required:
-      - elevation_coeffs
+      - elevation_rotation_coeffs
       - azimuth_coeffs
-      - rotation_coeffs
       - temperature_coeffs
       - min_compensation_adjustment
       - min_temperature
