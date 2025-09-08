@@ -20,11 +20,12 @@
 
 __all__ = ["Compensation"]
 
+from functools import partial
+
 import numpy as np
+from numpy.polynomial.polynomial import polyval2d
 
 from . import base
-from functools import partial
-from numpy.polynomial.polynomial import polyval2d
 from .ranged_polynomial import RangedPolynomial
 
 NUM_AXES = 6  # x, y, z, u, v, w
@@ -76,7 +77,7 @@ class Compensation:
     def __init__(
         self,
         *,
-        elevation_rotation_coeffs: list[list[[list[float]]]],
+        elevation_rotation_coeffs: list[list[list[float]]],
         azimuth_coeffs: list[list[float]],
         temperature_coeffs: list[list[float]],
         min_temperature: float,
@@ -91,10 +92,11 @@ class Compensation:
                 raise ValueError(f"{name}={coeffs} must be 6 lists of coefficients")
 
         self.elevation_rotation_polys = [
-            partial(polyval2d, coeffs=elevation_rotation_coeffs[i])
-            for i in range(NUM_AXES)
+            partial(polyval2d, c=elevation_rotation_coeffs[i]) for i in range(NUM_AXES)
         ]
-        self.azimuth_polys = [np.polynomial.Polynomial(azimuth_coeffs[i]) for i in range(NUM_AXES)]
+        self.azimuth_polys = [
+            np.polynomial.Polynomial(azimuth_coeffs[i]) for i in range(NUM_AXES)
+        ]
         self.temperature_polys = [
             RangedPolynomial(
                 coeffs=temperature_coeffs[i],
