@@ -87,9 +87,9 @@ class Compensation:
         ):
             if len(coeffs) != 6:
                 raise ValueError(f"{name}={coeffs} must be 6 lists of coefficients")
-        
+
         self.elevation_rotation_polys = [
-            lambda elevation, rotation, coeffs=coeffs: polyval2d(elevation, rotation, elevation_rotation_coeffs[i])
+            partial(polyval2d, coeffs=elevation_rotation_coeffs[i])
             for i in range(NUM_AXES)
         ]
         self.azimuth_polys = [np.polynomial.Polynomial(azimuth_coeffs[i]) for i in range(NUM_AXES)]
