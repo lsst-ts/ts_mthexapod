@@ -21,22 +21,18 @@
 
 import itertools
 import unittest
+from functools import partial
 
 import numpy as np
 import pytest
 from lsst.ts import mthexapod
-from functools import partial
 from numpy.polynomial.polynomial import polyval2d
 
 
 class CompensationTestCase(unittest.TestCase):
     def test_constructor_errors(self) -> None:
         kwargs = dict(
-            elevation_rotation_coeffs=[[
-                [0, 0, 0],
-                [0, 0, 0],
-                [0, 0, 0]
-            ]] * 6,
+            elevation_rotation_coeffs=[[[0, 0, 0], [0, 0, 0], [0, 0, 0]]] * 6,
             azimuth_coeffs=[[0, 0]] * 6,
             temperature_coeffs=[[0, 0, 0, 0]] * 6,
             min_temperature=-20,
@@ -76,7 +72,7 @@ class CompensationTestCase(unittest.TestCase):
     def test_get_offset(self) -> None:
         elevation_rotation_coeffs = [
             [
-                [0.11, 0.12, 0.013], 
+                [0.11, 0.12, 0.013],
                 [0.0014, 0.1, 0.0],
                 [0.0, 0.0, 0.0],
             ],
@@ -112,8 +108,7 @@ class CompensationTestCase(unittest.TestCase):
             max_temperature=max_temperature,
         )
         elevation_rotation_polynomials = [
-            partial(polyval2d, coeffs=coeffs)
-            for coeffs in elevation_rotation_coeffs
+            partial(polyval2d, c=coeffs) for coeffs in elevation_rotation_coeffs
         ]
         azimuth_polynomials = [
             np.polynomial.Polynomial(coeffs) for coeffs in azimuth_coeffs
