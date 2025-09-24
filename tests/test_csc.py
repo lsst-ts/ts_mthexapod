@@ -86,7 +86,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             name="MTRotator",
         ) as self.mtrotator_controller, salobj.Controller(
             name="ESS",
-            index=1,
+            index=121,
         ) as self.ess_temperature_controller:
             # self.mtmount_controller = mtmount_controller
             # self.mtrotator_controller = mtrotator_controller
@@ -606,21 +606,15 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 "configureAcceleration",
                 "configureLimits",
                 "move",
+                "moveInSteps",
                 "offset",
+                "offsetInSteps",
                 "setCompensationMode",
                 "setPivot",
                 "stop",
             )
-            # TODO: Put these skip commands to the enabled commands after the
-            # ts_xml v23.2.0 release. They are not available in the current
-            # ts_xml version.
-            skip_commands = (
-                "moveInSteps",
-                "offsetInSteps",
-            )
             await self.check_standard_state_transitions(
                 enabled_commands=enabled_commands,
-                skip_commands=skip_commands,
             )
 
     async def test_configure_acceleration(self) -> None:
@@ -1016,30 +1010,28 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             await self.assert_initial_compensation_values()
-            # TODO: Remove this after the release of ts_xml v23.2.0. The
-            # current ts_xml version does not have the "moveInSteps" command.
-            if hasattr(self.remote, "cmd_moveInSteps"):
-                self.remote.evt_inPosition.flush()
 
-                # Assign the step size
-                await self.remote.cmd_moveInSteps.set_start(
-                    x=100.0, z=500.0, v=0.1, stepSizeZ=79.0, stepSizeUV=0.013
-                )
+            self.remote.evt_inPosition.flush()
 
-                await self.check_in_position_event_and_position_telemetry(
-                    pos_atol=1e-1,
-                    ang_atol=1e-6,
-                )
+            # Assign the step size
+            await self.remote.cmd_moveInSteps.set_start(
+                x=100.0, z=500.0, v=0.1, stepSizeZ=79.0, stepSizeUV=0.013
+            )
 
-                # Overwrite the step size from the configuration
-                await self.remote.cmd_moveInSteps.set_start(
-                    x=200.0, z=1000.0, overwriteStepSizeFromConfig=True
-                )
+            await self.check_in_position_event_and_position_telemetry(
+                pos_atol=1e-1,
+                ang_atol=1e-6,
+            )
 
-                await self.check_in_position_event_and_position_telemetry(
-                    pos_atol=1e-1,
-                    ang_atol=1e-6,
-                )
+            # Overwrite the step size from the configuration
+            await self.remote.cmd_moveInSteps.set_start(
+                x=200.0, z=1000.0, overwriteStepSizeFromConfig=True
+            )
+
+            await self.check_in_position_event_and_position_telemetry(
+                pos_atol=1e-1,
+                ang_atol=1e-6,
+            )
 
     async def check_in_position_event_and_position_telemetry(
         self,
@@ -1072,42 +1064,40 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             await self.assert_initial_compensation_values()
-            # TODO: Remove this after the release of ts_xml v23.2.0. The
-            # current ts_xml version does not have the "offsetInSteps" command.
-            if hasattr(self.remote, "cmd_offsetInSteps"):
-                self.remote.evt_inPosition.flush()
 
-                # Assign the step size
+            self.remote.evt_inPosition.flush()
 
-                # First offset
-                await self.remote.cmd_offsetInSteps.set_start(
-                    x=100.0, z=500.0, v=0.1, stepSizeZ=79.0, stepSizeUV=0.013
-                )
+            # Assign the step size
 
-                await self.check_in_position_event_and_position_telemetry(
-                    pos_atol=1e-1,
-                    ang_atol=1e-6,
-                )
+            # First offset
+            await self.remote.cmd_offsetInSteps.set_start(
+                x=100.0, z=500.0, v=0.1, stepSizeZ=79.0, stepSizeUV=0.013
+            )
 
-                # Second offset
-                await self.remote.cmd_offsetInSteps.set_start(
-                    x=-10.0, z=-100.0, v=0.009, stepSizeZ=79.0, stepSizeUV=0.013
-                )
+            await self.check_in_position_event_and_position_telemetry(
+                pos_atol=1e-1,
+                ang_atol=1e-6,
+            )
 
-                await self.check_in_position_event_and_position_telemetry(
-                    pos_atol=1e-1,
-                    ang_atol=1e-6,
-                )
+            # Second offset
+            await self.remote.cmd_offsetInSteps.set_start(
+                x=-10.0, z=-100.0, v=0.009, stepSizeZ=79.0, stepSizeUV=0.013
+            )
 
-                # Overwrite the step size from the configuration
-                await self.remote.cmd_offsetInSteps.set_start(
-                    x=-10.0, z=-100.0, v=0.009, overwriteStepSizeFromConfig=True
-                )
+            await self.check_in_position_event_and_position_telemetry(
+                pos_atol=1e-1,
+                ang_atol=1e-6,
+            )
 
-                await self.check_in_position_event_and_position_telemetry(
-                    pos_atol=1e-1,
-                    ang_atol=1e-6,
-                )
+            # Overwrite the step size from the configuration
+            await self.remote.cmd_offsetInSteps.set_start(
+                x=-10.0, z=-100.0, v=0.009, overwriteStepSizeFromConfig=True
+            )
+
+            await self.check_in_position_event_and_position_telemetry(
+                pos_atol=1e-1,
+                ang_atol=1e-6,
+            )
 
     async def test_move_no_compensation_with_compensation_inputs(self) -> None:
         """Test move with compensation disabled when the CSC has
