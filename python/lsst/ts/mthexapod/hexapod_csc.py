@@ -282,7 +282,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
         # See the ts_config_ocs/ESS
-        # 120 is the offset defined in ts_config_ocs/ESS/v8/_init.yaml
+        # 121 and 122 (= 120 + index.value) are defined in
+        # ts_config_ocs/ESS/v8/_init.yaml
         self.ess_temperature = salobj.Remote(
             domain=self.domain,
             name="ESS",
