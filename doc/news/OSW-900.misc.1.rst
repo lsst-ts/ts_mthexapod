@@ -1,1 +1,0 @@
-Use the ErrorCode enum in ts_xml.

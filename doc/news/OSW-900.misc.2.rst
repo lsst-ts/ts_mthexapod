@@ -1,1 +1,0 @@
-Remove the workaround of ts_xml v23.2.0 for the move/offset in step size.

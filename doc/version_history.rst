@@ -8,6 +8,23 @@ Version History
 
 .. towncrier release notes start
 
+v1.6.0 (2025-10-01)
+===================
+
+New Features
+------------
+
+- * Switched to 2D polynomial in elevation and rotation compensation for cross-dependency terms. (`DM-52436 <https://rubinobs.atlassian.net//browse/DM-52436>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Use the ErrorCode enum in ts_xml. (`OSW-900 <https://rubinobs.atlassian.net//browse/OSW-900>`_)
+- Remove the workaround of ts_xml v23.2.0 for the move/offset in step size. (`OSW-900 <https://rubinobs.atlassian.net//browse/OSW-900>`_)
+- Update the index of ESS. (`OSW-900 <https://rubinobs.atlassian.net//browse/OSW-900>`_)
+
+
 v1.5.1 (2025-08-18)
 ===================
 
