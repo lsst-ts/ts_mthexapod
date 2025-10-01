@@ -37,6 +37,7 @@ from lsst.ts.xml.enums.MTHexapod import (
     ApplicationStatus,
     ControllerState,
     EnabledSubstate,
+    ErrorCode,
 )
 
 from . import (
@@ -269,7 +270,6 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             initial_state=initial_state,
             override=override,
             simulation_mode=simulation_mode,
-            extra_commands={"moveInSteps", "offsetInSteps"},
         )
 
         self.mtmount = salobj.Remote(
@@ -282,8 +282,13 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
 
         # See the ts_config_ocs/ESS
+        # 121 and 122 (= 120 + index.value) are defined in
+        # ts_config_ocs/ESS/v8/_init.yaml
         self.ess_temperature = salobj.Remote(
-            domain=self.domain, name="ESS", index=index.value, include=["temperature"]
+            domain=self.domain,
+            name="ESS",
+            index=(120 + index.value),
+            include=["temperature"],
         )
 
     @property
@@ -454,9 +459,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             subconfig.min_compensation_adjustment, dtype=float
         )
         self.compensation = compensation.Compensation(
-            elevation_coeffs=subconfig.elevation_coeffs,
+            elevation_rotation_coeffs=subconfig.elevation_rotation_coeffs,
             azimuth_coeffs=subconfig.azimuth_coeffs,
-            rotation_coeffs=subconfig.rotation_coeffs,
             temperature_coeffs=subconfig.temperature_coeffs,
             min_temperature=subconfig.min_temperature,
             max_temperature=subconfig.max_temperature,
@@ -524,11 +528,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.log.info("Camera filter monitor ending.")
         except Exception as e:
             self.log.exception("Error in camera filter monitor.")
-            # TODO: (DM-47671): Update MTHexapod to use new error codes from
-            # ts-xml enumeration
             async with self.csc_level_fault():
                 await self.fault(
-                    code=-1, report=f"Error in camera filter monitor: {e!r}"
+                    code=ErrorCode.CAMERA_FILTER_MONITOR_FAULT.value,
+                    report=f"Error in camera filter monitor: {e!r}",
                 )
 
     async def compensation_loop(self) -> None:
@@ -559,10 +562,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 )
             except Exception:
                 self.log.exception("Compensation failed; CSC going to Fault.")
-                # TODO: (DM-47671): Update MTHexapod to use new error codes
-                # from ts-xml enumeration
                 async with self.csc_level_fault():
-                    await self.fault(-2, report="Compensation failed.")
+                    await self.fault(
+                        code=ErrorCode.COMPENSATION_FAULT.value,
+                        report="Compensation failed.",
+                    )
                 return
 
     async def compensation_wait(self) -> None:
@@ -917,12 +921,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         data : `salobj.BaseMsgType`
             Data of the SAL message.
         """
-        # TODO: Remove the overwrite_step_size_from_config=True after we
-        # release the ts_xml v23.2.0.
         await self._move_hexapod(
             base.Position.from_struct(data),
             data.sync,
-            overwrite_step_size_from_config=True,
         )
 
     async def _move_hexapod(
@@ -1074,11 +1075,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             base.Position.from_struct(data)
         )
 
-        # TODO: Remove the overwrite_step_size_from_config=True after we
-        # release the ts_xml v23.2.0.
-        await self._move_hexapod(
-            uncompensated_pos, data.sync, overwrite_step_size_from_config=True
-        )
+        await self._move_hexapod(uncompensated_pos, data.sync)
 
     def _get_uncompensated_position_with_offset(
         self, offset: base.Position
@@ -1389,9 +1386,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         await self.evt_interlock.set_write(engaged=safety_interlock)
         if (self.summary_state == salobj.State.FAULT) and safety_interlock:
-            # TODO: Use the ErrorCode.INTERLOCK_OPEN in ts_xml v23.2.0
             await self.evt_errorCode.set_write(
-                errorCode=-3,
+                errorCode=ErrorCode.INTERLOCK_OPEN.value,
                 errorReport="Safety interlock open",
             )
 
