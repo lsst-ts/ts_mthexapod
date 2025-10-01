@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/main/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v5
+title: MTHexapod v6
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -38,11 +38,16 @@ definitions:
     description: Configuration specific to the Camera or M2 MTHexapod.
     type: object
     properties:
-      elevation_coeffs:
+      elevation_rotation_coeffs:
         description: >-
-          Elevation compensation coefficients.
+          Elevation/rotation compensation coefficients.
           Rows are coefficients for x, y, z (um), u, v, w (deg).
-          Values are the coefficients in equation C0 + C1 el + C2 el^2 + ...,
+          The first index corresponds to powers of elevation and
+          the second index corresponds to powers of rotation.
+          Values are the coefficients in equation C_0_0
+          + C_0_1 * el + C_0_2 * el**2 + ... + C_1_0 * rot
+          + C_2_0 * rot**2 + ... + C_1_1 * el * rot
+          + C_1_2 * el**2 * rot + ... + C_2_1 * el * rot**2 + ...
           where el is in deg.
           Compensated value = uncompensated (user-specified) value
             + elevation compensation
@@ -56,27 +61,16 @@ definitions:
           type: array
           minItems: 1
           items:
-            type: number
+            type: array
+            minItems: 1
+            items:
+              type: number
       azimuth_coeffs:
         description: >-
           Azimuth compensation coefficients.
           Rows are coefficients for x, y, z (um), u, v, w (deg).
           Values are the coefficients in equation C0 + C1 az + C2 az^2 + ...,
           where az is in deg.
-        type: array
-        minItems: 6
-        maxItems: 6
-        items:
-          type: array
-          minItems: 1
-          items:
-            type: number
-      rotation_coeffs:
-        description: >-
-          Camera rotation compensation coefficients.
-          Rows are coefficients for x, y, z (um), u, v, w (deg).
-          Values are the coefficients in equation C0 + C1 rot + C2 rot^2 + ...,
-          where rot is in deg.
         type: array
         minItems: 6
         maxItems: 6
@@ -183,9 +177,8 @@ definitions:
           The command port is one larger.
         type: integer
     required:
-      - elevation_coeffs
+      - elevation_rotation_coeffs
       - azimuth_coeffs
-      - rotation_coeffs
       - temperature_coeffs
       - min_compensation_adjustment
       - min_temperature

@@ -459,9 +459,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             subconfig.min_compensation_adjustment, dtype=float
         )
         self.compensation = compensation.Compensation(
-            elevation_coeffs=subconfig.elevation_coeffs,
+            elevation_rotation_coeffs=subconfig.elevation_rotation_coeffs,
             azimuth_coeffs=subconfig.azimuth_coeffs,
-            rotation_coeffs=subconfig.rotation_coeffs,
             temperature_coeffs=subconfig.temperature_coeffs,
             min_temperature=subconfig.min_temperature,
             max_temperature=subconfig.max_temperature,
