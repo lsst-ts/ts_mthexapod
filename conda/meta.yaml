@@ -35,6 +35,8 @@ requirements:
     - pytest-runner
   build:
     - python {{python}}
+    - setuptools_scm
+    - setuptools
     - ts-conda-build =0.5
   run:
     - python {{python}}
