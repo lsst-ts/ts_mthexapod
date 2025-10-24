@@ -84,7 +84,9 @@ class HexapodCommander(salobj.CscCommander):
         if (
             self.previous_tel_actuators is not None  # type: ignore[has-type]
             and np.allclose(
-                self.previous_tel_actuators.calibrated, data.calibrated, atol=1  # type: ignore[has-type]
+                self.previous_tel_actuators.calibrated,  # type: ignore[has-type]
+                data.calibrated,
+                atol=1,  # type: ignore[has-type]
             )
         ):
             return
@@ -105,7 +107,8 @@ class HexapodCommander(salobj.CscCommander):
         if (
             self.previous_tel_application is not None  # type: ignore[has-type]
             and self.positions_close(
-                self.previous_tel_application.position, data.position  # type: ignore[has-type]
+                self.previous_tel_application.position,  # type: ignore[has-type]
+                data.position,  # type: ignore[has-type]
             )
             and np.array_equal(data.demand, self.previous_tel_application.demand)  # type: ignore[has-type]
         ):

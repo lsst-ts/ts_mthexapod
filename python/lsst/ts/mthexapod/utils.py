@@ -265,9 +265,7 @@ def rot2d(xypos: tuple[float, float], ang: float) -> tuple[float, float]:
     return (cosAng * x - sinAng * y, sinAng * x + cosAng * y)
 
 
-def rot_about_x(
-    xyzpos: numpy.typing.NDArray[np.float64], ang: float
-) -> numpy.typing.NDArray[np.float64]:
+def rot_about_x(xyzpos: numpy.typing.NDArray[np.float64], ang: float) -> numpy.typing.NDArray[np.float64]:
     """Rotate a 3-d position about the x axis.
 
     Positive rotation is from y to z (the usual right-hand rule).
@@ -289,9 +287,7 @@ def rot_about_x(
     return np.array((x, roty, rotz), dtype=float)
 
 
-def rot_about_y(
-    xyzpos: numpy.typing.NDArray[np.float64], ang: float
-) -> numpy.typing.NDArray[np.float64]:
+def rot_about_y(xyzpos: numpy.typing.NDArray[np.float64], ang: float) -> numpy.typing.NDArray[np.float64]:
     """Rotate a 3-d position about the y axis.
 
     Positive rotation is from from z to x (the usual right-hand rule).
@@ -313,9 +309,7 @@ def rot_about_y(
     return np.array((rotx, y, rotz), dtype=float)
 
 
-def rot_about_z(
-    xyzpos: tuple[float, float, float], ang: float
-) -> numpy.typing.NDArray[np.float64]:
+def rot_about_z(xyzpos: tuple[float, float, float], ang: float) -> numpy.typing.NDArray[np.float64]:
     """Rotate a 3-d position about the z axis.
 
     Positive rotation is from x to y (the usual right-hand rule).

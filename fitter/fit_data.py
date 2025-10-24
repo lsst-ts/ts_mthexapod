@@ -10,6 +10,7 @@ You can change matplotlib's backend by editing the code.
 
 The data format is explained in the README file.
 """
+
 import argparse
 import itertools
 import math
@@ -156,9 +157,7 @@ def fit_one(
         raise ValueError("Must be at least 1 coeff")
     cause_data = data["cause"]
     effect_data = data[axis]
-    coeffs, covariance = scipy.optimize.curve_fit(
-        model, cause_data, effect_data, p0=[0] * ncoeffs
-    )
+    coeffs, covariance = scipy.optimize.curve_fit(model, cause_data, effect_data, p0=[0] * ncoeffs)
     return coeffs, covariance
 
 
@@ -213,16 +212,12 @@ def fit_all_axes(
         data_plot.set_title(f"{axis} vs. {cause}")
 
         for ncoeffs in ncoeffs_arr:
-            coeffs, covariance = fit_one(
-                data=data, cause=cause, axis=axis, model=model, ncoeffs=ncoeffs
-            )
+            coeffs, covariance = fit_one(data=data, cause=cause, axis=axis, model=model, ncoeffs=ncoeffs)
             dense_modeled_data = model(dense_cause_data, *coeffs)
             data_plot.plot(dense_cause_data, dense_modeled_data)
             residuals = model(cause_data, *coeffs) - effect_data
             resid_plot.plot(cause_data, residuals, ".")
-            print(
-                f"{axis} coeffs: {np.array2string(coeffs, separator=', ', max_line_width=1000)}"
-            )
+            print(f"{axis} coeffs: {np.array2string(coeffs, separator=', ', max_line_width=1000)}")
             abs_residuals = np.abs(residuals)
             print(
                 f"{axis} residuals: mean(abs) = {abs_residuals.mean():0.3g}; "
@@ -255,9 +250,7 @@ def main() -> None:
         "datafile",
         help="Path to data file.",
     )
-    parser.add_argument(
-        "cause", help="Cause being compensated for.", choices=CAUSE_NAMES
-    )
+    parser.add_argument("cause", help="Cause being compensated for.", choices=CAUSE_NAMES)
     parser.add_argument("model", help="Model to fit.", choices=model_names)
     parser.add_argument(
         "-n",

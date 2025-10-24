@@ -50,9 +50,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             max_length=max_length,
             speed=speed,
         )
-        np.testing.assert_equal(
-            model.base_positions, np.array(base_positions).T * mthexapod.utils.UM_TO_M
-        )
+        np.testing.assert_equal(model.base_positions, np.array(base_positions).T * mthexapod.utils.UM_TO_M)
         np.testing.assert_equal(
             model.neutral_mirror_positions,
             np.array(mirror_positions).T * mthexapod.utils.UM_TO_M,
@@ -172,14 +170,10 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             base_angle0 + 240,
             base_angle0,
         ]
-        for base_position, desired_base_angle in zip(
-            model.base_positions.T, desired_base_angles
-        ):
+        for base_position, desired_base_angle in zip(model.base_positions.T, desired_base_angles):
             assert base_position[2] == pytest.approx(0)
             meas_base_radius = math.hypot(base_position[0], base_position[1])
-            assert meas_base_radius == pytest.approx(
-                base_radius * mthexapod.utils.UM_TO_M
-            )
+            assert meas_base_radius == pytest.approx(base_radius * mthexapod.utils.UM_TO_M)
             base_angle = math.atan2(base_position[1], base_position[0]) * u.rad
             utils.assert_angles_almost_equal(base_angle, desired_base_angle)
 
@@ -199,28 +193,16 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         for mirror_position, desired_mirror_angle in zip(
             model.neutral_mirror_positions.T, desired_mirror_angles
         ):
-            assert mirror_position[2] == pytest.approx(
-                mirror_z * mthexapod.utils.UM_TO_M
-            )
+            assert mirror_position[2] == pytest.approx(mirror_z * mthexapod.utils.UM_TO_M)
             meas_mirror_radius = math.hypot(mirror_position[0], mirror_position[1])
-            assert meas_mirror_radius == pytest.approx(
-                mirror_radius * mthexapod.utils.UM_TO_M
-            )
+            assert meas_mirror_radius == pytest.approx(mirror_radius * mthexapod.utils.UM_TO_M)
             mirror_angle = math.atan2(mirror_position[1], mirror_position[0]) * u.rad
             utils.assert_angles_almost_equal(mirror_angle, desired_mirror_angle)
-        np.testing.assert_equal(
-            model.neutral_mirror_positions[:, 0], model.neutral_mirror_positions[:, 1]
-        )
-        np.testing.assert_equal(
-            model.neutral_mirror_positions[:, 2], model.neutral_mirror_positions[:, 3]
-        )
-        np.testing.assert_equal(
-            model.neutral_mirror_positions[:, 4], model.neutral_mirror_positions[:, 5]
-        )
+        np.testing.assert_equal(model.neutral_mirror_positions[:, 0], model.neutral_mirror_positions[:, 1])
+        np.testing.assert_equal(model.neutral_mirror_positions[:, 2], model.neutral_mirror_positions[:, 3])
+        np.testing.assert_equal(model.neutral_mirror_positions[:, 4], model.neutral_mirror_positions[:, 5])
 
-        np.testing.assert_equal(
-            model.neutral_pivot, np.array(pivot) * mthexapod.utils.UM_TO_M
-        )
+        np.testing.assert_equal(model.neutral_pivot, np.array(pivot) * mthexapod.utils.UM_TO_M)
 
         for actuator in model.actuators:
             assert actuator.min_position == pytest.approx(min_length)
@@ -287,7 +269,6 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         await self.check_move_rotate_about_one_axis(axis=2)
 
     def test_inverse_kinematics(self) -> None:
-
         # Check the result to match the ts_mt_hexRot_simulink repository:
         # hexapod_controller_source_final/hexapod_kin_calc.slx
 
@@ -344,7 +325,6 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         return pivot, mirror_positions, base_positions
 
     def test_forward_kinematics(self) -> None:
-
         pivot, mirror_positions, base_positions = self._get_kinematics_test_data()
         strut_length_delta = mthexapod.SimpleHexapod.inverse_kinematics(
             [
@@ -416,8 +396,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
         await self.check_move(model)
 
         delta_lengths = (
-            np.array([actuator.position() for actuator in model.actuators])
-            * mthexapod.utils.UM_TO_M
+            np.array([actuator.position() for actuator in model.actuators]) * mthexapod.utils.UM_TO_M
         )
         estimated_positions = mthexapod.SimpleHexapod.forward_kinematics(
             np.array([0.0] * mthexapod.NUM_STRUT),
@@ -432,9 +411,7 @@ class SimpleHexapodTestCase(unittest.IsolatedAsyncioTestCase):
             [-400.0, 300.0, 1260.0],
             decimal=0,
         )
-        assert estimated_positions[3 + axis] == pytest.approx(
-            np.deg2rad(rot_angle), rel=1e-3
-        )
+        assert estimated_positions[3 + axis] == pytest.approx(np.deg2rad(rot_angle), rel=1e-3)
 
     async def check_move(self, model: mthexapod.SimpleHexapod) -> None:
         """Check the remaining_time and moving methods."""

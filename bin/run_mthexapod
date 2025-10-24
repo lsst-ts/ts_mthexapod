@@ -21,6 +21,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """An example of how to run a CSC"""
+
 from lsst.ts.mthexapod import run_mthexapod
 
 run_mthexapod()

@@ -110,13 +110,9 @@ class CompensationTestCase(unittest.TestCase):
         elevation_rotation_polynomials = [
             partial(polyval2d, c=coeffs) for coeffs in elevation_rotation_coeffs
         ]
-        azimuth_polynomials = [
-            np.polynomial.Polynomial(coeffs) for coeffs in azimuth_coeffs
-        ]
+        azimuth_polynomials = [np.polynomial.Polynomial(coeffs) for coeffs in azimuth_coeffs]
         temperature_polynomials = [
-            mthexapod.RangedPolynomial(
-                coeffs, min_x=min_temperature, max_x=max_temperature
-            )
+            mthexapod.RangedPolynomial(coeffs, min_x=min_temperature, max_x=max_temperature)
             for coeffs in temperature_coeffs
         ]
         for elevation, azimuth, rotation, temperature in itertools.product(
