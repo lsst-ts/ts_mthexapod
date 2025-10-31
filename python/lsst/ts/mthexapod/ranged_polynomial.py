@@ -63,12 +63,8 @@ class RangedPolynomial:
         self.min_x = min_x
         self.max_x = max_x
         self._inrange_poly = np.polynomial.polynomial.Polynomial(self.coeffs)
-        self._min_poly = np.polynomial.polynomial.Polynomial(
-            [self._inrange_poly(self.min_x), linear_coeff]
-        )
-        self._max_poly = np.polynomial.polynomial.Polynomial(
-            [self._inrange_poly(self.max_x), linear_coeff]
-        )
+        self._min_poly = np.polynomial.polynomial.Polynomial([self._inrange_poly(self.min_x), linear_coeff])
+        self._max_poly = np.polynomial.polynomial.Polynomial([self._inrange_poly(self.max_x), linear_coeff])
 
     def __call__(self, x: float) -> float:
         """Compute the value of the function.

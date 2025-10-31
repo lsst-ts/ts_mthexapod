@@ -27,18 +27,14 @@ from lsst.ts import mthexapod
 
 
 class BaseTestCase(unittest.TestCase):
-    def assert_dataclass_data_equal(
-        self, instance: types.SimpleNamespace, data_dict: dict
-    ) -> None:
+    def assert_dataclass_data_equal(self, instance: types.SimpleNamespace, data_dict: dict) -> None:
         """Assert that the fields of a dataclass instance are equal to
         the specified values.
         """
         instance_data = vars(instance)
         assert instance_data == data_dict
 
-    def assert_dataclass_data_almost_equal(
-        self, instance: types.SimpleNamespace, data_dict: dict
-    ) -> None:
+    def assert_dataclass_data_almost_equal(self, instance: types.SimpleNamespace, data_dict: dict) -> None:
         """Assert that the fields of a dataclass instance are almost equal to
         the specified values.
         """

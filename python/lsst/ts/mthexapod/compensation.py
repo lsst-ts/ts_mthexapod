@@ -94,9 +94,7 @@ class Compensation:
         self.elevation_rotation_polys = [
             partial(polyval2d, c=elevation_rotation_coeffs[i]) for i in range(NUM_AXES)
         ]
-        self.azimuth_polys = [
-            np.polynomial.Polynomial(azimuth_coeffs[i]) for i in range(NUM_AXES)
-        ]
+        self.azimuth_polys = [np.polynomial.Polynomial(azimuth_coeffs[i]) for i in range(NUM_AXES)]
         self.temperature_polys = [
             RangedPolynomial(
                 coeffs=temperature_coeffs[i],

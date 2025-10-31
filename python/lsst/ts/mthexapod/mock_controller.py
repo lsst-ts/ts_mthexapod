@@ -110,11 +110,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             constants.MAX_ANGULAR_VEL_LIMIT,
         )
         # Order: x, y, z, u, w, v
-        pivot = (
-            constants.PIVOT_CAMERA
-            if (index == enums.SalIndex.CAMERA_HEXAPOD)
-            else constants.PIVOT_M2
-        )
+        pivot = constants.PIVOT_CAMERA if (index == enums.SalIndex.CAMERA_HEXAPOD) else constants.PIVOT_M2
         config.pivot = pivot
         config.max_displacement_strut = constants.ACTUATOR_MAX_LENGTH
         config.max_velocity_strut = constants.ACTUATOR_SPEED
@@ -184,8 +180,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
         self.assert_stationary()
         if not 0 < command.param1 <= constants.MAX_ACCEL_LIMIT:
             raise ValueError(
-                f"Requested accel limit {command.param1} "
-                f"not in range (0, {constants.MAX_ACCEL_LIMIT}]"
+                f"Requested accel limit {command.param1} not in range (0, {constants.MAX_ACCEL_LIMIT}]"
             )
         self.config.acceleration_strut = command.param1
         await self.write_config()
@@ -201,9 +196,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     async def do_config_vel(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         utils.check_positive_value(command.param1, "xy", constants.MAX_LINEAR_VEL_LIMIT)
-        utils.check_positive_value(
-            command.param2, "uv", constants.MAX_ANGULAR_VEL_LIMIT
-        )
+        utils.check_positive_value(command.param2, "uv", constants.MAX_ANGULAR_VEL_LIMIT)
         utils.check_positive_value(command.param3, "z", constants.MAX_LINEAR_VEL_LIMIT)
         utils.check_positive_value(command.param4, "w", constants.MAX_ANGULAR_VEL_LIMIT)
         self.config.vel_limits = (
@@ -239,17 +232,13 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
     async def do_move_point_to_point(self, command: hexrotcomm.Command) -> None:
         self.assert_stationary()
         if self.set_position is None:
-            raise RuntimeError(
-                "Must call POSITION_SET before calling MOVE_POINT_TO_POINT"
-            )
+            raise RuntimeError("Must call POSITION_SET before calling MOVE_POINT_TO_POINT")
         self.telemetry.commanded_pos = dataclasses.astuple(self.set_position)
         duration = self.hexapod.move(
             pos=self.telemetry.commanded_pos[0:3],  # type: ignore[arg-type]
             xyzrot=self.telemetry.commanded_pos[3:6],  # type: ignore[arg-type]
         )
-        self.telemetry.commanded_length = tuple(
-            actuator.end_position for actuator in self.hexapod.actuators
-        )
+        self.telemetry.commanded_length = tuple(actuator.end_position for actuator in self.hexapod.actuators)
         self.telemetry.enabled_substate = EnabledSubstate.MOVING_POINT_TO_POINT
         self.move_commanded = True
         self.log.debug(
@@ -258,9 +247,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             duration,
         )
 
-    async def end_run_command(
-        self, command: hexrotcomm.Command, cmd_method: typing.Coroutine
-    ) -> None:
+    async def end_run_command(self, command: hexrotcomm.Command, cmd_method: typing.Coroutine) -> None:
         if cmd_method != self.do_position_set:
             self.set_position = None
 
@@ -272,13 +259,11 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             if self.telemetry.state != ControllerState.ENABLED:
                 self.move_commanded = False
             axes_in_position = [
-                self.move_commanded and not actuator.moving(curr_tai)
-                for actuator in self.hexapod.actuators
+                self.move_commanded and not actuator.moving(curr_tai) for actuator in self.hexapod.actuators
             ]
             in_position = all(axes_in_position)
             self.telemetry.application_status = (
-                int(in_position) * ApplicationStatus.MOVE_COMPLETE
-                | ApplicationStatus.DDS_COMMAND_SOURCE
+                int(in_position) * ApplicationStatus.MOVE_COMPLETE | ApplicationStatus.DDS_COMMAND_SOURCE
             )
             self.telemetry.input_pin_states = (0,) * 3
 
@@ -286,19 +271,14 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             # and bus voltage as a constant.
             # I doubt either of these is realistic.
             axes_frac_velocity = [
-                actuator.velocity(tai=curr_tai) / actuator.speed
-                for actuator in self.hexapod.actuators
+                actuator.velocity(tai=curr_tai) / actuator.speed for actuator in self.hexapod.actuators
             ]
-            self.telemetry.motor_current[:] = np.multiply(
-                axes_frac_velocity, AMPS_PER_FRAC_SPEED
-            )
+            self.telemetry.motor_current[:] = np.multiply(axes_frac_velocity, AMPS_PER_FRAC_SPEED)
             self.telemetry.bus_voltage[:] = [BUS_VOLTAGE] * 3
 
             # state and enabled_substate
             # are all set by set_state
-            current_lengths = [
-                actuator.position(curr_tai) for actuator in self.hexapod.actuators
-            ]
+            current_lengths = [actuator.position(curr_tai) for actuator in self.hexapod.actuators]
             if self.telemetry.state == ControllerState.ENABLED:
                 # Add some fake encoder jitter,
                 current_lengths += self.strut_jitter * (np.random.random(6) - 0.5)
@@ -324,8 +304,7 @@ class MockMTHexapodController(hexrotcomm.BaseMockController):
             self.telemetry.measured_uvw = tuple(measured_uvw)
             if (
                 self.telemetry.state == ControllerState.ENABLED
-                and self.telemetry.enabled_substate
-                == EnabledSubstate.MOVING_POINT_TO_POINT
+                and self.telemetry.enabled_substate == EnabledSubstate.MOVING_POINT_TO_POINT
                 and all(axes_in_position)
             ):
                 self.telemetry.enabled_substate = EnabledSubstate.STATIONARY
