@@ -27,6 +27,7 @@ import unittest
 import jsonschema
 import pytest
 import yaml
+
 from lsst.ts import mthexapod, salobj
 
 TEST_CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"

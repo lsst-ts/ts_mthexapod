@@ -25,8 +25,9 @@ from functools import partial
 
 import numpy as np
 import pytest
-from lsst.ts import mthexapod
 from numpy.polynomial.polynomial import polyval2d
+
+from lsst.ts import mthexapod
 
 
 class CompensationTestCase(unittest.TestCase):

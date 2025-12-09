@@ -31,6 +31,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
+
 from lsst.ts import hexrotcomm, salobj
 from lsst.ts.utils import make_done_future
 from lsst.ts.xml.enums.MTHexapod import (
@@ -237,11 +238,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.filter_offset = base.Position.from_struct(zero_offset)
 
         # Set the pivot
-        pivot = (
-            constants.PIVOT_CAMERA
-            if (index == enums.SalIndex.CAMERA_HEXAPOD)
-            else constants.PIVOT_M2
-        )
+        pivot = constants.PIVOT_CAMERA if (index == enums.SalIndex.CAMERA_HEXAPOD) else constants.PIVOT_M2
         self._pivot = np.array(pivot) * utils.UM_TO_M
 
         # Set the base and mirror positions for the hexapod
@@ -277,9 +274,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             name="MTMount",
             include=["target", "elevation", "azimuth"],
         )
-        self.mtrotator = salobj.Remote(
-            domain=self.domain, name="MTRotator", include=["target", "rotation"]
-        )
+        self.mtrotator = salobj.Remote(domain=self.domain, name="MTRotator", include=["target", "rotation"])
 
         # See the ts_config_ocs/ESS
         # 121 and 122 (= 120 + index.value) are defined in
@@ -410,9 +405,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         for idx in range(3):
             self._pivot[idx] = client.config.pivot[idx] * utils.UM_TO_M
 
-        self.current_pos_limits = base.PositionLimits.from_struct(
-            self.evt_configuration.data
-        )
+        self.current_pos_limits = base.PositionLimits.from_struct(self.evt_configuration.data)
 
         # Compute a simplistic model for the maximum duration of a move (sec).
         # Ignore the distance over which the strut accelerates
@@ -439,15 +432,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             return
 
         telemetry_interval = 0.2
-        accel_duration = (
-            client.config.max_velocity_strut / client.config.acceleration_strut
-        )
-        vel_duration = (
-            client.config.max_displacement_strut / client.config.max_velocity_strut
-        )
-        self.max_move_duration = 2.1 * (
-            telemetry_interval + accel_duration + vel_duration
-        )
+        accel_duration = client.config.max_velocity_strut / client.config.acceleration_strut
+        vel_duration = client.config.max_displacement_strut / client.config.max_velocity_strut
+        self.max_move_duration = 2.1 * (telemetry_interval + accel_duration + vel_duration)
         self.log.info(f"max_move_duration={self.max_move_duration}")
 
     async def configure(self, config: types.SimpleNamespace) -> None:
@@ -455,9 +442,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await super().configure(config)
         self.compensation_interval = config.compensation_interval
         subconfig = types.SimpleNamespace(**getattr(config, self.subconfig_name))
-        self.min_compensation_adjustment = np.array(
-            subconfig.min_compensation_adjustment, dtype=float
-        )
+        self.min_compensation_adjustment = np.array(subconfig.min_compensation_adjustment, dtype=float)
         self.compensation = compensation.Compensation(
             elevation_rotation_coeffs=subconfig.elevation_rotation_coeffs,
             azimuth_coeffs=subconfig.azimuth_coeffs,
@@ -480,9 +465,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 self.monitor_camera_filter(subconfig.camera)
             )
 
-        self.log.info(
-            f"Enable LUT temperature: {self.enable_lut_temperature}. Configure done."
-        )
+        self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}. Configure done.")
 
     async def monitor_camera_filter(self, camera: str) -> None:
         """Monitor the camera filter and apply compensation as needed.
@@ -503,9 +486,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             ) as camera_remote:
                 camera_remote.evt_endSetFilter.flush()
                 try:
-                    end_set_filter = await camera_remote.evt_endSetFilter.aget(
-                        timeout=MAXIMUM_STOP_TIME
-                    )
+                    end_set_filter = await camera_remote.evt_endSetFilter.aget(timeout=MAXIMUM_STOP_TIME)
                     current_filter = end_set_filter.filterName
                     self.log.info(f"Initial camera filter {current_filter}.")
                     await self.handle_camera_filter(current_filter)
@@ -514,9 +495,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
                 self.log.info("Camera filter monitor loop starting.")
                 while self.disabled_or_enabled:
-                    end_set_filter = await camera_remote.evt_endSetFilter.next(
-                        flush=False
-                    )
+                    end_set_filter = await camera_remote.evt_endSetFilter.next(flush=False)
                     if current_filter != end_set_filter.filterName:
                         self.log.info(
                             f"Updating camera filter {current_filter} -> {end_set_filter.filterName}."
@@ -601,9 +580,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     "Found the hexapod moving after waiting the compensation interval; waiting again."
                 )
 
-    def compute_compensation(
-        self, uncompensated_pos: base.Position
-    ) -> CompensationInfo:
+    def compute_compensation(self, uncompensated_pos: base.Position) -> CompensationInfo:
         """Check uncompensated and, if relevant, compensated position
         and return compensation information.
 
@@ -631,10 +608,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         if self.compensation_mode:
             compensation_inputs = self.get_compensation_inputs()
             if compensation_inputs is not None:
-                compensation_offset = (
-                    self.compensation.get_offset(compensation_inputs)
-                    + self.filter_offset
-                )
+                compensation_offset = self.compensation.get_offset(compensation_inputs) + self.filter_offset
 
                 compensated_pos = uncompensated_pos + compensation_offset
                 self._check_position(compensated_pos)
@@ -687,11 +661,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         idx_max = np.abs(delta_strut_length).argmax()
         max_abs_delta_strut_length = delta_strut_length[idx_max] / utils.UM_TO_M
 
-        if not (
-            constants.ACTUATOR_MIN_LENGTH
-            < max_abs_delta_strut_length
-            < constants.ACTUATOR_MAX_LENGTH
-        ):
+        if not (constants.ACTUATOR_MIN_LENGTH < max_abs_delta_strut_length < constants.ACTUATOR_MAX_LENGTH):
             raise salobj.ExpectedError(
                 f"{max_abs_delta_strut_length=} not in range "
                 f"({constants.ACTUATOR_MIN_LENGTH}, {constants.ACTUATOR_MAX_LENGTH})"
@@ -832,13 +802,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             Temperature. Return 0.0 if the temperature is not available.
         """
 
-        if (
-            self.enable_lut_temperature
-            and self.ess_temperature.tel_temperature.has_data
-        ):
-            temperatures = np.array(
-                self.ess_temperature.tel_temperature.get().temperatureItem
-            )
+        if self.enable_lut_temperature and self.ess_temperature.tel_temperature.has_data:
+            temperatures = np.array(self.ess_temperature.tel_temperature.get().temperatureItem)
 
             # Only the first 6 elements are used
             return np.mean(temperatures[0:6])
@@ -854,9 +819,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             constants.MAX_ACCEL_LIMIT,
             ExceptionClass=salobj.ExpectedError,
         )
-        await self.run_command(
-            code=enums.CommandCode.CONFIG_ACCEL, param1=data.acceleration
-        )
+        await self.run_command(code=enums.CommandCode.CONFIG_ACCEL, param1=data.acceleration)
 
     async def do_configureLimits(self, data: salobj.BaseMsgType) -> None:
         """Specify position and rotation limits."""
@@ -870,10 +833,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             max_limits=self.max_pos_limits,
             ExceptionClass=salobj.ExpectedError,
         )
-        command_kwargs = {
-            f"param{i + 1}": value
-            for i, value in enumerate(dataclasses.astuple(new_limits))
-        }
+        command_kwargs = {f"param{i + 1}": value for i, value in enumerate(dataclasses.astuple(new_limits))}
         await self.run_command(code=enums.CommandCode.CONFIG_LIMITS, **command_kwargs)
         # The new limits are set by config_callback
 
@@ -1070,15 +1030,11 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         position.
         """
 
-        uncompensated_pos = self._get_uncompensated_position_with_offset(
-            base.Position.from_struct(data)
-        )
+        uncompensated_pos = self._get_uncompensated_position_with_offset(base.Position.from_struct(data))
 
         await self._move_hexapod(uncompensated_pos, data.sync)
 
-    def _get_uncompensated_position_with_offset(
-        self, offset: base.Position
-    ) -> base.Position:
+    def _get_uncompensated_position_with_offset(self, offset: base.Position) -> base.Position:
         """Get the uncompensated position with the offset applied.
 
         Parameters
@@ -1102,13 +1058,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         position.
         """
 
-        uncompensated_pos = self._get_uncompensated_position_with_offset(
-            base.Position.from_struct(data)
-        )
+        uncompensated_pos = self._get_uncompensated_position_with_offset(base.Position.from_struct(data))
         if data.overwriteStepSizeFromConfig:
-            await self._move_hexapod(
-                uncompensated_pos, data.sync, overwrite_step_size_from_config=True
-            )
+            await self._move_hexapod(uncompensated_pos, data.sync, overwrite_step_size_from_config=True)
         else:
             await self._move_hexapod(
                 uncompensated_pos,
@@ -1182,16 +1134,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         try:
             await self.stop_motion()
         except Exception:
-            self.log.exception(
-                "Stop motion failed while handling csc level fault. Continuing."
-            )
+            self.log.exception("Stop motion failed while handling csc level fault. Continuing.")
 
         try:
             await self.standby_controller()
         except Exception:
-            self.log.exception(
-                "Sending controller to standby failed while handling csc level fault."
-            )
+            self.log.exception("Sending controller to standby failed while handling csc level fault.")
 
         yield
 
@@ -1248,9 +1196,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             to acquire/release the asynchronous lock. (the default is 10)
         """
 
-        self.log.info(
-            "Start the task to monitor the idle time under the enabled state."
-        )
+        self.log.info("Start the task to monitor the idle time under the enabled state.")
 
         count = 0
         while self.summary_state == salobj.State.ENABLED:
@@ -1267,9 +1213,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 if self._idle_time_in_enabled_state >= self.no_movement_idle_time:
                     await self.standby_controller()
 
-                    self.log.info(
-                        "Standby the controller after the timeout of no movement when enabled."
-                    )
+                    self.log.info("Standby the controller after the timeout of no movement when enabled.")
 
                 count = 0
 
@@ -1299,9 +1243,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
         await self.evt_compensationMode.set_write(enabled=False)
 
-    async def telemetry_callback(
-        self, client: hexrotcomm.CommandTelemetryClient
-    ) -> None:
+    async def telemetry_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs telemetry.
 
         Parameters
@@ -1327,17 +1269,12 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.move_steps_start_event.set()
 
         pos_error = [
-            client.telemetry.measured_xyz[i] - client.telemetry.commanded_pos[i]
-            for i in range(3)
-        ] + [
-            client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3]
-            for i in range(3)
-        ]
+            client.telemetry.measured_xyz[i] - client.telemetry.commanded_pos[i] for i in range(3)
+        ] + [client.telemetry.measured_uvw[i] - client.telemetry.commanded_pos[i + 3] for i in range(3)]
 
         # Change the unit from m to um
         calibrated = [
-            single_posfiltvel.pos_filt * 1e6
-            for single_posfiltvel in client.telemetry.estimated_posfiltvel
+            single_posfiltvel.pos_filt * 1e6 for single_posfiltvel in client.telemetry.estimated_posfiltvel
         ]
         await self.tel_actuators.set_write(
             calibrated=calibrated,
@@ -1347,8 +1284,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         await self.tel_application.set_write(
             demand=client.telemetry.commanded_pos,
-            position=list(client.telemetry.measured_xyz)
-            + list(client.telemetry.measured_uvw),
+            position=list(client.telemetry.measured_xyz) + list(client.telemetry.measured_uvw),
             error=pos_error,
         )
 
@@ -1361,9 +1297,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         )
         await self.tel_electrical.set_write(**electrical)
 
-        in_position = (
-            client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
-        )
+        in_position = client.telemetry.application_status & ApplicationStatus.MOVE_COMPLETE
         if (not self.move_steps_in_position_event.is_set()) and in_position:
             self.move_steps_in_position_event.set()
 
@@ -1374,15 +1308,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             await self.evt_inPosition.set_write(inPosition=True)
 
         await self.evt_commandableByDDS.set_write(
-            state=bool(
-                client.telemetry.application_status
-                & ApplicationStatus.DDS_COMMAND_SOURCE
-            )
+            state=bool(client.telemetry.application_status & ApplicationStatus.DDS_COMMAND_SOURCE)
         )
 
-        safety_interlock = (
-            client.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
-        )
+        safety_interlock = client.telemetry.application_status & ApplicationStatus.SAFETY_INTERLOCK
         await self.evt_interlock.set_write(engaged=safety_interlock)
         if (self.summary_state == salobj.State.FAULT) and safety_interlock:
             await self.evt_errorCode.set_write(
@@ -1411,10 +1340,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             Desired position.
         """
         self._check_position(position)
-        command_kwargs = {
-            f"param{i + 1}": value
-            for i, value in enumerate(dataclasses.astuple(position))
-        }
+        command_kwargs = {f"param{i + 1}": value for i, value in enumerate(dataclasses.astuple(position))}
         return self.make_command(code=enums.CommandCode.POSITION_SET, **command_kwargs)
 
     def _has_uncompensated_position(self) -> bool:
@@ -1498,9 +1424,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             If the system goes out of enabled state.
         """
         if n_telemetry < 0 or n_telemetry > MAX_N_TELEMETRY:
-            raise ValueError(
-                f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
-            )
+            raise ValueError(f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]")
 
         if self.n_telemetry >= n_telemetry:
             return
@@ -1530,9 +1454,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             asyncio.CancelledError if not in enabled state.
         """
         if n_telemetry < 0 or n_telemetry > MAX_N_TELEMETRY:
-            raise ValueError(
-                f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]"
-            )
+            raise ValueError(f"n_telemetry={n_telemetry} must be in range [0, {MAX_N_TELEMETRY}]")
 
         if self.client.telemetry.state != ControllerState.ENABLED:
             raise asyncio.CancelledError()
@@ -1549,9 +1471,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 raise asyncio.CancelledError()
             if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
                 n_telemetry_stopped += 1
-                self.log.debug(
-                    f"[{n_telemetry_stopped}/{n_telemetry}]: Hexapod stationary."
-                )
+                self.log.debug(f"[{n_telemetry_stopped}/{n_telemetry}]: Hexapod stationary.")
             else:
                 if n_telemetry_stopped > 0:
                     self.log.warning(
@@ -1621,13 +1541,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 if compensation_info.compensation_offset is None:
                     return
                 names = base.Position.field_names()
-                compensated_pos_list = [
-                    getattr(compensation_info.compensated_pos, name) for name in names
-                ]
+                compensated_pos_list = [getattr(compensation_info.compensated_pos, name) for name in names]
                 current_position = self._get_current_position()
-                current_position_list = [
-                    getattr(current_position, name) for name in names
-                ]
+                current_position_list = [getattr(current_position, name) for name in names]
 
                 delta = np.subtract(
                     compensated_pos_list,
@@ -1640,9 +1556,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                             "However this is the initial compensation offset so applying it anyway."
                         )
                     else:
-                        self.log.debug(
-                            "Compensation offset too small to apply: %s", delta
-                        )
+                        self.log.debug("Compensation offset too small to apply: %s", delta)
                         return
 
                 self.initial_compensation_offset_applied = True
@@ -1650,18 +1564,10 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
 
             # Get the step size from the configuration if needed.
-            step_size_xy_final = (
-                self.step_size_xy if overwrite_step_size_from_config else step_size_xy
-            )
-            step_size_z_final = (
-                self.step_size_z if overwrite_step_size_from_config else step_size_z
-            )
-            step_size_uv_final = (
-                self.step_size_uv if overwrite_step_size_from_config else step_size_uv
-            )
-            step_size_w_final = (
-                self.step_size_w if overwrite_step_size_from_config else step_size_w
-            )
+            step_size_xy_final = self.step_size_xy if overwrite_step_size_from_config else step_size_xy
+            step_size_z_final = self.step_size_z if overwrite_step_size_from_config else step_size_z
+            step_size_uv_final = self.step_size_uv if overwrite_step_size_from_config else step_size_uv
+            step_size_w_final = self.step_size_w if overwrite_step_size_from_config else step_size_w
 
             # Command the new motion.
             self.move_steps_task = asyncio.create_task(
@@ -1676,9 +1582,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             )
 
             await self.evt_uncompensatedPosition.set_write(**vars(uncompensated_pos))
-            await self.evt_compensatedPosition.set_write(
-                **vars(compensation_info.compensated_pos)
-            )
+            await self.evt_compensatedPosition.set_write(**vars(compensation_info.compensated_pos))
             if compensation_info.compensation_offset is not None:
                 # Workaround the mypy check
                 assert compensation_info.compensation_inputs is not None
@@ -1694,9 +1598,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             # This move failed; restart the compensation loop anyway,
             # if it is wanted.
             if self.compensation_mode and not is_compensation_loop:
-                self.compensation_loop_task = asyncio.create_task(
-                    self.compensation_loop()
-                )
+                self.compensation_loop_task = asyncio.create_task(self.compensation_loop())
             raise
 
         if self.compensation_mode and not is_compensation_loop:

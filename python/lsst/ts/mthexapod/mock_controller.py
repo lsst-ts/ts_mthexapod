@@ -25,6 +25,7 @@ import logging
 import typing
 
 import numpy as np
+
 from lsst.ts import hexrotcomm
 from lsst.ts.xml.enums.MTHexapod import (
     ApplicationStatus,

@@ -34,10 +34,11 @@ import unittest
 import numpy as np
 import pytest
 import yaml
+from numpy.testing import assert_allclose
+
 from lsst.ts import hexrotcomm, mthexapod, salobj, utils
 from lsst.ts.xml.enums.MTHexapod import ControllerState, EnabledSubstate
 from lsst.ts.xml.sal_enums import State
-from numpy.testing import assert_allclose
 
 STD_TIMEOUT = 10  # timeout for command ack
 EPSILON = 1e-10  # approx allowed error between float and double
