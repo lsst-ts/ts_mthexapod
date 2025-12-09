@@ -31,6 +31,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
+
 from lsst.ts import hexrotcomm, salobj
 from lsst.ts.utils import make_done_future
 from lsst.ts.xml.enums.MTHexapod import (
@@ -1091,18 +1092,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 )
             return
 
-        uncompensated_pos = self._get_uncompensated_position()
         if data.enable:
             self.log.info("Applying compensation to the current target position")
-        else:
-            self.log.info("Removing compensation from the current target position")
-        self.move_task = asyncio.create_task(
-            self._move(
-                uncompensated_pos=uncompensated_pos,
-                sync=True,
-                overwrite_step_size_from_config=True,
+            uncompensated_pos = self._get_uncompensated_position()
+            self.move_task = asyncio.create_task(
+                self._move(
+                    uncompensated_pos=uncompensated_pos,
+                    sync=True,
+                    overwrite_step_size_from_config=True,
+                )
             )
-        )
+        else:
+            self.log.info("Compensation disabled; Keeping the hexapod in its current position.")
 
     async def do_setPivot(self, data: salobj.BaseMsgType) -> None:
         """Set the coordinates of the pivot point."""

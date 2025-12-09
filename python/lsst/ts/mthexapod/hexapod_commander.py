@@ -24,6 +24,7 @@ __all__ = ["HexapodCommander", "command_hexapod"]
 import asyncio
 
 import numpy as np
+
 from lsst.ts import salobj
 
 from . import enums

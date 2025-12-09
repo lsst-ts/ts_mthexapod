@@ -24,8 +24,9 @@ import typing
 
 import numpy as np
 import numpy.typing
-from lsst.ts import simactuators
 from scipy.optimize import minimize
+
+from lsst.ts import simactuators
 
 from . import utils
 from .constants import NUM_STRUT

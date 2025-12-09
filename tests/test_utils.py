@@ -23,6 +23,7 @@ import math
 import unittest
 
 import numpy as np
+
 from lsst.ts import mthexapod
 
 
