@@ -8,6 +8,17 @@ Version History
 
 .. towncrier release notes start
 
+v1.7.0 (2025-12-09)
+===================
+
+New Features
+------------
+
+- Adapt the ruff format. (`OSW-1287 <https://rubinobs.atlassian.net//browse/OSW-1287>`_)
+- Updated ``setCompensationMode`` command to leave the hexapod in its position when disabling compensation. (`RSO-40 <https://rubinobs.atlassian.net//browse/RSO-40>`_)
+- Reformatted with the latest style. (`RSO-40 <https://rubinobs.atlassian.net//browse/RSO-40>`_)
+
+
 v1.6.1 (2025-10-13)
 ===================
 
