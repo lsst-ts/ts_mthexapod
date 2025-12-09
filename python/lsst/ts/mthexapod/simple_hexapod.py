@@ -24,8 +24,9 @@ import typing
 
 import numpy as np
 import numpy.typing
-from lsst.ts import simactuators
 from scipy.optimize import minimize
+
+from lsst.ts import simactuators
 
 from . import utils
 from .constants import NUM_STRUT
@@ -74,18 +75,12 @@ class SimpleHexapod:
             raise ValueError(f"base_positions={base_positions} must have 6 elements")
         for pos in base_positions:
             if len(pos) != 3:
-                raise ValueError(
-                    f"base_positions={base_positions}; each item must have 3 elements"
-                )
+                raise ValueError(f"base_positions={base_positions}; each item must have 3 elements")
         if len(mirror_positions) != NUM_STRUT:
-            raise ValueError(
-                f"mirror_positions={mirror_positions} must have 6 elements"
-            )
+            raise ValueError(f"mirror_positions={mirror_positions} must have 6 elements")
         for pos in mirror_positions:
             if len(pos) != 3:
-                raise ValueError(
-                    f"mirror_positions={mirror_positions}; each item must have 3 elements"
-                )
+                raise ValueError(f"mirror_positions={mirror_positions}; each item must have 3 elements")
         if len(pivot) != 3:
             raise ValueError(f"pivot={pivot} must have 3 elements")
         self.base_positions = np.array(base_positions).T * utils.UM_TO_M
@@ -157,14 +152,10 @@ class SimpleHexapod:
         mirror_angle_offset = 60
         for i in range(3):
             base_angle = base_angle0 + i * delta_angle
-            basepos = utils.rot_about_z(
-                (base_radius, 0.0, 0.0), base_angle * utils.RAD_PER_DEG
-            )
+            basepos = utils.rot_about_z((base_radius, 0.0, 0.0), base_angle * utils.RAD_PER_DEG)
             base_positions += [basepos, basepos]
             mirror_angle = base_angle + mirror_angle_offset
-            mirrorpos = utils.rot_about_z(
-                (mirror_radius, 0.0, mirror_z), mirror_angle * utils.RAD_PER_DEG
-            )
+            mirrorpos = utils.rot_about_z((mirror_radius, 0.0, mirror_z), mirror_angle * utils.RAD_PER_DEG)
             mirror_positions += [mirrorpos, mirrorpos]
         # base_positions has order [5, 0, 1, 2, 3, 4]; fix to [0, 1, 2...]
         base_positions = base_positions[1:] + base_positions[0:1]
@@ -185,9 +176,7 @@ class SimpleHexapod:
         """Remaining time for this move (sec)."""
         return max(actuator.remaining_time(tai) for actuator in self.actuators)
 
-    def move(
-        self, pos: tuple[float, float, float], xyzrot: tuple[float, float, float]
-    ) -> float:
+    def move(self, pos: tuple[float, float, float], xyzrot: tuple[float, float, float]) -> float:
         """Move the actuators so the pivot point is at the specified
         orientation.
 
@@ -232,9 +221,7 @@ class SimpleHexapod:
         for actuator in self.actuators:
             actuator.stop()
 
-    def assert_in_range(
-        self, actuator_lengths: numpy.typing.NDArray[np.float64]
-    ) -> None:
+    def assert_in_range(self, actuator_lengths: numpy.typing.NDArray[np.float64]) -> None:
         """Assert that all actuators would be in range if set to the
         specified length.
         """
@@ -291,15 +278,9 @@ class SimpleHexapod:
         # Consider the rotation part
 
         # Rotation matrix
-        rot_x = np.array(
-            [[1, 0, 0], [0, np.cos(rx), -np.sin(rx)], [0, np.sin(rx), np.cos(rx)]]
-        )
-        rot_y = np.array(
-            [[np.cos(ry), 0, np.sin(ry)], [0, 1, 0], [-np.sin(ry), 0, np.cos(ry)]]
-        )
-        rot_z = np.array(
-            [[np.cos(rz), -np.sin(rz), 0], [np.sin(rz), np.cos(rz), 0], [0, 0, 1]]
-        )
+        rot_x = np.array([[1, 0, 0], [0, np.cos(rx), -np.sin(rx)], [0, np.sin(rx), np.cos(rx)]])
+        rot_y = np.array([[np.cos(ry), 0, np.sin(ry)], [0, 1, 0], [-np.sin(ry), 0, np.cos(ry)]])
+        rot_z = np.array([[np.cos(rz), -np.sin(rz), 0], [np.sin(rz), np.cos(rz), 0], [0, 0, 1]])
         rot_xyz = rot_x.dot(rot_y).dot(rot_z)
 
         # Rotate the base positions
@@ -317,9 +298,7 @@ class SimpleHexapod:
         # Calculate the delta strut lengths
         strut_length_total = np.sqrt(np.sum(delta_location**2, axis=0))
 
-        strut_length_norm = np.sqrt(
-            np.sum((base_positions - mirror_positions) ** 2, axis=0)
-        )
+        strut_length_norm = np.sqrt(np.sum((base_positions - mirror_positions) ** 2, axis=0))
         strut_length_delta = strut_length_total - strut_length_norm
 
         return strut_length_delta

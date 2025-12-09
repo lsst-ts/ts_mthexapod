@@ -57,9 +57,7 @@ class FourierSeries:
             next(function_iter) for i in range(len(coeffs) - 1)
         ]
         # Angle multipliers for C0, C1, C2, C3
-        self.angle_multipliers = [
-            ((i + 1) // 2) * RAD_PER_DEG for i in range(len(coeffs))
-        ]
+        self.angle_multipliers = [((i + 1) // 2) * RAD_PER_DEG for i in range(len(coeffs))]
 
     def __call__(self, angle: float) -> float:
         """Compute the value of the function.
@@ -70,8 +68,6 @@ class FourierSeries:
             Angle, in degrees.
         """
         result = 0.0
-        for coeff, function, angle_multiplier in zip(
-            self.coeffs, self.functions, self.angle_multipliers
-        ):
+        for coeff, function, angle_multiplier in zip(self.coeffs, self.functions, self.angle_multipliers):
             result += coeff * function(angle * angle_multiplier)
         return result

@@ -113,23 +113,15 @@ class Position:
         return cls(**{name: getattr(data, name) for name in cls.field_names()})
 
     def __add__(self, other: typing.Self) -> typing.Self:
-        kwargs = {
-            name: getattr(self, name) + getattr(other, name)
-            for name in self.field_names()
-        }
+        kwargs = {name: getattr(self, name) + getattr(other, name) for name in self.field_names()}
         return Position(**kwargs)  # type: ignore[return-value]
 
     def __sub__(self, other: typing.Self) -> typing.Self:
-        kwargs = {
-            name: getattr(self, name) - getattr(other, name)
-            for name in self.field_names()
-        }
+        kwargs = {name: getattr(self, name) - getattr(other, name) for name in self.field_names()}
         return Position(**kwargs)  # type: ignore[return-value]
 
     def __eq__(self, other: object) -> bool:
-        return all(
-            getattr(self, name) == getattr(other, name) for name in self.field_names()
-        )
+        return all(getattr(self, name) == getattr(other, name) for name in self.field_names())
 
 
 @dataclasses.dataclass

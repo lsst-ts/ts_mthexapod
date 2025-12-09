@@ -23,6 +23,7 @@ import math
 import unittest
 
 import numpy as np
+
 from lsst.ts import mthexapod
 
 
@@ -80,14 +81,11 @@ class UtilsTestCase(unittest.TestCase):
                 np.testing.assert_allclose(rotpos, desired_rotpos, atol=1e-10)
 
     def test_get_next_position(self) -> None:
-
         position_current = mthexapod.Position(1.0, -3.0, 4.0, -10.0, 2.0, 3.0)
         position_target = mthexapod.Position(1.0, -10.0, 5.0, -7.0, -1.0, -2.5)
 
         # No step size, should go to the target directly
-        position_next = mthexapod.get_next_position(
-            position_current, position_target, 0.0, 0.0, 0.0, 0.0
-        )
+        position_next = mthexapod.get_next_position(position_current, position_target, 0.0, 0.0, 0.0, 0.0)
 
         assert position_next == position_target
 
@@ -99,20 +97,14 @@ class UtilsTestCase(unittest.TestCase):
         assert position_next == position_target
 
         # Normal condition
-        position_next_1 = mthexapod.get_next_position(
-            position_current, position_target, 3.0, 0.0, 1.0, 2.0
-        )
+        position_next_1 = mthexapod.get_next_position(position_current, position_target, 3.0, 0.0, 1.0, 2.0)
 
         assert position_next_1 == mthexapod.Position(1.0, -6.0, 5.0, -9.0, 1.0, 1.0)
 
-        position_next_2 = mthexapod.get_next_position(
-            position_next_1, position_target, 3.0, 0.0, 1.0, 2.0
-        )
+        position_next_2 = mthexapod.get_next_position(position_next_1, position_target, 3.0, 0.0, 1.0, 2.0)
 
         assert position_next_2 == mthexapod.Position(1.0, -9.0, 5.0, -8.0, 0.0, -1.0)
 
-        position_next_3 = mthexapod.get_next_position(
-            position_next_2, position_target, 3.0, 0.0, 1.0, 2.0
-        )
+        position_next_3 = mthexapod.get_next_position(position_next_2, position_target, 3.0, 0.0, 1.0, 2.0)
 
         assert position_next_3 == position_target
