@@ -1693,3 +1693,86 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # Test disabling compensation with setCompensationMode
             await self.remote.cmd_setCompensationMode.set_start(enable=False, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+
+    async def test_no_compensation_while_exposing(self) -> None:
+        initial_filter = "r_03"
+        async with (
+            self.cccamera_controller(initial_filter=initial_filter) as cccamera,
+            self.make_csc(
+                initial_state=salobj.State.ENABLED,
+                override="no_compensation_while_exposing.yaml",
+                simulation_mode=1,
+            ),
+        ):
+            # Start with no shutter state to simulate the condition where
+            # it could not retrieve historical data.
+            await self.assert_initial_compensation_values()
+            compensation_inputs_list = (
+                mthexapod.CompensationInputs(elevation=32, azimuth=44, rotation=-5, temperature=15),
+                mthexapod.CompensationInputs(elevation=65, azimuth=44, rotation=-5, temperature=15),
+                mthexapod.CompensationInputs(elevation=32, azimuth=190, rotation=-5, temperature=15),
+                mthexapod.CompensationInputs(elevation=32, azimuth=44, rotation=20, temperature=15),
+                mthexapod.CompensationInputs(elevation=32, azimuth=44, rotation=-5, temperature=-30),
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
+
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+            await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
+
+            await self.assert_next_application(desired_position=ZERO_POSITION)
+
+            uncompensated_position = mthexapod.Position(500, -300, 200, 0.03, -0.02, 0.03)
+            await self.check_move(
+                uncompensated_position=uncompensated_position,
+                est_move_duration=1,
+            )
+
+            for shutter_detailed_state in (
+                mthexapod.enums.ShutterDetailedState.OPEN,
+                mthexapod.enums.ShutterDetailedState.OPENING,
+                mthexapod.enums.ShutterDetailedState.CLOSING,
+            ):
+                await cccamera.evt_shutterDetailedState.set_write(substate=shutter_detailed_state)
+                update_inputs = False
+                for compensation_inputs in compensation_inputs_list:
+                    with self.subTest(compensation_inputs=compensation_inputs):
+                        with pytest.raises(asyncio.TimeoutError):
+                            self.remote.evt_compensationOffset.flush()
+                            await self.check_compensation(
+                                uncompensated_position=uncompensated_position,
+                                compensation_inputs=compensation_inputs,
+                                update_inputs=update_inputs,
+                            )
+                        update_inputs = True
+
+            await cccamera.evt_shutterDetailedState.set_write(
+                substate=mthexapod.enums.ShutterDetailedState.CLOSED
+            )
+            # should receive the initial compensation since we
+            # started compensation with no filter information
+            # and then immediately opened the shutter.
+            self.assert_next_sample(topic=self.remote.evt_compensationOffset)
+
+            # skip the first compensation because it is too small
+            # compared to the last one.
+            for compensation_inputs in compensation_inputs_list[1:]:
+                with self.subTest(compensation_inputs=compensation_inputs):
+                    self.remote.evt_compensationOffset.flush()
+                    await self.check_compensation(
+                        uncompensated_position=uncompensated_position,
+                        compensation_inputs=compensation_inputs,
+                        update_inputs=update_inputs,
+                    )
+                    update_inputs = True
+
+            # Try finite inputs again; this should work.
+            await self.check_compensation(
+                uncompensated_position=uncompensated_position,
+                compensation_inputs=compensation_inputs_list[-2],
+                update_inputs=True,
+            )
+
+            # Test disabling compensation with setCompensationMode
+            await self.remote.cmd_setCompensationMode.set_start(enable=False, timeout=STD_TIMEOUT)
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
