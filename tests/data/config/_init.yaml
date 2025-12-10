@@ -61,6 +61,7 @@ camera_config:
   step_size_z: 2000.0
   step_size_uv: 0.1
   step_size_w: 0.05
+  apply_compensation_while_exposing: True
   host: 127.0.0.1
   port: 5560
 m2_config:
@@ -118,5 +119,6 @@ m2_config:
   step_size_z: 1000.0
   step_size_uv: 0.05
   step_size_w: 0.025
+  apply_compensation_while_exposing: True
   host: 127.0.0.1
   port: 5550
