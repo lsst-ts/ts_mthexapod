@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/main/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v6
+title: MTHexapod v7
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -167,6 +167,13 @@ definitions:
             required:
               - z_offset
         additionalProperties: false
+      apply_compensation_while_exposing:
+        description: >-
+            Should compensation be applyed while
+            exposing? If False, the CSC will monitor the
+            camera shutter and will skip applying compensation
+            while the shutter is open.
+        type: boolean
       host:
         description: IP address of the TCP/IP interface.
         type: string
@@ -189,6 +196,7 @@ definitions:
       - step_size_z
       - step_size_uv
       - step_size_w
+      - apply_compensation_while_exposing
       - host
       - port
     additionalProperties: false
