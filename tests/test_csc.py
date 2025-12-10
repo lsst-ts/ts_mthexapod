@@ -590,6 +590,17 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 enabled_commands=enabled_commands,
             )
 
+    async def test_bad_configurations(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            simulation_mode=1,
+        ):
+            with pytest.raises(salobj.AckError, match="Configuration error: Missing camera selection."):
+                await self.remote.cmd_start.set_start(
+                    configurationOverride="bad_no_compensation_while_exposing.yaml",
+                    timeout=STD_TIMEOUT,
+                )
+
     async def test_configure_acceleration(self) -> None:
         """Test the configureAcceleration command."""
         async with self.make_csc(initial_state=salobj.State.ENABLED, simulation_mode=1):
