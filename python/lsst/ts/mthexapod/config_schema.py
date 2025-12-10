@@ -30,7 +30,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_mthexapod/blob/main/python/lsst/ts/mthexapod/config_schema.py
-title: MTHexapod v6
+title: MTHexapod v7
 description: Configuration for the MTHexapod CSCs
 
 definitions:
@@ -93,6 +93,10 @@ definitions:
           minItems: 1
           items:
             type: number
+      compensation_while_exposing:
+        description: >-
+          Whether to apply compensation while the camera shutter is open.
+        type: boolean
       min_compensation_adjustment:
         description: >-
           The smallest compensation adjustment the CSC's background compensation

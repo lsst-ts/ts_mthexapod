@@ -275,6 +275,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             include=["target", "elevation", "azimuth"],
         )
         self.mtrotator = salobj.Remote(domain=self.domain, name="MTRotator", include=["target", "rotation"])
+        self.camera = salobj.Remote(
+            self.domain,
+            name="MTCamera",
+            readonly=True,
+            include=[
+                "shutterDetailedState",
+            ],
+        )
 
         # See the ts_config_ocs/ESS
         # 121 and 122 (= 120 + index.value) are defined in
@@ -443,6 +451,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.compensation_interval = config.compensation_interval
         subconfig = types.SimpleNamespace(**getattr(config, self.subconfig_name))
         self.min_compensation_adjustment = np.array(subconfig.min_compensation_adjustment, dtype=float)
+        self.compensation_while_exposing = subconfig.compensation_while_exposing
         self.compensation = compensation.Compensation(
             elevation_rotation_coeffs=subconfig.elevation_rotation_coeffs,
             azimuth_coeffs=subconfig.azimuth_coeffs,
@@ -1558,6 +1567,16 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     else:
                         self.log.debug("Compensation offset too small to apply: %s", delta)
                         return
+
+                self.camera.evt_shutterDetailedState.flush()
+                camera_shutter_detailed_state = await self.camera.evt_shutterDetailedState.aget(
+                    timeout=self.CMD_TIMEOUT
+                )
+                if self.compensation_while_exposing is False and camera_shutter_detailed_state.substate != 1:
+                    self.log.debug(
+                        "Not applying compensation offset %s while camera shutter is closed.", delta
+                    )
+                    return
 
                 self.initial_compensation_offset_applied = True
             # Stop the current motion, if any, and wait for it to stop.

@@ -1,0 +1,1 @@
+Making hexapod compensation configurable to be applied only when the shutter is closed.
