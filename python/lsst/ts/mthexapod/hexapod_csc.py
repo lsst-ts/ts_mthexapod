@@ -281,6 +281,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             readonly=True,
             include=[
                 "shutterDetailedState",
+                "endSetFilter",
             ],
         )
 
@@ -487,33 +488,25 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         self.log.info(f"Starting camera filter monitor for {camera}.")
 
         try:
-            async with salobj.Remote(
-                domain=self.domain,
-                name=camera,
-                readonly=True,
-                include=["endSetFilter"],
-            ) as camera_remote:
-                camera_remote.evt_endSetFilter.flush()
-                try:
-                    end_set_filter = await camera_remote.evt_endSetFilter.aget(timeout=MAXIMUM_STOP_TIME)
-                    current_filter = end_set_filter.filterName
-                    self.log.info(f"Initial camera filter {current_filter}.")
-                    await self.handle_camera_filter(current_filter)
-                except asyncio.TimeoutError:
-                    self.log.warning("No initial camera filter information. Ignoring.")
+            self.camera.evt_endSetFilter.flush()
+            try:
+                end_set_filter = await self.camera.evt_endSetFilter.aget(timeout=MAXIMUM_STOP_TIME)
+                current_filter = end_set_filter.filterName
+                self.log.info(f"Initial camera filter {current_filter}.")
+                await self.handle_camera_filter(current_filter)
+            except asyncio.TimeoutError:
+                self.log.warning("No initial camera filter information. Ignoring.")
 
-                self.log.info("Camera filter monitor loop starting.")
-                while self.disabled_or_enabled:
-                    end_set_filter = await camera_remote.evt_endSetFilter.next(flush=False)
-                    if current_filter != end_set_filter.filterName:
-                        self.log.info(
-                            f"Updating camera filter {current_filter} -> {end_set_filter.filterName}."
-                        )
-                        current_filter = end_set_filter.filterName
-                        await self.handle_camera_filter(current_filter)
-                    else:
-                        self.log.info(f"Already in {current_filter}.")
-                self.log.info("Camera filter monitor ending.")
+            self.log.info("Camera filter monitor loop starting.")
+            while self.disabled_or_enabled:
+                end_set_filter = await self.camera.evt_endSetFilter.next(flush=False)
+                if current_filter != end_set_filter.filterName:
+                    self.log.info(f"Updating camera filter {current_filter} -> {end_set_filter.filterName}.")
+                    current_filter = end_set_filter.filterName
+                    await self.handle_camera_filter(current_filter)
+                else:
+                    self.log.info(f"Already in {current_filter}.")
+            self.log.info("Camera filter monitor ending.")
         except Exception as e:
             self.log.exception("Error in camera filter monitor.")
             async with self.csc_level_fault():
