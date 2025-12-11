@@ -19,7 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["SalIndex", "CommandCode", "SetEnabledSubstateParam"]
+__all__ = [
+    "SalIndex",
+    "CommandCode",
+    "SetEnabledSubstateParam",
+    "ShutterDetailedState",
+]
 
 import enum
 
@@ -53,3 +58,13 @@ class SetEnabledSubstateParam(enum.IntEnum):
     ENABLED_INVALID = 0
     MOVE_POINT_TO_POINT = 1
     STOP = 3
+
+
+# TODO: Replace this with enum from lsst.ts.xml
+class ShutterDetailedState(enum.IntEnum):
+    """Substates for the camer shutter."""
+
+    CLOSED = 1
+    OPEN = 2
+    CLOSING = 3
+    OPENING = 4

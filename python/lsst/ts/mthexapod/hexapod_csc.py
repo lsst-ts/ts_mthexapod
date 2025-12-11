@@ -54,6 +54,11 @@ from . import (
 from .config_schema import CONFIG_SCHEMA
 from .simple_hexapod import SimpleHexapod
 
+try:
+    from lsst.ts.xml.enums.MTCamera import ShutterDetailedState
+except ImportError:
+    from .enums import ShutterDetailedState
+
 # Maximum time to stop axes (seconds).
 # The minimum needed is time to acquire the write lock,
 # issue the command, and wait for motion to stop.
@@ -255,6 +260,9 @@ class HexapodCsc(hexrotcomm.BaseCsc):
 
         self._base_positions = np.array(base_positions).T * utils.UM_TO_M
         self._mirror_positions = np.array(mirror_positions).T * utils.UM_TO_M
+
+        self.apply_compensation_while_exposing = True
+        self.camera_shutter_detailed_state = None
 
         super().__init__(
             name="MTHexapod",
@@ -464,6 +472,25 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             self.camera_filter_monitor_task = asyncio.create_task(
                 self.monitor_camera_filter(subconfig.camera)
             )
+        elif not subconfig.apply_compensation_while_exposing:
+            raise RuntimeError(
+                """Configuration error: Missing camera selection.
+
+This configuration specifies apply_compensation_while_exposing=False.
+This setting requires that the 'camera' parameter be explicitly specified,
+but it is currently missing.
+
+Action Required:
+
+1. Specify a camera in this configuration (e.g., camera=MTCamera).
+
+2. OR Set apply_compensation_while_exposing=True.
+
+3. OR Select a different configuration profile.
+"""
+            )
+
+        self.apply_compensation_while_exposing = subconfig.apply_compensation_while_exposing
 
         self.log.info(f"Enable LUT temperature: {self.enable_lut_temperature}. Configure done.")
 
@@ -482,8 +509,14 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                 domain=self.domain,
                 name=camera,
                 readonly=True,
-                include=["endSetFilter"],
+                include=["endSetFilter", "shutterDetailedState"],
             ) as camera_remote:
+                shutter_detailed_state = camera_remote.evt_shutterDetailedState.get()
+                if shutter_detailed_state is not None:
+                    await self.handle_camera_shutter_detailed_state(shutter_detailed_state)
+                else:
+                    self.log.debug("No initial camera shutter detailed state.")
+                camera_remote.evt_shutterDetailedState.callback = self.handle_camera_shutter_detailed_state
                 camera_remote.evt_endSetFilter.flush()
                 try:
                     end_set_filter = await camera_remote.evt_endSetFilter.aget(timeout=MAXIMUM_STOP_TIME)
@@ -505,6 +538,8 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                     else:
                         self.log.info(f"Already in {current_filter}.")
                 self.log.info("Camera filter monitor ending.")
+                camera_remote.evt_shutterDetailedState.callback = None
+                self.camera_shutter_detailed_state = None
         except Exception as e:
             self.log.exception("Error in camera filter monitor.")
             async with self.csc_level_fault():
@@ -1022,6 +1057,18 @@ class HexapodCsc(hexrotcomm.BaseCsc):
             Camera filter name.
         """
         self.filter_offset = self.get_filter_offset(filter_name)
+
+    async def handle_camera_shutter_detailed_state(
+        self, camera_shutter_detailed_state: salobj.BaseMsgType
+    ) -> None:
+        """Handle the camera shutter detailed state.
+
+        Parameters
+        ----------
+        camera_shutter_detailed_state : `BaseMsgType`
+            The camera shutterDetailedState event payload.
+        """
+        self.camera_shutter_detailed_state = camera_shutter_detailed_state
 
     async def do_offset(self, data: salobj.BaseMsgType) -> None:
         """Move by a specified offset in position and orientation.
@@ -1559,6 +1606,22 @@ class HexapodCsc(hexrotcomm.BaseCsc):
                         self.log.debug("Compensation offset too small to apply: %s", delta)
                         return
 
+                if (
+                    not self.apply_compensation_while_exposing
+                    and self.camera_shutter_detailed_state is not None
+                    and self.camera_shutter_detailed_state.substate != ShutterDetailedState.CLOSED
+                ):
+                    self.log.debug(
+                        "Skipping compensation while camera is exposing. "
+                        "Current shutter detailed state: "
+                        f"{ShutterDetailedState(self.camera_shutter_detailed_state.substate)!r}."
+                    )
+                    return
+                else:
+                    self.log.debug(
+                        f"Applying compensation: {self.apply_compensation_while_exposing=} "
+                        f"{self.camera_shutter_detailed_state=}."
+                    )
                 self.initial_compensation_offset_applied = True
             # Stop the current motion, if any, and wait for it to stop.
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
