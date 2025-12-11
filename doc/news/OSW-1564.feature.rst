@@ -1,1 +1,0 @@
-Added a configurable feature to prevent the hexapod from applying compensation when the camera is exposing.

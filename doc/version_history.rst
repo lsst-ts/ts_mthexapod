@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v1.8.0 (2025-12-10)
+===================
+
+New Features
+------------
+
+- Added a configurable feature to prevent the hexapod from applying compensation when the camera is exposing. (`OSW-1564 <https://rubinobs.atlassian.net//browse/OSW-1564>`_)
+
+
 v1.7.0 (2025-12-09)
 ===================
 
