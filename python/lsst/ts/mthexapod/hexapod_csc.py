@@ -1809,10 +1809,12 @@ Action Required:
         """
 
         cmd1 = self._make_position_set_command(position)
+
+        # In the low-level controller, synchronous: 0, asynchronous: 1
         cmd2 = self.make_command(
             code=enums.CommandCode.SET_ENABLED_SUBSTATE,
             param1=enums.SetEnabledSubstateParam.MOVE_POINT_TO_POINT,
-            param2=int(sync),
+            param2=(0 if sync else 1),
         )
         # Need to wait some time between two commands for the Simulink
         # model to transition the state correctly with the appropriate
