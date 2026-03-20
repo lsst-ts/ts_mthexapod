@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v1.8.1 (2026-03-20)
+===================
+
+Bug Fixes
+---------
+
+- Fix the synchronous movement parameter. (`OSW-2014 <https://rubinobs.atlassian.net//browse/OSW-2014>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Support the documenteer.toml. (`OSW-1459 <https://rubinobs.atlassian.net//browse/OSW-1459>`_)
+
+
 v1.8.0 (2025-12-10)
 ===================
 
