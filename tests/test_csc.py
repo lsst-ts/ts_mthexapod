@@ -1441,7 +1441,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # Do not test the controllerState event because it is
             # uncertain how many transitions will have occurred.
 
-    async def test_filter_offset(self) -> None:
+    async def test_filter_offset_normal(self) -> None:
         initial_filter = "r_03"
 
         async with (
@@ -1514,6 +1514,17 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                     )
                     compensated_position_initial_filter.position[2] -= filter_offset[filter_name]["z_offset"]
 
+    async def test_filter_offset_no_filter(self) -> None:
+        initial_filter = "r_03"
+
+        async with (
+            self.cccamera_controller(initial_filter=initial_filter) as cccamera,
+            self.make_csc(
+                initial_state=salobj.State.ENABLED,
+                override="with_filter_offset.yaml",
+                simulation_mode=1,
+            ),
+        ):
             # Send a filter that is not in the list and check CSC goes to Fault
             self.remote.evt_summaryState.flush()
             await cccamera.evt_endSetFilter.set_write(filterName="NotAFilter")
@@ -1528,9 +1539,6 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await cccamera.evt_endSetFilter.set_write(filterName=initial_filter)
 
             self.remote.evt_controllerState.flush()
-            self.remote.evt_compensationOffset.flush()
-            self.remote.evt_compensatedPosition.flush()
-            self.remote.evt_uncompensatedPosition.flush()
 
             await salobj.set_summary_state(
                 self.remote,
@@ -1538,8 +1546,12 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 override="with_filter_offset.yaml",
             )
 
-            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+            compensation_inputs = mthexapod.CompensationInputs(
+                elevation=32, azimuth=44, rotation=-5, temperature=15
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs))
 
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_initial_compensation_values()
 
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
@@ -1560,6 +1572,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
                 compensation_inputs=compensation_inputs,
                 update_inputs=update_inputs,
             )
+
+            with open(TEST_CONFIG_DIR / "with_filter_offset.yaml") as fp:
+                with_filter_offset_config = yaml.safe_load(fp.read())
+                filter_offset = with_filter_offset_config["camera_config"]["filter_offsets"]
 
             # now test with the other available filters
             compensated_position_initial_filter = await self.remote.tel_application.next(
