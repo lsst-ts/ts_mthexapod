@@ -1,1 +1,0 @@
-Separate the test_filter_offset() to test_filter_offset_normal() and test_filter_offset_no_filter().

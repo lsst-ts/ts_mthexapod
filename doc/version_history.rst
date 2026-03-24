@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v1.8.2 (2026-03-24)
+===================
+
+Bug Fixes
+---------
+
+- Separate the test_filter_offset() to test_filter_offset_normal() and test_filter_offset_no_filter(). (`OSW-2039 <https://rubinobs.atlassian.net//browse/OSW-2039>`_)
+
+
 v1.8.1 (2026-03-20)
 ===================
 
