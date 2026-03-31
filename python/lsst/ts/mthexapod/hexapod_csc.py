@@ -1180,7 +1180,9 @@ Action Required:
         """Context manager to handle CSC level fault."""
         try:
             await self.stop_motion()
-        except Exception:
+        # self.stop_motion() might raise the asyncio.CancelledError, which is
+        # a subclass of BaseException instead of Exception from Python 3.8.
+        except (Exception, asyncio.CancelledError):
             self.log.exception("Stop motion failed while handling csc level fault. Continuing.")
 
         try:
