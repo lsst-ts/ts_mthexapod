@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v1.8.3 (2026-03-31)
+===================
+
+Bug Fixes
+---------
+
+- Improve the HexapodCsc.csc_level_fault() and HexapodCsc._move() to handle the asyncio.CancelledError. (`OSW-2092 <https://rubinobs.atlassian.net//browse/OSW-2092>`_)
+
+
 v1.8.2 (2026-03-24)
 ===================
 
