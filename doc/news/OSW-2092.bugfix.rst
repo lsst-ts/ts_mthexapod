@@ -1,1 +1,0 @@
-Improve the HexapodCsc.csc_level_fault() to handle the asyncio.CancelledError.
