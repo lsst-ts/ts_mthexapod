@@ -1659,7 +1659,9 @@ Action Required:
                     temperature=compensation_info.compensation_inputs.temperature,
                     **vars(compensation_info.compensation_offset),
                 )
-        except Exception:
+        # self.stop_motion() might raise the asyncio.CancelledError, which is
+        # a subclass of BaseException instead of Exception from Python 3.8.
+        except (Exception, asyncio.CancelledError):
             # This move failed; restart the compensation loop anyway,
             # if it is wanted.
             if self.compensation_mode and not is_compensation_loop:
