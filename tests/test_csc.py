@@ -98,6 +98,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             # self.mtrotator_controller = mtrotator_controller
             # self.ess_temperature_controller = ess_temperature_controller
             yield
+            try:
+                await salobj.set_summary_state(self.remote, salobj.State.STANDBY)
+            except Exception:
+                pass
 
     async def assert_next_application(self, desired_position: mthexapod.Position) -> None:
         """Wait for and check the next application telemetry.
@@ -1654,6 +1658,95 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             await asyncio.sleep(2.0)
 
             assert self.csc.idle_time_monitor_task.done() is True
+
+    async def test_compensation_after_drives_idle(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            await self.assert_initial_compensation_values()
+
+            compensation_inputs_list = (
+                mthexapod.CompensationInputs(elevation=32, azimuth=44, rotation=-5, temperature=15),
+                mthexapod.CompensationInputs(elevation=65, azimuth=44, rotation=-5, temperature=15),
+                mthexapod.CompensationInputs(elevation=32, azimuth=190, rotation=-5, temperature=15),
+                mthexapod.CompensationInputs(elevation=32, azimuth=44, rotation=20, temperature=15),
+                mthexapod.CompensationInputs(elevation=32, azimuth=44, rotation=-5, temperature=-30),
+            )
+            await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
+
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+            await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
+
+            uncompensated_position = mthexapod.Position(500, -300, 200, 0.03, -0.02, 0.03)
+            await self.check_move(
+                uncompensated_position=uncompensated_position,
+                est_move_duration=1,
+            )
+
+            update_inputs = False
+            for compensation_inputs in compensation_inputs_list:
+                with self.subTest(compensation_inputs=compensation_inputs):
+                    await self.check_compensation(
+                        uncompensated_position=uncompensated_position,
+                        compensation_inputs=compensation_inputs,
+                        update_inputs=update_inputs,
+                    )
+                    update_inputs = True
+
+            # Try finite inputs again; this should work.
+            await self.check_compensation(
+                uncompensated_position=uncompensated_position,
+                compensation_inputs=compensation_inputs_list[-2],
+                update_inputs=True,
+            )
+
+            # Wait for controller to idle
+            self.remote.evt_controllerState.flush()
+
+            # Task should be running
+            assert self.csc.idle_time_monitor_task.done() is False
+
+            while True:
+                try:
+                    controller_state = await self.assert_next_sample(
+                        topic=self.remote.evt_controllerState,
+                        timeout=1,
+                    )
+                    print(
+                        f"{ControllerState(controller_state.controllerState)!r} "
+                        f"{EnabledSubstate(controller_state.enabledSubstate)!r}"
+                    )
+                except asyncio.TimeoutError:
+                    break
+
+            # Controller should be put into idle after timeout
+            self.csc.config.camera_config["no_movement_idle_time"] = 9.0
+            await asyncio.sleep(self.csc.config.camera_config["no_movement_idle_time"] + 1)
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_controllerState,
+                controllerState=ControllerState.STANDBY,
+                enabledSubstate=EnabledSubstate.STATIONARY,
+            )
+
+            # compensation should wake up the controller and be applied
+            update_inputs = True
+            for compensation_inputs in compensation_inputs_list:
+                with self.subTest(compensation_inputs=compensation_inputs):
+                    await self.check_compensation(
+                        uncompensated_position=uncompensated_position,
+                        compensation_inputs=compensation_inputs,
+                        update_inputs=update_inputs,
+                    )
+                    if update_inputs:
+                        await self.assert_next_sample(
+                            topic=self.remote.evt_controllerState,
+                            controllerState=ControllerState.ENABLED,
+                        )
+                    update_inputs = True
 
     async def test_apply_compensation_while_exposing(self) -> None:
         initial_filter = "r_03"
