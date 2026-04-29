@@ -1,0 +1,1 @@
+Mitigated a race condition that could erroneously re-enable the controller if a compensation move was triggered while transitioning to standby.

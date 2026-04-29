@@ -1,0 +1,1 @@
+Cleaned up log messages in 'idle_timer_monitor' and performed cosmetic updates to the controller enablement logic in '_move'.
