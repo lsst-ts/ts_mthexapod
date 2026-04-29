@@ -1522,6 +1522,7 @@ Action Required:
             self.telemetry_event.clear()
             await self.telemetry_event.wait()
             if self.client.telemetry.state != ControllerState.ENABLED:
+                self.log.warning("Controller no longer enabled; cancelling wait.")
                 raise asyncio.CancelledError()
             if self.client.telemetry.enabled_substate == EnabledSubstate.STATIONARY:
                 n_telemetry_stopped += 1
