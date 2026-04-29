@@ -1586,9 +1586,9 @@ Action Required:
             # Enabled state without the movement after the timeout by the
             # self.idle_time_monitor().
             if self.client.telemetry.state != ControllerState.ENABLED:
+                self.log.info("Re-enable controller from idle.")
                 await self.enable_controller()
-
-                self.log.info("Re-enable the controller from the idle.")
+                self.log.debug("Controller enabled.")
 
             compensation_info = self.compute_compensation(uncompensated_pos)
 
