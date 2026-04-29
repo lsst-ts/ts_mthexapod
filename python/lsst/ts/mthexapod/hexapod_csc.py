@@ -204,6 +204,7 @@ class HexapodCsc(hexrotcomm.BaseCsc):
         # Task to monitor the hexapod is in idle or not under the enabled
         # state.
         self.idle_time_monitor_task = make_done_future()
+        self._controller_idle = False
 
         # Record missing compensation inputs we have warned about,
         # to avoid duplicate warnings.
@@ -565,7 +566,15 @@ Action Required:
 
         while self.summary_state == salobj.State.ENABLED:
             try:
-                await self.compensation_wait()
+                try:
+                    await self.compensation_wait()
+                except asyncio.CancelledError:
+                    if self._controller_idle:
+                        self.log.debug("Compensation wait cancelled due to idling controller; continuing...")
+                        await asyncio.sleep(self.compensation_interval)
+                    else:
+                        self.log.info("Compensation cancelled but controller not idle; stopping")
+                        raise
                 self.log.debug("Apply compensation")
                 uncompensated_pos = self._get_uncompensated_position()
                 await self._move(
@@ -1229,6 +1238,7 @@ Action Required:
             )
 
         if self.summary_state == salobj.State.ENABLED:
+            self._controller_idle = False
             self.idle_time_monitor_task = asyncio.create_task(self.idle_time_monitor())
             self.initial_compensation_offset_applied = False
 
@@ -1265,6 +1275,12 @@ Action Required:
                         f"idle time {self.no_movement_idle_time}s; "
                         "standby controller."
                     )
+                    # Note that we mark controller idle as true here
+                    # before standing by the controller on purpose.
+                    # This helps avoid a race condition where the controller
+                    # transitions to standby and there is a cancellation error
+                    # issued by the wait_stopped method while still handling
+                    # the standing by.
                     self._controller_idle = True
                     await self.standby_controller()
                     self.log.debug("Controller in standby...")
@@ -1272,6 +1288,7 @@ Action Required:
                 count = 0
 
         # Reset the idle time when not monitoring
+        self._controller_idle = False
         await self._update_idle_time(0.0)
 
         self.log.info("End the task to monitor the idle time under the enabled state.")
@@ -1587,7 +1604,14 @@ Action Required:
             # self.idle_time_monitor().
             if self.client.telemetry.state != ControllerState.ENABLED:
                 self.log.info("Re-enable controller from idle.")
+                # Here we set controller idle flag after enabling
+                # the controller on purpose, again to avoid a race condition
+                # where there is still controller standby being handled by
+                # the compensation loop. This guarantees it continues to handle
+                # the condition correctly until after the controller is
+                # enabled.
                 await self.enable_controller()
+                self._controller_idle = False
                 self.log.debug("Controller enabled.")
 
             compensation_info = self.compute_compensation(uncompensated_pos)
