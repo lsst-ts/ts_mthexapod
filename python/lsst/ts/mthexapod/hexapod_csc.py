@@ -1260,9 +1260,14 @@ Action Required:
                 await self._update_idle_time(count * period)
 
                 if self._idle_time_in_enabled_state >= self.no_movement_idle_time:
+                    self.log.info(
+                        f"Controller idle for {self._idle_time_in_enabled_state}s, "
+                        f"idle time {self.no_movement_idle_time}s; "
+                        "standby controller."
+                    )
+                    self._controller_idle = True
                     await self.standby_controller()
-
-                    self.log.info("Standby the controller after the timeout of no movement when enabled.")
+                    self.log.debug("Controller in standby...")
 
                 count = 0
 
