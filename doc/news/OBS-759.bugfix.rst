@@ -1,1 +1,0 @@
-Fixed a race condition in the hexapod compensation loop where a controller transition to idle would cause a silent, unrecoverable failure via an unhandled CancellationError.
