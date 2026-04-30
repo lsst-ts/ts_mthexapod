@@ -1598,22 +1598,6 @@ Action Required:
             you want to do the movement in a single step. (the default is 0.0)
         """
         try:
-            # Enable the controller state first if it is not. Note that it
-            # might be put into the Standby state when the CSC is under the
-            # Enabled state without the movement after the timeout by the
-            # self.idle_time_monitor().
-            if self.client.telemetry.state != ControllerState.ENABLED:
-                self.log.info("Re-enable controller from idle.")
-                # Here we set controller idle flag after enabling
-                # the controller on purpose, again to avoid a race condition
-                # where there is still controller standby being handled by
-                # the compensation loop. This guarantees it continues to handle
-                # the condition correctly until after the controller is
-                # enabled.
-                await self.enable_controller()
-                self._controller_idle = False
-                self.log.debug("Controller enabled.")
-
             compensation_info = self.compute_compensation(uncompensated_pos)
 
             if is_compensation_loop:
@@ -1655,6 +1639,25 @@ Action Required:
                         f"{self.camera_shutter_detailed_state=}."
                     )
                 self.initial_compensation_offset_applied = True
+
+            # If we get here it means there is a compensation motion to be
+            # applied.
+            # Enable the controller state first if it is not. Note that it
+            # might be put into the Standby state when the CSC is under the
+            # Enabled state without the movement after the timeout by the
+            # self.idle_time_monitor().
+            if self.client.telemetry.state != ControllerState.ENABLED:
+                self.log.info("Re-enable controller from idle.")
+                # Here we set controller idle flag after enabling
+                # the controller on purpose, again to avoid a race condition
+                # where there is still controller standby being handled by
+                # the compensation loop. This guarantees it continues to handle
+                # the condition correctly until after the controller is
+                # enabled.
+                await self.enable_controller()
+                self._controller_idle = False
+                self.log.debug("Controller enabled.")
+
             # Stop the current motion, if any, and wait for it to stop.
             await asyncio.wait_for(self.stop_motion(), timeout=MAXIMUM_STOP_TIME)
 
