@@ -8,6 +8,24 @@ Version History
 
 .. towncrier release notes start
 
+v1.8.4 (2026-04-30)
+===================
+
+Bug Fixes
+---------
+
+- Fixed a race condition in the hexapod compensation loop where a controller transition to idle would cause a silent, unrecoverable failure via an unhandled CancellationError. (`OBS-759 <https://rubinobs.atlassian.net//browse/OBS-759>`_)
+- Mitigated a race condition that could erroneously re-enable the controller if a compensation move was triggered while transitioning to standby. (`OBS-759 <https://rubinobs.atlassian.net//browse/OBS-759>`_)
+- Improved error handling in 'wait_stop' by adding descriptive warnings before raising CancelledError when the controller is not enabled. (`OBS-759 <https://rubinobs.atlassian.net//browse/OBS-759>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Added unit tests to verify that the compensation mechanism remains functional and recoverable after the drivers are transitioned to an idle state. (`OBS-759 <https://rubinobs.atlassian.net//browse/OBS-759>`_)
+- Cleaned up log messages in 'idle_timer_monitor' and performed cosmetic updates to the controller enablement logic in '_move'. (`OBS-759 <https://rubinobs.atlassian.net//browse/OBS-759>`_)
+
+
 v1.8.3 (2026-03-31)
 ===================
 
