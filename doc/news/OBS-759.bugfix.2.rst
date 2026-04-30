@@ -1,0 +1,1 @@
+Improved error handling in 'wait_stop' by adding descriptive warnings before raising CancelledError when the controller is not enabled.

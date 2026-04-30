@@ -1,0 +1,1 @@
+Added unit tests to verify that the compensation mechanism remains functional and recoverable after the drivers are transitioned to an idle state.
