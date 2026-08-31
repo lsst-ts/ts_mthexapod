@@ -854,17 +854,16 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         ):
             assert self.csc._get_mount_elevation_azimuth(None, None, None) is None
 
-            # Use the telemetry data
-            await self.mtmount_controller.tel_elevation.set_write(actualPosition=0.1)
-            await self.csc.mtmount.tel_elevation.next(flush=True, timeout=STD_TIMEOUT)
+            data_elevation = self.csc.mtmount.tel_elevation.DataType
+            data_elevation.actualPosition = 0.1
 
-            await self.mtmount_controller.tel_azimuth.set_write(actualPosition=0.2)
-            await self.csc.mtmount.tel_azimuth.next(flush=True, timeout=STD_TIMEOUT)
+            data_azimuth = self.csc.mtmount.tel_azimuth.DataType
+            data_azimuth.actualPosition = 0.2
 
             assert self.csc._get_mount_elevation_azimuth(
                 None,
-                self.csc.mtmount.tel_elevation.get(),
-                self.csc.mtmount.tel_azimuth.get(),
+                data_elevation,
+                data_azimuth,
             ) == (0.1, 0.2)
 
     async def test_get_rotator_position_use_telemetry(self) -> None:
@@ -875,11 +874,10 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
         ):
             assert self.csc._get_rotator_position(None, None) is None
 
-            # Use the telemetry data
-            await self.mtrotator_controller.tel_rotation.set_write(actualPosition=0.4)
-            await self.csc.mtrotator.tel_rotation.next(flush=True, timeout=STD_TIMEOUT)
+            data_rotation = self.csc.mtrotator.tel_rotation.DataType
+            data_rotation.actualPosition = 0.4
 
-            assert self.csc._get_rotator_position(None, self.csc.mtrotator.tel_rotation.get()) == 0.4
+            assert self.csc._get_rotator_position(None, data_rotation) == 0.4
 
     async def test_get_temperature_use_telemetry(self) -> None:
         async with self.make_csc(
