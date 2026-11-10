@@ -1,0 +1,1 @@
+Publish the compensationMode event with force output when the CSC does the state transition except the Enabled state, and remove the redundant event.

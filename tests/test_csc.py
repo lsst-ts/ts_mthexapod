@@ -1074,6 +1074,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
 
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
@@ -1142,6 +1144,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             simulation_mode=1,
         ):
             await self.assert_initial_compensation_values()
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
@@ -1300,6 +1304,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
 
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
@@ -1459,6 +1465,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs))
 
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_initial_compensation_values()
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
@@ -1553,7 +1561,7 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs))
 
-            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+            self.remote.evt_compensationMode.flush()
             await self.assert_initial_compensation_values()
 
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
@@ -1674,6 +1682,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
 
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
@@ -1766,6 +1776,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
 
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
@@ -1823,6 +1835,8 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
             )
             await self.set_compensation_inputs(**vars(compensation_inputs_list[0]))
 
+            # One from the Standby state and one from the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
             await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
@@ -1882,4 +1896,36 @@ class TestHexapodCsc(hexrotcomm.BaseCscTestCase, unittest.IsolatedAsyncioTestCas
 
             # Test disabling compensation with setCompensationMode
             await self.remote.cmd_setCompensationMode.set_start(enable=False, timeout=STD_TIMEOUT)
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+
+    async def test_compensation_mode_event_after_fault(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            override="",
+            simulation_mode=1,
+        ):
+            # Published in the Standby state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+
+            # Published in the Disabled state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+
+            # Turn on the compensation mode and the related event should be
+            # True.
+            await self.remote.cmd_setCompensationMode.set_start(enable=True, timeout=STD_TIMEOUT)
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=True)
+
+            assert self.csc.compensation_loop_task.done() is False
+            assert self.csc.compensation_loop_task.cancelled() is False
+
+            await self.csc.fault(code=99, report="test")
+
+            # Published in the Fault state
+            await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)
+
+            assert self.csc.compensation_loop_task.done() is True
+            assert self.csc.compensation_loop_task.cancelled() is True
+
+            # Clear the error and should see the new event in the Standby state
+            await self.remote.cmd_standby.set_start(timeout=STD_TIMEOUT)
             await self.assert_next_sample(topic=self.remote.evt_compensationMode, enabled=False)

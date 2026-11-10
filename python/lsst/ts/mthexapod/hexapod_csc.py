@@ -1221,7 +1221,7 @@ Action Required:
                 self.move_task.cancel()
                 self.compensation_loop_task.cancel()
             self.idle_time_monitor_task.cancel()
-            await self.evt_compensationMode.set_write(enabled=False)
+            await self.evt_compensationMode.set_write(enabled=False, force_output=True)
             names = base.Position.field_names()
             await self.evt_compensationOffset.set_write(
                 elevation=math.nan,
@@ -1312,7 +1312,6 @@ Action Required:
     async def start(self) -> None:
         await super().start()
         await asyncio.gather(self.mtmount.start_task, self.mtrotator.start_task)
-        await self.evt_compensationMode.set_write(enabled=False)
 
     async def telemetry_callback(self, client: hexrotcomm.CommandTelemetryClient) -> None:
         """Called when the low-level controller outputs telemetry.
