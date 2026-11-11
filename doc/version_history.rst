@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v1.8.6 (2026-11-10)
+===================
+
+Bug Fixes
+---------
+
+- Publish the compensationMode event with force output when the CSC does the state transition except the Enabled state, and remove the redundant event. (`SSW-3171 <https://rubinobs.atlassian.net//browse/SSW-3171>`_)
+
+
 v1.8.5 (2026-10-05)
 ===================
 
